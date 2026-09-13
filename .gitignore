@@ -1,0 +1,10 @@
+credentials.json
+token.json
+config.json
+*.zip
+build/
+dist/
+release/
+__pycache__/
+*.py[cod]
+.venv/
