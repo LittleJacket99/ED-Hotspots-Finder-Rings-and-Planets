@@ -32,6 +32,8 @@ echo [4/5] Building Windows executable...
 py -3.10 -m PyInstaller --noconfirm --clean HotspotsFinder.spec
 if errorlevel 1 goto :fail
 if not exist "dist\ED Hotspots & Landables Finder.exe" goto :fail
+py -3.10 verify_windows_build.py
+if errorlevel 1 goto :fail
 
 echo.
 echo [5/5] Packaging Windows release...
@@ -39,7 +41,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0package_release.ps1"
 if errorlevel 1 goto :fail
 
 echo.
-echo Release ZIP: release\HotspotsFinder-v7.11-Windows.zip
+echo Release ZIP: release\ED-Hotspots-Landables-Finder-v7.11-Windows.zip
 echo The EXE includes your Desktop OAuth credentials and logo.
 echo.
 pause
