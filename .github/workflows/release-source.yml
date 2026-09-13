@@ -1,0 +1,40 @@
+name: Publish source release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/release-source.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-source-v7.11
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_TAG: v7.11
+    steps:
+      - name: Publish v7.11 source release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; leaving it unchanged."
+            exit 0
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/contents/RELEASE_NOTES.md?ref=$GITHUB_SHA" \
+            --jq '.content' | base64 --decode > "$RUNNER_TEMP/release-notes.md"
+          test -s "$RUNNER_TEMP/release-notes.md"
+          gh release create "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "v7.11 - Hotspots & Landables Finder" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"
