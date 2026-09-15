@@ -8,6 +8,9 @@ from hotspots_finder_gui_v8_columnfilters import FinderV8ColumnFiltersApp
 from hotspots_finder_gui_v8 import COLORS
 
 
+DISTANCE_COLUMN = "Distance (LY)"
+
+
 class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
     def __init__(self):
         super().__init__()
@@ -17,6 +20,11 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
     def _build_ui(self):
         self.reference_system_var = tk.StringVar(master=self, value="")
         self.max_distance_var = tk.StringVar(master=self, value="50")
+        self._distance_sort_state = {
+            "hotspots": None,
+            "planets": None,
+            "community": None,
+        }
         super()._build_ui()
 
     def _build_filters(self, parent):
@@ -121,6 +129,125 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
         self.power_var.set("")
         self.reference_system_var.set("")
         self.max_distance_var.set("50")
+
+    @staticmethod
+    def _move_distance_before_system(headers):
+        headers = list(headers or [])
+        if DISTANCE_COLUMN not in headers:
+            return headers
+
+        headers.remove(DISTANCE_COLUMN)
+        try:
+            system_index = headers.index("System")
+        except ValueError:
+            headers.insert(0, DISTANCE_COLUMN)
+        else:
+            headers.insert(system_index, DISTANCE_COLUMN)
+        return headers
+
+    def _scan_complete(self, result):
+        # Keep Distance immediately before System in all result tabs.
+        mapped = dict(result)
+        for key in (
+            "hotspot_headers",
+            "planet_headers",
+            "community_headers",
+        ):
+            mapped[key] = self._move_distance_before_system(
+                result.get(key, [])
+            )
+
+        super()._scan_complete(mapped)
+
+    def _set_filter_dataset(self, table, headers, rows):
+        # A new result set that contains distances starts nearest-first.
+        if DISTANCE_COLUMN in list(headers or []):
+            self._distance_sort_state[table] = "asc"
+        else:
+            self._distance_sort_state[table] = None
+        super()._set_filter_dataset(table, headers, rows)
+
+    @staticmethod
+    def _numeric_distance(row):
+        value = row.get(DISTANCE_COLUMN, "")
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _sort_rows_by_distance(self, table, rows):
+        direction = self._distance_sort_state.get(table)
+        if direction not in ("asc", "desc"):
+            return rows
+
+        with_distance = []
+        without_distance = []
+        for row in rows:
+            distance = self._numeric_distance(row)
+            if distance is None:
+                without_distance.append(row)
+            else:
+                with_distance.append((distance, row))
+
+        with_distance.sort(
+            key=lambda item: item[0],
+            reverse=(direction == "desc"),
+        )
+        return [row for _distance, row in with_distance] + without_distance
+
+    def _render_filtered_table(self, table):
+        tree = self._table_trees[table]
+        rows = [
+            row for row in self._column_filter_rows.get(table, [])
+            if self._row_matches(table, row)
+        ]
+        rows = self._sort_rows_by_distance(table, rows)
+
+        if table == "hotspots":
+            display_rows = self._compact_hotspot_rows(rows)
+        elif table == "planets":
+            display_rows = self._compact_planet_rows(rows)
+        else:
+            display_rows = rows
+
+        self._populate_tree(
+            tree,
+            self._column_filter_headers.get(table, []),
+            display_rows,
+        )
+        self._configure_filter_headings(table)
+
+    def _configure_filter_headings(self, table):
+        super()._configure_filter_headings(table)
+
+        headers = self._column_filter_headers.get(table, [])
+        if DISTANCE_COLUMN not in headers:
+            return
+
+        direction = self._distance_sort_state.get(table) or "asc"
+        marker = " ▲" if direction == "asc" else " ▼"
+        tree = self._table_trees[table]
+        tree.heading(
+            DISTANCE_COLUMN,
+            text=DISTANCE_COLUMN + marker,
+            command=lambda t=table: self._toggle_distance_sort(t),
+        )
+
+    def _toggle_distance_sort(self, table):
+        current = self._distance_sort_state.get(table)
+        self._distance_sort_state[table] = (
+            "desc" if current == "asc" else "asc"
+        )
+        self._render_filtered_table(table)
+
+    def _autosize_single_column(self, tree, column, rows=None):
+        super()._autosize_single_column(tree, column, rows=rows)
+        if column == DISTANCE_COLUMN:
+            try:
+                current_width = int(tree.column(column, "width"))
+                tree.column(column, width=current_width + 18)
+            except (tk.TclError, TypeError, ValueError):
+                pass
 
     def _build_results(self, parent):
         super()._build_results(parent)
