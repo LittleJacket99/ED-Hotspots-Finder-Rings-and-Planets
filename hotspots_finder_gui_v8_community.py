@@ -9,9 +9,10 @@ finished.
 
 import threading
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
 
 import community_deposits
+import results_export
 import rhinospotter_sync_service
 from hotspots_finder_gui_v8 import APP_TITLE, COLORS, FinderV8App
 
@@ -136,6 +137,40 @@ class FinderV8CommunityApp(FinderV8App):
 
         self.community_tree = self._make_tree(self.community_tab)
 
+        export_bar = tk.Frame(parent, bg=COLORS["panel"])
+        export_bar.pack(fill="x", padx=12, pady=(0, 12))
+
+        tk.Label(
+            export_bar,
+            text="Export current tab:",
+            bg=COLORS["panel"],
+            fg=COLORS["muted"],
+        ).pack(side="left", padx=(0, 7))
+
+        tk.Button(
+            export_bar,
+            text="CSV",
+            command=self.export_current_csv,
+            bg="#3a4148",
+            fg=COLORS["text"],
+            activebackground="#46515c",
+            activeforeground=COLORS["text"],
+            relief="flat",
+            padx=12,
+        ).pack(side="left", padx=(0, 6))
+
+        tk.Button(
+            export_bar,
+            text="XLSX",
+            command=self.export_current_xlsx,
+            bg="#3a4148",
+            fg=COLORS["text"],
+            activebackground="#46515c",
+            activeforeground=COLORS["text"],
+            relief="flat",
+            padx=12,
+        ).pack(side="left")
+
     def _collect_config(self):
         config = super()._collect_config()
         config["community_deposits_enabled"] = self.community_deposits_enabled.get()
@@ -224,6 +259,106 @@ class FinderV8CommunityApp(FinderV8App):
             self.community_tree,
             self.community_all_headers,
             rows,
+        )
+
+    def _current_export_source(self):
+        selected = self.notebook.select()
+
+        if selected == str(self.hotspot_tab):
+            return "Hotspots", self.hotspot_tree
+        if selected == str(self.planet_tab):
+            return "Planets", self.planet_tree
+        if selected == str(self.community_tab):
+            return "Community Deposits", self.community_tree
+
+        return "Results", None
+
+    def _visible_tree_data(self, tree):
+        if tree is None:
+            return [], []
+
+        headers = list(tree["columns"])
+        rows = [
+            [tree.set(iid, header) for header in headers]
+            for iid in tree.get_children("")
+        ]
+        return headers, rows
+
+    def export_current_csv(self):
+        label, tree = self._current_export_source()
+        headers, rows = self._visible_tree_data(tree)
+
+        if not headers or not rows:
+            messagebox.showwarning(
+                APP_TITLE,
+                f"There are no visible {label} results to export.",
+                parent=self,
+            )
+            return
+
+        initial_name = label.lower().replace(" ", "_") + ".csv"
+        path = filedialog.asksaveasfilename(
+            parent=self,
+            title=f"Export {label} as CSV",
+            defaultextension=".csv",
+            initialfile=initial_name,
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+        )
+        if not path:
+            return
+
+        try:
+            results_export.write_csv(path, headers, rows)
+        except Exception as exc:
+            messagebox.showerror(APP_TITLE, str(exc), parent=self)
+            return
+
+        self.status_var.set(f"Exported {len(rows)} rows to CSV")
+        messagebox.showinfo(
+            APP_TITLE,
+            f"Exported {len(rows)} visible rows from {label}.\n\n{path}",
+            parent=self,
+        )
+
+    def export_current_xlsx(self):
+        label, tree = self._current_export_source()
+        headers, rows = self._visible_tree_data(tree)
+
+        if not headers or not rows:
+            messagebox.showwarning(
+                APP_TITLE,
+                f"There are no visible {label} results to export.",
+                parent=self,
+            )
+            return
+
+        initial_name = label.lower().replace(" ", "_") + ".xlsx"
+        path = filedialog.asksaveasfilename(
+            parent=self,
+            title=f"Export {label} as XLSX",
+            defaultextension=".xlsx",
+            initialfile=initial_name,
+            filetypes=[("Excel workbooks", "*.xlsx"), ("All files", "*.*")],
+        )
+        if not path:
+            return
+
+        try:
+            results_export.write_xlsx(
+                path,
+                headers,
+                rows,
+                sheet_name=label,
+            )
+        except Exception as exc:
+            messagebox.showerror(APP_TITLE, str(exc), parent=self)
+            return
+
+        self.status_var.set(f"Exported {len(rows)} rows to XLSX")
+        messagebox.showinfo(
+            APP_TITLE,
+            f"Exported {len(rows)} visible rows from {label}.\n\n{path}",
+            parent=self,
         )
 
     def start_rhino_upload(self):
