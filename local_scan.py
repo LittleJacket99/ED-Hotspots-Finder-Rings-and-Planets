@@ -6,6 +6,7 @@ This module contains no Google Sheets calls and uses the dedicated v8
 Google-free Finder engine.
 """
 
+import community_deposits
 import finder_engine as engine
 
 
@@ -69,6 +70,14 @@ def normalize_config(config):
     return normalized
 
 
+def _nothing_enabled(config):
+    return (
+        not config["hotspots_enabled"]
+        and not config["planets_enabled"]
+        and not config["community_deposits_enabled"]
+    )
+
+
 def run_local_scan(config, cancel_event=None):
     """Run the Finder logic and return data directly to the GUI."""
 
@@ -84,9 +93,7 @@ def run_local_scan(config, cancel_event=None):
         if enabled
     ]
 
-    effective_power_states = (
-        selected_power_states if power_name else []
-    )
+    effective_power_states = selected_power_states if power_name else []
 
     if faction_name or power_name:
         systems = engine.search_systems_by_filters(
@@ -105,6 +112,7 @@ def run_local_scan(config, cancel_event=None):
                 "systems": [],
                 "hotspot_rows": [],
                 "planet_rows": [],
+                "community_rows": [],
                 "summary": {
                     "status": "NO_SYSTEMS_MATCHING_FILTERS",
                     "systems_found": 0,
@@ -113,18 +121,19 @@ def run_local_scan(config, cancel_event=None):
                     "power_state_filters": effective_power_states,
                     "hotspots_enabled": config["hotspots_enabled"],
                     "planets_enabled": config["planets_enabled"],
+                    "community_deposits_enabled": config[
+                        "community_deposits_enabled"
+                    ],
                 },
             }
 
-        if (
-            not config["hotspots_enabled"]
-            and not config["planets_enabled"]
-        ):
+        if _nothing_enabled(config):
             return {
                 "status": "SYSTEM_LIST_UPDATED",
                 "systems": systems,
                 "hotspot_rows": [],
                 "planet_rows": [],
+                "community_rows": [],
                 "summary": {
                     "status": "SYSTEM_LIST_UPDATED",
                     "systems_found": len(systems),
@@ -133,6 +142,7 @@ def run_local_scan(config, cancel_event=None):
                     "power_state_filters": effective_power_states,
                     "hotspots_enabled": False,
                     "planets_enabled": False,
+                    "community_deposits_enabled": False,
                 },
             }
 
@@ -144,19 +154,18 @@ def run_local_scan(config, cancel_event=None):
                 "Add at least one system, or enter a Faction or Power."
             )
 
-        if (
-            not config["hotspots_enabled"]
-            and not config["planets_enabled"]
-        ):
+        if _nothing_enabled(config):
             return {
                 "status": "NO_ACTION_SELECTED",
                 "systems": systems,
                 "hotspot_rows": [],
                 "planet_rows": [],
+                "community_rows": [],
                 "summary": {
                     "status": "NO_ACTION_SELECTED",
                     "hotspots_enabled": False,
                     "planets_enabled": False,
+                    "community_deposits_enabled": False,
                     "systems_found": len(systems),
                 },
             }
@@ -164,18 +173,24 @@ def run_local_scan(config, cancel_event=None):
     print(f"Systems loaded: {len(systems)}")
     print(f"Hotspots: {config['hotspots_enabled']}")
     print(f"Planets: {config['planets_enabled']}")
+    print(f"Community Deposits: {config['community_deposits_enabled']}")
 
-    bodies_by_system, unresolved = engine.query_all_systems(
-        systems,
-        cancel_event=cancel_event,
-    )
+    bodies_by_system = {}
+    unresolved = []
 
-    engine.check_cancel(cancel_event)
+    if config["hotspots_enabled"] or config["planets_enabled"]:
+        bodies_by_system, unresolved = engine.query_all_systems(
+            systems,
+            cancel_event=cancel_event,
+        )
+        engine.check_cancel(cancel_event)
 
     hotspot_filtered = []
     hotspot_clean = []
     planet_filtered = []
     planet_clean = []
+    community_headers = []
+    community_rows = []
 
     if config["hotspots_enabled"]:
         hotspot_raw = engine.build_hotspot_rows(
@@ -199,9 +214,7 @@ def run_local_scan(config, cancel_event=None):
                 if row["Status"] == "HOTSPOT_FOUND"
             ]
 
-        hotspot_clean = engine.clean_hotspot_rows(
-            hotspot_filtered
-        )
+        hotspot_clean = engine.clean_hotspot_rows(hotspot_filtered)
 
     if config["planets_enabled"]:
         planet_raw = engine.build_planet_rows(
@@ -224,9 +237,16 @@ def run_local_scan(config, cancel_event=None):
                 if row["Status"] == "PLANET_FOUND"
             ]
 
-        planet_clean = engine.clean_planet_rows(
-            planet_filtered
+        planet_clean = engine.clean_planet_rows(planet_filtered)
+
+    if config["community_deposits_enabled"]:
+        community_headers, community_rows = (
+            community_deposits.fetch_deposits_for_systems(
+                systems,
+                cancel_event=cancel_event,
+            )
         )
+        engine.check_cancel(cancel_event)
 
     summary = engine.build_summary(
         config,
@@ -234,6 +254,10 @@ def run_local_scan(config, cancel_event=None):
         planet_filtered,
         unresolved,
     )
+    summary["community_deposits_enabled"] = config[
+        "community_deposits_enabled"
+    ]
+    summary["community_deposits_found"] = len(community_rows)
 
     return {
         "status": "COMPLETED",
@@ -242,6 +266,8 @@ def run_local_scan(config, cancel_event=None):
         "hotspot_rows": hotspot_clean,
         "planet_headers": list(engine.PLANET_HEADERS),
         "planet_rows": planet_clean,
+        "community_headers": community_headers,
+        "community_rows": community_rows,
         "unresolved": unresolved,
         "summary": summary,
     }
