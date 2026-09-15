@@ -12,6 +12,19 @@ DEPOSITS_URL = f"{API_BASE}/v1/deposits"
 USER_AGENT = "ED-Hotspots-Landables-Finder/8.0"
 REQUEST_TIMEOUT = 20
 
+COMMUNITY_HEADERS = [
+    "System",
+    "Body",
+    "Commodity",
+    "Rigs",
+    "Amount",
+    "Density",
+    "Latitude",
+    "Longitude",
+    "Reports",
+    "Updated",
+]
+
 
 class CommunityDepositsError(RuntimeError):
     pass
@@ -19,42 +32,9 @@ class CommunityDepositsError(RuntimeError):
 
 def _check_cancel(cancel_event):
     if cancel_event is not None and cancel_event.is_set():
-        # Imported lazily so this module stays independent and easy to reuse.
         from finder_engine import ScanCancelled
 
         raise ScanCancelled("Scan cancelled by user.")
-
-
-def _display_header(raw_key):
-    aliases = {
-        "id": "ID",
-        "deposit_id": "Deposit ID",
-        "system": "System",
-        "system_name": "System",
-        "star_system": "System",
-        "body": "Body",
-        "body_name": "Body",
-        "commodity": "Commodity",
-        "material": "Commodity",
-        "latitude": "Latitude",
-        "lat": "Latitude",
-        "longitude": "Longitude",
-        "lon": "Longitude",
-        "lng": "Longitude",
-        "planet_radius": "Planet Radius",
-        "body_radius": "Planet Radius",
-        "radius": "Planet Radius",
-        "report_count": "Reports",
-        "reports_count": "Reports",
-        "reports": "Reports",
-        "created_at": "Created",
-        "updated_at": "Updated",
-        "last_reported_at": "Last Reported",
-        "last_seen_at": "Last Seen",
-    }
-    if raw_key in aliases:
-        return aliases[raw_key]
-    return str(raw_key).replace("_", " ").strip().title()
 
 
 def _cell_value(value):
@@ -67,101 +47,54 @@ def _cell_value(value):
     return value
 
 
-def _normalise_rows(raw_rows, requested_system=None):
-    """Convert API deposit objects to rows suitable for a Treeview.
+def _first_value(item, keys, default=""):
+    for key in keys:
+        value = item.get(key)
+        if value not in (None, ""):
+            return _cell_value(value)
+    return default
 
-    The API remains the source of truth. Unknown future scalar fields are kept
-    automatically instead of being discarded, so the GUI is resilient to
-    backend additions.
-    """
+
+def _normalise_rows(raw_rows, requested_system=None):
+    """Return only user-facing Community Deposits columns."""
 
     rows = []
-    header_order = []
-
-    preferred = (
-        "id",
-        "deposit_id",
-        "system",
-        "system_name",
-        "star_system",
-        "body",
-        "body_name",
-        "commodity",
-        "material",
-        "latitude",
-        "lat",
-        "longitude",
-        "lon",
-        "lng",
-        "planet_radius",
-        "body_radius",
-        "radius",
-        "report_count",
-        "reports_count",
-        "reports",
-        "created_at",
-        "updated_at",
-        "last_reported_at",
-        "last_seen_at",
-    )
-
-    raw_keys = []
-    seen_raw = set()
-    for item in raw_rows:
-        if not isinstance(item, dict):
-            continue
-        for key in item.keys():
-            if key not in seen_raw:
-                seen_raw.add(key)
-                raw_keys.append(key)
-
-    ordered_raw = [key for key in preferred if key in seen_raw]
-    ordered_raw.extend(key for key in raw_keys if key not in ordered_raw)
-
-    # Collapse aliases that map to the same display name. Prefer the first
-    # populated alias in ordered_raw for each row.
-    display_groups = []
-    group_index = {}
-    for raw_key in ordered_raw:
-        header = _display_header(raw_key)
-        if header not in group_index:
-            group_index[header] = len(display_groups)
-            display_groups.append((header, [raw_key]))
-        else:
-            display_groups[group_index[header]][1].append(raw_key)
-
-    headers = [header for header, _keys in display_groups]
-
-    if not headers:
-        headers = [
-            "System",
-            "Body",
-            "Commodity",
-            "Latitude",
-            "Longitude",
-            "Reports",
-            "Updated",
-        ]
 
     for item in raw_rows:
         if not isinstance(item, dict):
             continue
-        row = {}
-        for header, keys in display_groups:
-            value = ""
-            for key in keys:
-                candidate = item.get(key)
-                if candidate not in (None, ""):
-                    value = _cell_value(candidate)
-                    break
-            row[header] = value
 
-        if "System" in headers and not row.get("System") and requested_system:
-            row["System"] = requested_system
-
+        row = {
+            "System": _first_value(
+                item,
+                ("system", "system_name", "star_system"),
+                requested_system or "",
+            ),
+            "Body": _first_value(
+                item,
+                ("body", "body_name", "planet_name"),
+            ),
+            "Commodity": _first_value(
+                item,
+                ("commodity", "material"),
+            ),
+            "Rigs": _first_value(item, ("rigs",)),
+            "Amount": _first_value(item, ("amount",)),
+            "Density": _first_value(item, ("density",)),
+            "Latitude": _first_value(item, ("latitude", "lat")),
+            "Longitude": _first_value(item, ("longitude", "lon", "lng")),
+            "Reports": _first_value(
+                item,
+                ("report_count", "reports_count", "reports"),
+            ),
+            "Updated": _first_value(
+                item,
+                ("updated_at", "last_reported_at", "last_seen_at"),
+            ),
+        }
         rows.append(row)
 
-    return headers, rows
+    return list(COMMUNITY_HEADERS), rows
 
 
 def fetch_system_deposits(system, *, session=None, cancel_event=None):
@@ -169,7 +102,7 @@ def fetch_system_deposits(system, *, session=None, cancel_event=None):
 
     system = str(system or "").strip()
     if not system:
-        return [], []
+        return list(COMMUNITY_HEADERS), []
 
     client = session or requests.Session()
     try:
@@ -228,39 +161,15 @@ def fetch_deposits_for_systems(systems, *, cancel_event=None):
     """Fetch Community Deposits for each selected system."""
 
     all_rows = []
-    all_headers = []
-    seen_headers = set()
 
     with requests.Session() as session:
         for system in systems:
             _check_cancel(cancel_event)
-            headers, rows = fetch_system_deposits(
+            _headers, rows = fetch_system_deposits(
                 system,
                 session=session,
                 cancel_event=cancel_event,
             )
-
-            for header in headers:
-                if header not in seen_headers:
-                    seen_headers.add(header)
-                    all_headers.append(header)
             all_rows.extend(rows)
 
-    if not all_headers:
-        all_headers = [
-            "System",
-            "Body",
-            "Commodity",
-            "Latitude",
-            "Longitude",
-            "Reports",
-            "Updated",
-        ]
-
-    # Rows fetched from different systems may expose slightly different API
-    # fields. Ensure every row has every final column.
-    for row in all_rows:
-        for header in all_headers:
-            row.setdefault(header, "")
-
-    return all_headers, all_rows
+    return list(COMMUNITY_HEADERS), all_rows
