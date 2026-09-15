@@ -22,7 +22,7 @@ BOXES = {
     "planets": (18, 227, 250, 130),
     "resultsOptions": (18, 362, 250, 60),
     "community": (18, 427, 250, 105),
-    "systems": (285, 92, 225, 440),
+    "systems": (285, 92, 225, 488),
     "systemFiltersTitle": (18, 537, 160, 38),
     "faction": (18, 580, 225, 55),
     "power": (285, 615, 225, 55),
@@ -382,7 +382,7 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
         ).place(x=9, y=29)
 
         text_frame = tk.Frame(parent, bg=PANEL)
-        text_frame.place(x=9, y=52, width=207, height=292)
+        text_frame.place(x=9, y=52, width=207, height=340)
 
         self.systems_text = tk.Text(
             text_frame,
@@ -431,7 +431,7 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
             activeforeground=COLORS["text"],
             relief="flat",
             font=("Segoe UI", 8),
-        ).place(x=9, y=353, width=91, height=25)
+        ).place(x=9, y=401, width=91, height=25)
 
         tk.Button(
             parent,
@@ -443,7 +443,7 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
             activeforeground=COLORS["text"],
             relief="flat",
             font=("Segoe UI", 8),
-        ).place(x=106, y=353, width=91, height=25)
+        ).place(x=106, y=401, width=91, height=25)
 
         tk.Label(
             parent,
@@ -457,7 +457,7 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
             anchor="nw",
             wraplength=205,
             font=("Segoe UI", 8),
-        ).place(x=9, y=387, width=207, height=45)
+        ).place(x=9, y=435, width=207, height=45)
 
     def _build_system_filter_boxes(self):
         tk.Label(
