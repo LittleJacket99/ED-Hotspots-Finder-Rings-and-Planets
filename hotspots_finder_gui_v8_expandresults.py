@@ -14,11 +14,16 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
         # Treat Community Deposits like Hotspots and Planets: enabled by default.
         self.community_deposits_enabled.set(True)
 
+    def _build_ui(self):
+        self.reference_system_var = tk.StringVar(master=self, value="")
+        self.max_distance_var = tk.StringVar(master=self, value="50")
+        super()._build_ui()
+
     def _build_filters(self, parent):
         super()._build_filters(parent)
 
-        # Add a Clear button at the bottom of the existing scrollable filters
-        # panel without changing the current layout yet.
+        # Add Reference System / Max Distance beneath the existing Faction,
+        # Power and Power State controls. Layout will be reorganized later.
         canvas = next(
             (
                 child
@@ -35,6 +40,41 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
             return
 
         inner = children[0]
+
+        tk.Label(
+            inner,
+            text="Reference system",
+            bg=COLORS["panel"],
+            fg=COLORS["muted"],
+        ).pack(anchor="w", padx=12, pady=(2, 0))
+
+        reference_entry = tk.Entry(
+            inner,
+            textvariable=self.reference_system_var,
+            bg="#3b3b3b",
+            fg=COLORS["text"],
+            insertbackground=COLORS["text"],
+            relief="flat",
+        )
+        reference_entry.pack(fill="x", padx=12, pady=(2, 8), ipady=5)
+
+        tk.Label(
+            inner,
+            text="Max distance (LY)",
+            bg=COLORS["panel"],
+            fg=COLORS["muted"],
+        ).pack(anchor="w", padx=12)
+
+        max_distance_entry = tk.Entry(
+            inner,
+            textvariable=self.max_distance_var,
+            bg="#3b3b3b",
+            fg=COLORS["text"],
+            insertbackground=COLORS["text"],
+            relief="flat",
+        )
+        max_distance_entry.pack(fill="x", padx=12, pady=(2, 8), ipady=5)
+
         buttons = tk.Frame(inner, bg=COLORS["panel"])
         buttons.pack(fill="x", padx=12, pady=(2, 12))
 
@@ -49,6 +89,18 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
             relief="flat",
             padx=12,
         ).pack(side="left")
+
+    def _collect_config(self):
+        config = super()._collect_config()
+
+        max_distance = self.max_distance_var.get().strip()
+        if not max_distance:
+            max_distance = "50"
+            self.max_distance_var.set(max_distance)
+
+        config["reference_system"] = self.reference_system_var.get().strip()
+        config["max_distance_ly"] = max_distance
+        return config
 
     def _clear_scan_filters(self):
         # Keep the feature switches unchanged: Enable hotspots,
@@ -67,6 +119,8 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
         self.only_positive.set(False)
         self.faction_var.set("")
         self.power_var.set("")
+        self.reference_system_var.set("")
+        self.max_distance_var.set("50")
 
     def _build_results(self, parent):
         super()._build_results(parent)
