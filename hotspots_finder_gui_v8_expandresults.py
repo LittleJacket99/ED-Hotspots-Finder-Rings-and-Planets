@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""v8 feature test: expand/collapse side panels to maximize results."""
+"""v8 feature test: expand/collapse panels to maximize results."""
 
 import tkinter as tk
 
@@ -30,6 +30,13 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
         )
         self.expand_results_button.place(relx=1.0, x=-14, y=8, anchor="ne")
 
+    def _build_bottom_bar(self):
+        """Build the normal SCAN/STOP bar and keep a reference to it."""
+        before = set(self.winfo_children())
+        super()._build_bottom_bar()
+        created = [child for child in self.winfo_children() if child not in before]
+        self._bottom_bar = created[-1] if created else None
+
     def _toggle_results_expansion(self):
         try:
             paned = self._results_panel.master
@@ -49,13 +56,23 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
                 except tk.TclError:
                     self._saved_sashes = None
 
+                # Horizontal expansion: hide Filters and Systems.
                 paned.paneconfigure(left_panel, hide=True)
                 paned.paneconfigure(systems_panel, hide=True)
+
+                # Vertical expansion: remove the SCAN / STOP / status bar.
+                if getattr(self, "_bottom_bar", None) is not None:
+                    self._bottom_bar.pack_forget()
+
                 self._results_expanded = True
                 self.expand_results_button.configure(text="Restore Panels")
             else:
                 paned.paneconfigure(left_panel, hide=False)
                 paned.paneconfigure(systems_panel, hide=False)
+
+                if getattr(self, "_bottom_bar", None) is not None:
+                    self._bottom_bar.pack(fill="x", side="bottom")
+
                 self._results_expanded = False
                 self.expand_results_button.configure(text="Expand Results")
 
