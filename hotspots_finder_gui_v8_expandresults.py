@@ -9,6 +9,60 @@ from hotspots_finder_gui_v8 import COLORS
 
 
 class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
+    def _build_filters(self, parent):
+        super()._build_filters(parent)
+
+        # Add a Clear button at the bottom of the existing scrollable filters
+        # panel without changing the current layout yet.
+        canvas = next(
+            (
+                child
+                for child in parent.winfo_children()
+                if isinstance(child, tk.Canvas)
+            ),
+            None,
+        )
+        if canvas is None:
+            return
+
+        children = canvas.winfo_children()
+        if not children:
+            return
+
+        inner = children[0]
+        buttons = tk.Frame(inner, bg=COLORS["panel"])
+        buttons.pack(fill="x", padx=12, pady=(2, 12))
+
+        tk.Button(
+            buttons,
+            text="Clear",
+            command=self._clear_scan_filters,
+            bg="#3a4148",
+            fg=COLORS["text"],
+            activebackground="#46515c",
+            activeforeground=COLORS["text"],
+            relief="flat",
+            padx=12,
+        ).pack(side="left")
+
+    def _clear_scan_filters(self):
+        # Keep the two feature switches (Enable hotspots / Enable planets)
+        # unchanged. Clear only the actual scan filters/options.
+        for variables in (
+            self.ring_vars,
+            self.material_vars,
+            self.planet_type_vars,
+            self.power_state_vars,
+        ):
+            for variable in variables.values():
+                variable.set(False)
+
+        self.only_pristine.set(False)
+        self.only_landables.set(False)
+        self.only_positive.set(False)
+        self.faction_var.set("")
+        self.power_var.set("")
+
     def _build_results(self, parent):
         super()._build_results(parent)
 
