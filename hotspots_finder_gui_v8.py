@@ -4,7 +4,7 @@ import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-import hotspots_engine as legacy_engine
+import finder_engine as legacy_engine
 import local_scan
 
 
@@ -244,6 +244,29 @@ class FinderV8App(tk.Tk):
         )
         canvas.create_window((0, 0), window=inner, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
+
+        def _on_mousewheel(event):
+            if event.delta:
+                canvas.yview_scroll(
+                    int(-event.delta / 120),
+                    "units",
+                )
+            return "break"
+
+        canvas.bind(
+            "<Enter>",
+            lambda _e: canvas.bind_all(
+                "<MouseWheel>",
+                _on_mousewheel,
+            ),
+        )
+
+        canvas.bind(
+            "<Leave>",
+            lambda _e: canvas.unbind_all(
+                "<MouseWheel>"
+            ),
+        )       
 
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
