@@ -9,6 +9,11 @@ from hotspots_finder_gui_v8 import COLORS
 
 
 class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
+    def __init__(self):
+        super().__init__()
+        # Treat Community Deposits like Hotspots and Planets: enabled by default.
+        self.community_deposits_enabled.set(True)
+
     def _build_filters(self, parent):
         super()._build_filters(parent)
 
@@ -46,8 +51,8 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
         ).pack(side="left")
 
     def _clear_scan_filters(self):
-        # Keep the two feature switches (Enable hotspots / Enable planets)
-        # unchanged. Clear only the actual scan filters/options.
+        # Keep the feature switches unchanged: Enable hotspots,
+        # Enable planets and Show Community Deposits.
         for variables in (
             self.ring_vars,
             self.material_vars,
