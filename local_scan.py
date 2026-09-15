@@ -2,12 +2,11 @@
 
 """Local scan pipeline for the v8 desktop UI.
 
-This module deliberately contains no Google Sheets calls. It reuses the
-existing Spansh/filtering logic from hotspots_engine while the v8 interface is
-being migrated away from Google Sheets.
+This module contains no Google Sheets calls and uses the dedicated v8
+Google-free Finder engine.
 """
 
-import hotspots_engine as engine
+import finder_engine as engine
 
 
 class LocalScanError(RuntimeError):
@@ -71,7 +70,7 @@ def normalize_config(config):
 
 
 def run_local_scan(config, cancel_event=None):
-    """Run the existing Finder logic and return data directly to the GUI."""
+    """Run the Finder logic and return data directly to the GUI."""
 
     engine.check_cancel(cancel_event)
     config = normalize_config(config)
