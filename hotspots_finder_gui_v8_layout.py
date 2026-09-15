@@ -13,13 +13,13 @@ from hotspots_finder_gui_v8_expandresults import SORT_TABLES
 from hotspots_finder_gui_v8_loglayout import FinderV8LogLayoutApp
 
 
-FILTERS_WIDTH = 300
-SYSTEMS_WIDTH = 250
+FILTERS_WIDTH = 280
+SYSTEMS_WIDTH = 270
 LEFT_WIDTH = FILTERS_WIDTH + SYSTEMS_WIDTH
 SYSTEM_FILTERS_HEIGHT = 195
-OPTION_COLUMN_WIDTH = 135
-SYSTEM_FILTER_LEFT_WIDTH = 305
-SYSTEM_FILTER_REFERENCE_WIDTH = 211
+OPTION_COLUMN_WIDTH = 125
+SYSTEM_FILTER_LEFT_WIDTH = 275
+SYSTEM_FILTER_REFERENCE_WIDTH = 241
 
 
 class FinderV8LayoutApp(FinderV8LogLayoutApp):
@@ -285,7 +285,7 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
 
         self.rhino_upload_button = tk.Button(
             content,
-            text="Upload RhinoSpotter Deposits",
+            text="Upload RhinoSpotter",
             command=self.start_rhino_upload,
             bg="#3a4148",
             fg=COLORS["text"],
@@ -295,8 +295,9 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
             relief="flat",
             padx=9,
             pady=4,
+            width=20,
         )
-        self.rhino_upload_button.pack(fill="x", pady=(4, 0))
+        self.rhino_upload_button.pack(anchor="w", pady=(4, 0))
 
     def _build_systems(self, parent):
         # Use the clean v8 Systems panel directly, skipping the old Community
@@ -372,7 +373,8 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
             fg=COLORS["text"],
             insertbackground=COLORS["text"],
             relief="flat",
-        ).pack(fill="x", pady=(1, 4), ipady=3)
+            width=26,
+        ).pack(anchor="w", pady=(1, 4), ipady=3)
 
         self._small_label(left_col, "Power").pack(anchor="w")
         ttk.Combobox(
@@ -380,7 +382,8 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
             textvariable=self.power_var,
             values=[""] + list(legacy_engine.POWER_LIST),
             state="readonly",
-        ).pack(fill="x", pady=(1, 3))
+            width=24,
+        ).pack(anchor="w", pady=(1, 3))
 
         self._small_label(left_col, "Power states").pack(
             anchor="w", pady=(0, 0)
