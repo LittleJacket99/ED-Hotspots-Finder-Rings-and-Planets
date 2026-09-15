@@ -171,10 +171,11 @@ class FinderV8ColumnFiltersApp(FinderV8CommunityApp):
             return rows
 
         if table == "planets":
-            fill_columns = ("System", "Status")
+            fill_columns = ("System", "Distance (LY)", "Status")
         else:
             fill_columns = (
                 "System",
+                "Distance (LY)",
                 "Status",
                 "Body",
                 "Ring",
@@ -356,6 +357,7 @@ class FinderV8ColumnFiltersApp(FinderV8CommunityApp):
             system = row.get("System", "")
             if system == previous_system:
                 row["System"] = ""
+                row["Distance (LY)"] = ""
                 row["Status"] = ""
             else:
                 previous_system = system
@@ -378,6 +380,7 @@ class FinderV8ColumnFiltersApp(FinderV8CommunityApp):
 
             if system == previous_system:
                 row["System"] = ""
+                row["Distance (LY)"] = ""
             else:
                 previous_system = system
                 previous_ring_key = None
