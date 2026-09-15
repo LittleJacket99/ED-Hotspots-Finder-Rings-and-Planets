@@ -46,7 +46,8 @@ class FinderV8ColumnFiltersApp(FinderV8CommunityApp):
         self._autosize_next_populate = set()
         super()._build_ui()
 
-        # Keep the systems pane compact so the results area gets more room.
+        # Keep the systems pane narrower than the original v8 layout, but wide
+        # enough to match the proportions used in the current UI mockup.
         self._configure_compact_systems_panel()
 
         # Pasting systems one at a time automatically moves the cursor to the
@@ -57,13 +58,13 @@ class FinderV8ColumnFiltersApp(FinderV8CommunityApp):
         try:
             systems_panel = self.systems_text.master.master
             paned = systems_panel.master
-            systems_panel.configure(width=145)
-            paned.paneconfigure(systems_panel, minsize=125)
+            systems_panel.configure(width=245)
+            paned.paneconfigure(systems_panel, minsize=220)
 
             def _shrink_after_layout():
                 try:
                     first_x, _first_y = paned.sash_coord(0)
-                    paned.sash_place(1, first_x + 150, 0)
+                    paned.sash_place(1, first_x + 250, 0)
                 except (tk.TclError, IndexError):
                     pass
 
