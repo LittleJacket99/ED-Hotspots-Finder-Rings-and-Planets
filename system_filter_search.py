@@ -24,6 +24,7 @@ def search_systems_by_filters(
     *,
     reference_system="",
     max_distance_ly=DEFAULT_MAX_DISTANCE_LY,
+    include_distances=False,
     cancel_event=None,
 ):
     faction_name = str(faction_name or "").strip()
@@ -53,7 +54,7 @@ def search_systems_by_filters(
         }
 
     if not filters:
-        return []
+        return ([], {}) if include_distances else []
 
     print("Searching Spansh systems with filters:")
     if faction_name:
@@ -69,6 +70,7 @@ def search_systems_by_filters(
         print(f"  Max distance: {_format_distance(max_distance_ly)} LY")
 
     systems = []
+    distances = {}
     seen = set()
     page = 0
     selected_state_keys = {engine.norm(state) for state in selected_power_states}
@@ -113,16 +115,16 @@ def search_systems_by_filters(
                     if engine.norm(item.get("power_state", "")) not in selected_state_keys:
                         continue
 
-            # Spansh applies the distance filter server-side. Keep this small
-            # client-side guard as well when a numeric distance is returned.
+            numeric_distance = None
             if reference_system:
                 distance = item.get("distance")
                 if distance not in (None, ""):
                     try:
-                        if float(distance) > float(max_distance_ly):
+                        numeric_distance = float(distance)
+                        if numeric_distance > float(max_distance_ly):
                             continue
                     except (TypeError, ValueError):
-                        pass
+                        numeric_distance = None
 
             system_name = str(
                 item.get("name") or item.get("system_name") or ""
@@ -131,6 +133,8 @@ def search_systems_by_filters(
             if system_name and key not in seen:
                 seen.add(key)
                 systems.append(system_name)
+                if numeric_distance is not None:
+                    distances[key] = numeric_distance
 
         if not results or (page + 1) * engine.PAGE_SIZE >= total:
             break
@@ -141,4 +145,7 @@ def search_systems_by_filters(
     engine.check_cancel(cancel_event)
     systems.sort(key=str.casefold)
     print(f"Systems matching filters: {len(systems)}")
+
+    if include_distances:
+        return systems, distances
     return systems
