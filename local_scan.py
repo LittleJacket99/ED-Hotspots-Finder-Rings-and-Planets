@@ -11,6 +11,9 @@ import finder_engine as engine
 import system_filter_search
 
 
+DISTANCE_HEADER = "Distance (LY)"
+
+
 class LocalScanError(RuntimeError):
     pass
 
@@ -105,6 +108,44 @@ def _nothing_enabled(config):
     )
 
 
+def _format_result_distance(value):
+    if value in (None, ""):
+        return ""
+    try:
+        return f"{float(value):.2f}".rstrip("0").rstrip(".")
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _add_distance_column(headers, rows, distances):
+    """Insert Distance (LY) after System and populate visible system rows."""
+
+    headers = list(headers or [])
+    if DISTANCE_HEADER not in headers:
+        try:
+            system_index = headers.index("System")
+        except ValueError:
+            headers.append(DISTANCE_HEADER)
+        else:
+            headers.insert(system_index + 1, DISTANCE_HEADER)
+
+    output_rows = []
+    for source in rows or []:
+        row = dict(source)
+        system_name = str(row.get("System", "") or "").strip()
+        if system_name:
+            row[DISTANCE_HEADER] = _format_result_distance(
+                distances.get(engine.norm(system_name), "")
+            )
+        else:
+            # Compact Hotspots/Planets rows intentionally blank System on
+            # repeated lines; keep Distance blank there as well.
+            row[DISTANCE_HEADER] = ""
+        output_rows.append(row)
+
+    return headers, output_rows
+
+
 def run_local_scan(config, cancel_event=None):
     """Run the Finder logic and return data directly to the GUI."""
 
@@ -115,6 +156,7 @@ def run_local_scan(config, cancel_event=None):
     power_name = config["power_name"]
     reference_system = config["reference_system"]
     max_distance_ly = config["max_distance_ly"]
+    system_distances = {}
 
     selected_power_states = [
         state
@@ -125,12 +167,13 @@ def run_local_scan(config, cancel_event=None):
     effective_power_states = selected_power_states if power_name else []
 
     if faction_name or power_name:
-        systems = system_filter_search.search_systems_by_filters(
+        systems, system_distances = system_filter_search.search_systems_by_filters(
             faction_name,
             power_name,
             effective_power_states,
             reference_system=reference_system,
             max_distance_ly=max_distance_ly,
+            include_distances=True,
             cancel_event=cancel_event,
         )
 
@@ -292,6 +335,29 @@ def run_local_scan(config, cancel_event=None):
         )
         engine.check_cancel(cancel_event)
 
+    hotspot_headers = list(engine.HOTSPOT_HEADERS)
+    planet_headers = list(engine.PLANET_HEADERS)
+
+    show_reference_distance = bool(
+        reference_system and (faction_name or power_name)
+    )
+    if show_reference_distance:
+        hotspot_headers, hotspot_clean = _add_distance_column(
+            hotspot_headers,
+            hotspot_clean,
+            system_distances,
+        )
+        planet_headers, planet_clean = _add_distance_column(
+            planet_headers,
+            planet_clean,
+            system_distances,
+        )
+        community_headers, community_rows = _add_distance_column(
+            community_headers,
+            community_rows,
+            system_distances,
+        )
+
     summary = engine.build_summary(
         config,
         hotspot_filtered,
@@ -312,9 +378,9 @@ def run_local_scan(config, cancel_event=None):
     return {
         "status": "COMPLETED",
         "systems": systems,
-        "hotspot_headers": list(engine.HOTSPOT_HEADERS),
+        "hotspot_headers": hotspot_headers,
         "hotspot_rows": hotspot_clean,
-        "planet_headers": list(engine.PLANET_HEADERS),
+        "planet_headers": planet_headers,
         "planet_rows": planet_clean,
         "community_headers": community_headers,
         "community_rows": community_rows,
