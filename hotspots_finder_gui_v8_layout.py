@@ -9,18 +9,15 @@ import finder_engine as legacy_engine
 from hotspots_finder_gui_v8 import COLORS, FinderV8App
 from hotspots_finder_gui_v8_columnfilters import FILTER_COLUMNS
 from hotspots_finder_gui_v8_community import COMMUNITY_FALLBACK_HEADERS
-from hotspots_finder_gui_v8_expandresults import (
-    BODY_COLUMN,
-    DISTANCE_COLUMN,
-    SORT_TABLES,
-)
+from hotspots_finder_gui_v8_expandresults import SORT_TABLES
 from hotspots_finder_gui_v8_loglayout import FinderV8LogLayoutApp
 
 
 FILTERS_WIDTH = 300
 SYSTEMS_WIDTH = 250
-LEFT_WIDTH = FILTERS_WIDTH + SYSTEMS_WIDTH + 6
-SYSTEM_FILTERS_HEIGHT = 190
+LEFT_WIDTH = FILTERS_WIDTH + SYSTEMS_WIDTH
+SYSTEM_FILTERS_HEIGHT = 195
+OPTION_COLUMN_WIDTH = 135
 
 
 class FinderV8LayoutApp(FinderV8LogLayoutApp):
@@ -73,9 +70,11 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
         self._main_grid.columnconfigure(0, weight=0, minsize=LEFT_WIDTH)
         self._main_grid.columnconfigure(1, weight=1, minsize=520)
 
+        # One visually continuous left area. Filters and Systems keep their
+        # fixed widths, but there are no gutters forming the old inverted T.
         self._left_cluster = tk.Frame(
             self._main_grid,
-            bg=COLORS["bg"],
+            bg=COLORS["panel"],
             width=LEFT_WIDTH,
         )
         self._left_cluster.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
@@ -90,7 +89,7 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
             bg=COLORS["panel"],
             width=FILTERS_WIDTH,
         )
-        self._filters_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 3))
+        self._filters_panel.grid(row=0, column=0, sticky="nsew")
         self._filters_panel.grid_propagate(False)
 
         self._systems_panel = tk.Frame(
@@ -98,7 +97,7 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
             bg=COLORS["panel"],
             width=SYSTEMS_WIDTH,
         )
-        self._systems_panel.grid(row=0, column=1, sticky="nsew", padx=(3, 0))
+        self._systems_panel.grid(row=0, column=1, sticky="nsew")
         self._systems_panel.grid_propagate(False)
 
         self._system_filters_panel = tk.Frame(
@@ -111,7 +110,6 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
             column=0,
             columnspan=2,
             sticky="nsew",
-            pady=(6, 0),
         )
         self._system_filters_panel.grid_propagate(False)
 
@@ -140,9 +138,11 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
             selectcolor="#404040",
             highlightthickness=0,
             bd=0,
+            padx=0,
+            pady=0,
             anchor="w",
         )
-        widget.grid(row=row, column=column, sticky=sticky, padx=2, pady=1)
+        widget.grid(row=row, column=column, sticky=sticky, padx=0, pady=1)
         return widget
 
     @staticmethod
@@ -154,6 +154,14 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
             fg=COLORS["muted"],
             font=("Segoe UI", 9),
         )
+
+    @staticmethod
+    def _two_column_frame(parent):
+        frame = tk.Frame(parent, bg=COLORS["panel"])
+        frame.pack(fill="x")
+        frame.columnconfigure(0, weight=0, minsize=OPTION_COLUMN_WIDTH)
+        frame.columnconfigure(1, weight=0, minsize=OPTION_COLUMN_WIDTH)
+        return frame
 
     def _build_filters(self, parent):
         content = tk.Frame(parent, bg=COLORS["panel"])
@@ -167,63 +175,42 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
             font=("Segoe UI", 10, "bold"),
         ).pack(anchor="w", pady=(2, 3))
 
-        hotspot_switches = tk.Frame(content, bg=COLORS["panel"])
-        hotspot_switches.pack(fill="x")
-        hotspot_switches.columnconfigure(0, weight=1)
-        hotspot_switches.columnconfigure(1, weight=1)
-        self._grid_check(hotspot_switches, "Enable hotspots", self.hotspots_enabled, 0, 0)
-        self._grid_check(hotspot_switches, "Only pristine", self.only_pristine, 0, 1)
+        hotspot_switches = self._two_column_frame(content)
+        self._grid_check(
+            hotspot_switches, "Enable hotspots", self.hotspots_enabled, 0, 0
+        )
+        self._grid_check(
+            hotspot_switches, "Only pristine", self.only_pristine, 0, 1
+        )
 
-        hotspot_options = tk.Frame(content, bg=COLORS["panel"])
-        hotspot_options.pack(fill="x", pady=(4, 3))
-        hotspot_options.columnconfigure(0, weight=1)
-        hotspot_options.columnconfigure(1, weight=1)
+        hotspot_options = self._two_column_frame(content)
+        hotspot_options.pack_configure(pady=(4, 3))
+        self._small_label(hotspot_options, "Ring types").grid(
+            row=0, column=0, sticky="w", pady=(0, 1)
+        )
+        self._small_label(hotspot_options, "Commodities").grid(
+            row=0, column=1, sticky="w", pady=(0, 1)
+        )
 
-        ring_col = tk.Frame(hotspot_options, bg=COLORS["panel"])
-        commodity_col = tk.Frame(hotspot_options, bg=COLORS["panel"])
-        ring_col.grid(row=0, column=0, sticky="nw")
-        commodity_col.grid(row=0, column=1, sticky="nw")
-
-        self._small_label(ring_col, "Ring types").pack(anchor="w", pady=(0, 1))
-        for key, label in (
+        ring_types = (
             ("icy", "Icy"),
             ("metallic", "Metallic"),
             ("metal rich", "Metal Rich"),
             ("rocky", "Rocky"),
-        ):
-            tk.Checkbutton(
-                ring_col,
-                text=label,
-                variable=self.ring_vars[key],
-                bg=COLORS["panel"],
-                fg=COLORS["text"],
-                activebackground=COLORS["panel"],
-                activeforeground=COLORS["text"],
-                selectcolor="#404040",
-                highlightthickness=0,
-                bd=0,
-                anchor="w",
-            ).pack(anchor="w")
-
-        self._small_label(commodity_col, "Commodities").pack(anchor="w", pady=(0, 1))
-        for key, label in (
+        )
+        commodities = (
             ("platinum", "Platinum"),
             ("bromellite", "Bromellite"),
             ("monazite", "Monazite"),
-        ):
-            tk.Checkbutton(
-                commodity_col,
-                text=label,
-                variable=self.material_vars[key],
-                bg=COLORS["panel"],
-                fg=COLORS["text"],
-                activebackground=COLORS["panel"],
-                activeforeground=COLORS["text"],
-                selectcolor="#404040",
-                highlightthickness=0,
-                bd=0,
-                anchor="w",
-            ).pack(anchor="w")
+        )
+        for row, (key, label) in enumerate(ring_types, 1):
+            self._grid_check(
+                hotspot_options, label, self.ring_vars[key], row, 0
+            )
+        for row, (key, label) in enumerate(commodities, 1):
+            self._grid_check(
+                hotspot_options, label, self.material_vars[key], row, 1
+            )
 
         tk.Label(
             content,
@@ -233,31 +220,36 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
             font=("Segoe UI", 10, "bold"),
         ).pack(anchor="w", pady=(7, 3))
 
-        planet_switches = tk.Frame(content, bg=COLORS["panel"])
-        planet_switches.pack(fill="x")
-        planet_switches.columnconfigure(0, weight=1)
-        planet_switches.columnconfigure(1, weight=1)
-        self._grid_check(planet_switches, "Enable planets", self.planets_enabled, 0, 0)
-        self._grid_check(planet_switches, "Only landables", self.only_landables, 0, 1)
+        planet_switches = self._two_column_frame(content)
+        self._grid_check(
+            planet_switches, "Enable planets", self.planets_enabled, 0, 0
+        )
+        self._grid_check(
+            planet_switches, "Only landables", self.only_landables, 0, 1
+        )
 
-        self._small_label(content, "Planet types").pack(anchor="w", pady=(4, 1))
-        planet_types = tk.Frame(content, bg=COLORS["panel"])
-        planet_types.pack(fill="x")
-        planet_types.columnconfigure(0, weight=1)
-        planet_types.columnconfigure(1, weight=1)
+        planet_types = self._two_column_frame(content)
+        planet_types.pack_configure(pady=(4, 0))
+        self._small_label(planet_types, "Planet types").grid(
+            row=0, column=0, columnspan=2, sticky="w", pady=(0, 1)
+        )
 
         for row, (key, label) in enumerate((
             ("metal rich", "Metal Rich"),
             ("high metal content", "High Metal Content"),
             ("rocky", "Rocky"),
-        )):
-            self._grid_check(planet_types, label, self.planet_type_vars[key], row, 0)
+        ), 1):
+            self._grid_check(
+                planet_types, label, self.planet_type_vars[key], row, 0
+            )
 
         for row, (key, label) in enumerate((
             ("rocky ice", "Rocky Ice"),
             ("icy", "Icy"),
-        )):
-            self._grid_check(planet_types, label, self.planet_type_vars[key], row, 1)
+        ), 1):
+            self._grid_check(
+                planet_types, label, self.planet_type_vars[key], row, 1
+            )
 
         tk.Label(
             content,
@@ -267,19 +259,10 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
             font=("Segoe UI", 10, "bold"),
         ).pack(anchor="w", pady=(7, 2))
 
-        tk.Checkbutton(
-            content,
-            text="Only positive results",
-            variable=self.only_positive,
-            bg=COLORS["panel"],
-            fg=COLORS["text"],
-            activebackground=COLORS["panel"],
-            activeforeground=COLORS["text"],
-            selectcolor="#404040",
-            highlightthickness=0,
-            bd=0,
-            anchor="w",
-        ).pack(anchor="w")
+        result_row = self._two_column_frame(content)
+        self._grid_check(
+            result_row, "Only positive results", self.only_positive, 0, 0
+        )
 
         tk.Label(
             content,
@@ -289,19 +272,14 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
             font=("Segoe UI", 10, "bold"),
         ).pack(anchor="w", pady=(7, 2))
 
-        tk.Checkbutton(
-            content,
-            text="Show Community Deposits",
-            variable=self.community_deposits_enabled,
-            bg=COLORS["panel"],
-            fg=COLORS["text"],
-            activebackground=COLORS["panel"],
-            activeforeground=COLORS["text"],
-            selectcolor="#404040",
-            highlightthickness=0,
-            bd=0,
-            anchor="w",
-        ).pack(anchor="w")
+        community_row = self._two_column_frame(content)
+        self._grid_check(
+            community_row,
+            "Show Community Deposits",
+            self.community_deposits_enabled,
+            0,
+            0,
+        )
 
         self.rhino_upload_button = tk.Button(
             content,
@@ -320,71 +298,97 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
 
     def _build_systems(self, parent):
         # Use the clean v8 Systems panel directly, skipping the old Community
-        # block which has moved into Filters.
+        # block, then place Clear Filters beside Clear Systems.
         FinderV8App._build_systems(self, parent)
 
+        button_row = None
+        clear_systems_button = None
+        for child in parent.winfo_children():
+            if not isinstance(child, tk.Frame):
+                continue
+            for widget in child.winfo_children():
+                if isinstance(widget, tk.Button) and widget.cget("text") == "Clear":
+                    button_row = child
+                    clear_systems_button = widget
+                    break
+            if clear_systems_button is not None:
+                break
+
+        if clear_systems_button is not None:
+            clear_systems_button.configure(text="Clear Systems", padx=8)
+
+        if button_row is not None:
+            tk.Button(
+                button_row,
+                text="Clear Filters",
+                command=self._clear_scan_filters,
+                bg="#3a4148",
+                fg=COLORS["text"],
+                activebackground="#46515c",
+                activeforeground=COLORS["text"],
+                relief="flat",
+                padx=8,
+            ).pack(side="left", padx=(6, 0))
+
     def _build_system_filters(self, parent):
+        # Two compact columns: Faction/Power on the left and distance controls
+        # on the right. This keeps Reference System visible at normal height.
         tk.Label(
             parent,
             text="SYSTEM FILTERS",
             bg=COLORS["panel"],
             fg=COLORS["orange"],
             font=("Segoe UI", 10, "bold"),
-        ).pack(anchor="w", padx=12, pady=(8, 3))
+        ).pack(anchor="w", padx=12, pady=(4, 2))
 
         columns = tk.Frame(parent, bg=COLORS["panel"])
-        columns.pack(fill="both", expand=True, padx=10, pady=(0, 8))
-        for index in range(3):
-            columns.columnconfigure(index, weight=1, uniform="systemfilters")
+        columns.pack(fill="both", expand=True, padx=12, pady=(0, 6))
+        columns.columnconfigure(0, weight=1, uniform="systemfilters")
+        columns.columnconfigure(1, weight=1, uniform="systemfilters")
         columns.rowconfigure(0, weight=1)
 
-        faction_col = tk.Frame(columns, bg=COLORS["panel"])
-        power_col = tk.Frame(columns, bg=COLORS["panel"])
+        left_col = tk.Frame(columns, bg=COLORS["panel"])
         reference_col = tk.Frame(columns, bg=COLORS["panel"])
-        faction_col.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
-        power_col.grid(row=0, column=1, sticky="nsew", padx=8)
-        reference_col.grid(row=0, column=2, sticky="nsew", padx=(8, 0))
+        left_col.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
+        reference_col.grid(row=0, column=1, sticky="nsew", padx=(12, 0))
 
-        self._small_label(faction_col, "Faction").pack(anchor="w")
+        self._small_label(left_col, "Faction").pack(anchor="w")
         tk.Entry(
-            faction_col,
+            left_col,
             textvariable=self.faction_var,
             bg="#3b3b3b",
             fg=COLORS["text"],
             insertbackground=COLORS["text"],
             relief="flat",
-        ).pack(fill="x", pady=(2, 8), ipady=4)
+        ).pack(fill="x", pady=(1, 4), ipady=3)
 
-        tk.Button(
-            faction_col,
-            text="Clear Filters",
-            command=self._clear_scan_filters,
-            bg="#3a4148",
-            fg=COLORS["text"],
-            activebackground="#46515c",
-            activeforeground=COLORS["text"],
-            relief="flat",
-            padx=10,
-            pady=3,
-        ).pack(anchor="w")
-
-        self._small_label(power_col, "Power").pack(anchor="w")
+        self._small_label(left_col, "Power").pack(anchor="w")
         ttk.Combobox(
-            power_col,
+            left_col,
             textvariable=self.power_var,
             values=[""] + list(legacy_engine.POWER_LIST),
             state="readonly",
-        ).pack(fill="x", pady=(2, 4))
+        ).pack(fill="x", pady=(1, 3))
 
-        self._small_label(power_col, "Power states").pack(anchor="w", pady=(1, 0))
-        state_grid = tk.Frame(power_col, bg=COLORS["panel"])
+        self._small_label(left_col, "Power states").pack(
+            anchor="w", pady=(0, 0)
+        )
+        state_grid = tk.Frame(left_col, bg=COLORS["panel"])
         state_grid.pack(fill="x")
         state_grid.columnconfigure(0, weight=1)
         state_grid.columnconfigure(1, weight=1)
-        for row, state in enumerate(("Unoccupied", "Exploited")):
-            self._grid_check(state_grid, state, self.power_state_vars[state], row, 0)
-        for row, state in enumerate(("Fortified", "Stronghold")):
-            self._grid_check(state_grid, state, self.power_state_vars[state], row, 1)
+        self._grid_check(
+            state_grid, "Unoccupied", self.power_state_vars["Unoccupied"], 0, 0
+        )
+        self._grid_check(
+            state_grid, "Fortified", self.power_state_vars["Fortified"], 0, 1
+        )
+        self._grid_check(
+            state_grid, "Exploited", self.power_state_vars["Exploited"], 1, 0
+        )
+        self._grid_check(
+            state_grid, "Stronghold", self.power_state_vars["Stronghold"], 1, 1
+        )
 
         self._small_label(reference_col, "Reference system").pack(anchor="w")
         tk.Entry(
@@ -394,7 +398,7 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
             fg=COLORS["text"],
             insertbackground=COLORS["text"],
             relief="flat",
-        ).pack(fill="x", pady=(2, 7), ipady=4)
+        ).pack(fill="x", pady=(1, 8), ipady=3)
 
         self._small_label(reference_col, "Max distance (LY)").pack(anchor="w")
         tk.Entry(
@@ -404,7 +408,7 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
             fg=COLORS["text"],
             insertbackground=COLORS["text"],
             relief="flat",
-        ).pack(fill="x", pady=(2, 0), ipady=4)
+        ).pack(fill="x", pady=(1, 0), ipady=3)
 
     def _toggle_results_expansion(self):
         # Same user-facing behaviour as before, adapted to the fixed grid
