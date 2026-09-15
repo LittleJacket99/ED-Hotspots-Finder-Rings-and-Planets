@@ -9,6 +9,8 @@ from hotspots_finder_gui_v8 import COLORS
 
 
 DISTANCE_COLUMN = "Distance (LY)"
+BODY_COLUMN = "Body"
+SORT_TABLES = ("hotspots", "planets", "community")
 
 
 class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
@@ -20,11 +22,9 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
     def _build_ui(self):
         self.reference_system_var = tk.StringVar(master=self, value="")
         self.max_distance_var = tk.StringVar(master=self, value="50")
-        self._distance_sort_state = {
-            "hotspots": None,
-            "planets": None,
-            "community": None,
-        }
+        self._distance_sort_state = {table: None for table in SORT_TABLES}
+        self._body_sort_state = {table: None for table in SORT_TABLES}
+        self._active_sort_column = {table: None for table in SORT_TABLES}
         super()._build_ui()
 
     def _build_filters(self, parent):
@@ -160,11 +160,25 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
         super()._scan_complete(mapped)
 
     def _set_filter_dataset(self, table, headers, rows):
-        # A new result set that contains distances starts nearest-first.
-        if DISTANCE_COLUMN in list(headers or []):
-            self._distance_sort_state[table] = "asc"
+        headers = list(headers or [])
+
+        self._distance_sort_state[table] = (
+            "asc" if DISTANCE_COLUMN in headers else None
+        )
+        self._body_sort_state[table] = (
+            "asc" if BODY_COLUMN in headers else None
+        )
+
+        # Reference searches start nearest-first. Without a Distance column,
+        # Body starts alphabetically. Clicking either heading makes it the
+        # active sort for that table.
+        if DISTANCE_COLUMN in headers:
+            self._active_sort_column[table] = DISTANCE_COLUMN
+        elif BODY_COLUMN in headers:
+            self._active_sort_column[table] = BODY_COLUMN
         else:
-            self._distance_sort_state[table] = None
+            self._active_sort_column[table] = None
+
         super()._set_filter_dataset(table, headers, rows)
 
     @staticmethod
@@ -175,25 +189,39 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
         except (TypeError, ValueError):
             return None
 
-    def _sort_rows_by_distance(self, table, rows):
-        direction = self._distance_sort_state.get(table)
+    @staticmethod
+    def _body_value(row):
+        value = str(row.get(BODY_COLUMN, "") or "").strip()
+        return value.casefold() if value else None
+
+    def _sort_rows(self, table, rows):
+        column = self._active_sort_column.get(table)
+        if column == DISTANCE_COLUMN:
+            direction = self._distance_sort_state.get(table)
+            value_getter = self._numeric_distance
+        elif column == BODY_COLUMN:
+            direction = self._body_sort_state.get(table)
+            value_getter = self._body_value
+        else:
+            return rows
+
         if direction not in ("asc", "desc"):
             return rows
 
-        with_distance = []
-        without_distance = []
+        with_value = []
+        without_value = []
         for row in rows:
-            distance = self._numeric_distance(row)
-            if distance is None:
-                without_distance.append(row)
+            value = value_getter(row)
+            if value is None:
+                without_value.append(row)
             else:
-                with_distance.append((distance, row))
+                with_value.append((value, row))
 
-        with_distance.sort(
+        with_value.sort(
             key=lambda item: item[0],
             reverse=(direction == "desc"),
         )
-        return [row for _distance, row in with_distance] + without_distance
+        return [row for _value, row in with_value] + without_value
 
     def _render_filtered_table(self, table):
         tree = self._table_trees[table]
@@ -201,7 +229,7 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
             row for row in self._column_filter_rows.get(table, [])
             if self._row_matches(table, row)
         ]
-        rows = self._sort_rows_by_distance(table, rows)
+        rows = self._sort_rows(table, rows)
 
         if table == "hotspots":
             display_rows = self._compact_hotspot_rows(rows)
@@ -218,31 +246,58 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
         self._configure_filter_headings(table)
 
     def _configure_filter_headings(self, table):
+        # Let the base class configure normal drop-down filters first, then
+        # replace Body (and Distance) with direct click-to-sort headings.
         super()._configure_filter_headings(table)
 
         headers = self._column_filter_headers.get(table, [])
-        if DISTANCE_COLUMN not in headers:
-            return
-
-        direction = self._distance_sort_state.get(table) or "asc"
-        marker = " ▲" if direction == "asc" else " ▼"
         tree = self._table_trees[table]
-        tree.heading(
-            DISTANCE_COLUMN,
-            text=DISTANCE_COLUMN + marker,
-            command=lambda t=table: self._toggle_distance_sort(t),
-        )
+        active_column = self._active_sort_column.get(table)
 
-    def _toggle_distance_sort(self, table):
-        current = self._distance_sort_state.get(table)
-        self._distance_sort_state[table] = (
-            "desc" if current == "asc" else "asc"
-        )
+        for column in (DISTANCE_COLUMN, BODY_COLUMN):
+            if column not in headers:
+                continue
+
+            if column == DISTANCE_COLUMN:
+                direction = self._distance_sort_state.get(table) or "asc"
+            else:
+                direction = self._body_sort_state.get(table) or "asc"
+
+            if active_column == column:
+                marker = " ▲" if direction == "asc" else " ▼"
+            else:
+                marker = " ↕"
+
+            tree.heading(
+                column,
+                text=column + marker,
+                command=lambda t=table, c=column: self._toggle_direct_sort(t, c),
+            )
+
+    def _toggle_direct_sort(self, table, column):
+        if self._active_sort_column.get(table) == column:
+            if column == DISTANCE_COLUMN:
+                current = self._distance_sort_state.get(table) or "asc"
+                self._distance_sort_state[table] = (
+                    "desc" if current == "asc" else "asc"
+                )
+            else:
+                current = self._body_sort_state.get(table) or "asc"
+                self._body_sort_state[table] = (
+                    "desc" if current == "asc" else "asc"
+                )
+        else:
+            self._active_sort_column[table] = column
+            if column == DISTANCE_COLUMN:
+                self._distance_sort_state[table] = "asc"
+            else:
+                self._body_sort_state[table] = "asc"
+
         self._render_filtered_table(table)
 
     def _autosize_single_column(self, tree, column, rows=None):
         super()._autosize_single_column(tree, column, rows=rows)
-        if column == DISTANCE_COLUMN:
+        if column in (DISTANCE_COLUMN, BODY_COLUMN):
             try:
                 current_width = int(tree.column(column, "width"))
                 tree.column(column, width=current_width + 18)
