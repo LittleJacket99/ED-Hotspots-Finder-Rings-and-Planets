@@ -46,6 +46,53 @@ class FinderV8ColumnFiltersApp(FinderV8CommunityApp):
         self._autosize_next_populate = set()
         super()._build_ui()
 
+        # Keep the systems pane compact so the results area gets more room.
+        self._configure_compact_systems_panel()
+
+        # Pasting systems one at a time automatically moves the cursor to the
+        # next line, making repeated copy/paste entry quicker.
+        self.systems_text.bind("<<Paste>>", self._paste_systems_with_newline)
+
+    def _configure_compact_systems_panel(self):
+        try:
+            systems_panel = self.systems_text.master.master
+            paned = systems_panel.master
+            systems_panel.configure(width=145)
+            paned.paneconfigure(systems_panel, minsize=125)
+
+            def _shrink_after_layout():
+                try:
+                    first_x, _first_y = paned.sash_coord(0)
+                    paned.sash_place(1, first_x + 150, 0)
+                except (tk.TclError, IndexError):
+                    pass
+
+            self.after_idle(_shrink_after_layout)
+        except (AttributeError, tk.TclError):
+            pass
+
+    def _paste_systems_with_newline(self, _event=None):
+        try:
+            text = self.clipboard_get()
+        except tk.TclError:
+            return "break"
+
+        text = str(text).replace("\r\n", "\n").replace("\r", "\n")
+        lines = [line.strip() for line in text.split("\n") if line.strip()]
+        if not lines:
+            return "break"
+
+        try:
+            self.systems_text.delete("sel.first", "sel.last")
+        except tk.TclError:
+            pass
+
+        insert_text = "\n".join(lines) + "\n"
+        self.systems_text.insert("insert", insert_text)
+        self.systems_text.see("insert")
+        self._refresh_system_count()
+        return "break"
+
     def _build_results(self, parent):
         super()._build_results(parent)
 
@@ -59,6 +106,9 @@ class FinderV8ColumnFiltersApp(FinderV8CommunityApp):
             "planets": self.planet_tree,
             "community": self.community_tree,
         }
+
+        for tree in self._table_trees.values():
+            tree.bind("<Double-Button-1>", self._tree_double_click_autosize, add="+")
 
     def _scan_complete(self, result):
         # A fresh scan gets a fresh content-based column fit. Later filtering
@@ -238,22 +288,62 @@ class FinderV8ColumnFiltersApp(FinderV8CommunityApp):
                 tree.column(header, width=width)
 
     def _autosize_tree_columns(self, tree, headers, rows):
+        for header in headers:
+            self._autosize_single_column(tree, header, rows=rows)
+
+    def _autosize_single_column(self, tree, column, rows=None):
         font = tkfont.nametofont("TkDefaultFont")
         heading_font = tkfont.Font(font=font)
 
-        for header in headers:
-            # Reserve a little extra space for the filter marker on filterable
-            # columns. Content is capped so one unusually long value does not
-            # make the whole table impractical; the user can still drag wider.
-            heading_text = str(header) + " ▼*"
-            width = heading_font.measure(heading_text) + 24
+        table = None
+        for table_name, table_tree in getattr(self, "_table_trees", {}).items():
+            if table_tree is tree:
+                table = table_name
+                break
 
-            for row in rows:
-                value = str(row.get(header, "") or "")
-                width = max(width, font.measure(value) + 24)
+        filterable = table is not None and column in FILTER_COLUMNS.get(table, ())
+        active = (
+            filterable
+            and self._column_filter_state.get(table, {}).get(column) is not None
+        )
+        if filterable:
+            heading_text = str(column) + (" ▼*" if active else " ▼")
+        else:
+            heading_text = str(column)
 
-            width = max(70, min(width, 360))
-            tree.column(header, width=width, minwidth=55, stretch=False)
+        width = heading_font.measure(heading_text) + 24
+
+        if rows is None:
+            values = [tree.set(iid, column) for iid in tree.get_children("")]
+        else:
+            values = [row.get(column, "") for row in rows]
+
+        for value in values:
+            text = str(value or "")
+            width = max(width, font.measure(text) + 24)
+
+        width = max(70, min(width, 360))
+        tree.column(column, width=width, minwidth=55, stretch=False)
+
+    def _tree_double_click_autosize(self, event):
+        tree = event.widget
+        try:
+            if tree.identify_region(event.x, event.y) != "separator":
+                return None
+
+            column_id = tree.identify_column(event.x)
+            if not column_id or not column_id.startswith("#"):
+                return "break"
+
+            index = int(column_id[1:]) - 1
+            columns = list(tree["columns"])
+            if index < 0 or index >= len(columns):
+                return "break"
+
+            self._autosize_single_column(tree, columns[index])
+            return "break"
+        except (tk.TclError, TypeError, ValueError):
+            return "break"
 
     @staticmethod
     def _compact_planet_rows(rows):
