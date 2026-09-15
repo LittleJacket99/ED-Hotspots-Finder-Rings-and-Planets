@@ -18,6 +18,8 @@ SYSTEMS_WIDTH = 250
 LEFT_WIDTH = FILTERS_WIDTH + SYSTEMS_WIDTH
 SYSTEM_FILTERS_HEIGHT = 195
 OPTION_COLUMN_WIDTH = 135
+SYSTEM_FILTER_LEFT_WIDTH = 305
+SYSTEM_FILTER_REFERENCE_WIDTH = 211
 
 
 class FinderV8LayoutApp(FinderV8LogLayoutApp):
@@ -331,8 +333,8 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
             ).pack(side="left", padx=(6, 0))
 
     def _build_system_filters(self, parent):
-        # Two compact columns: Faction/Power on the left and distance controls
-        # on the right. This keeps Reference System visible at normal height.
+        # Give Faction/Power a compact fixed width so Reference System and
+        # Max Distance always remain fully visible inside the left panel.
         tk.Label(
             parent,
             text="SYSTEM FILTERS",
@@ -343,14 +345,24 @@ class FinderV8LayoutApp(FinderV8LogLayoutApp):
 
         columns = tk.Frame(parent, bg=COLORS["panel"])
         columns.pack(fill="both", expand=True, padx=12, pady=(0, 6))
-        columns.columnconfigure(0, weight=1, uniform="systemfilters")
-        columns.columnconfigure(1, weight=1, uniform="systemfilters")
+        columns.columnconfigure(0, weight=0, minsize=SYSTEM_FILTER_LEFT_WIDTH)
+        columns.columnconfigure(1, weight=0, minsize=SYSTEM_FILTER_REFERENCE_WIDTH)
         columns.rowconfigure(0, weight=1)
 
-        left_col = tk.Frame(columns, bg=COLORS["panel"])
-        reference_col = tk.Frame(columns, bg=COLORS["panel"])
-        left_col.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
-        reference_col.grid(row=0, column=1, sticky="nsew", padx=(12, 0))
+        left_col = tk.Frame(
+            columns,
+            bg=COLORS["panel"],
+            width=SYSTEM_FILTER_LEFT_WIDTH,
+        )
+        reference_col = tk.Frame(
+            columns,
+            bg=COLORS["panel"],
+            width=SYSTEM_FILTER_REFERENCE_WIDTH,
+        )
+        left_col.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        reference_col.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+        left_col.grid_propagate(False)
+        reference_col.grid_propagate(False)
 
         self._small_label(left_col, "Faction").pack(anchor="w")
         tk.Entry(
