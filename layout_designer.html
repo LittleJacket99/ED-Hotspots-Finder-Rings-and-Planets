@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hotspots Finder v8 - Layout Designer</title>
+<style>
+  :root{
+    --bg:#1f1f1f; --panel:#2b2b2b; --panel2:#333; --text:#f1f1f1;
+    --muted:#b5b5b5; --orange:#ffa500; --border:#4d4d4d; --accent:#5acd57;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#111;color:var(--text);font-family:Segoe UI,Arial,sans-serif;overflow:auto}
+  #toolbar{position:sticky;top:0;z-index:9999;display:flex;gap:8px;align-items:center;padding:8px 12px;background:#181818;border-bottom:1px solid #444}
+  #toolbar button{background:#3a4148;color:#fff;border:0;padding:7px 12px;cursor:pointer}
+  #toolbar button:hover{background:#46515c}
+  #toolbar .hint{margin-left:10px;color:#aaa;font-size:13px}
+  #stageWrap{padding:16px}
+  #stage{position:relative;width:1360px;height:820px;margin:0 auto;background:var(--bg);border:1px solid #555;overflow:hidden;user-select:none}
+  #header{position:absolute;left:0;top:0;width:100%;height:76px;background:#242424;padding:12px 18px;pointer-events:none}
+  #header h1{margin:0;color:var(--orange);font-size:24px}
+  #header div{color:var(--muted);font-size:13px;margin-top:3px}
+  #bottom{position:absolute;left:0;bottom:0;width:100%;height:54px;background:#242424;display:flex;align-items:center;padding:8px 12px;gap:10px;pointer-events:none}
+  .scan{background:#ffa500;color:#111;font-weight:700;padding:9px 26px}.stop{background:#563737;padding:9px 26px}.status{margin-left:20px;color:#ddd}
+  .item{position:absolute;background:var(--panel);border:1px solid transparent;min-width:90px;min-height:40px;cursor:move;overflow:hidden}
+  .item.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .item .title{color:var(--orange);font-weight:700;font-size:14px;margin-bottom:8px}
+  .item .muted{color:var(--muted);font-size:12px}
+  .item .row{display:flex;gap:18px;align-items:center;margin:4px 0;font-size:13px}
+  .item .col{display:flex;flex-direction:column;gap:4px}
+  .box{height:26px;background:#3b3b3b;border:1px solid #444;margin-top:4px}
+  .combo{height:26px;background:#e8e6df;color:#111;border:1px solid #999;margin-top:4px;position:relative}.combo:after{content:'▼';position:absolute;right:6px;top:4px;font-size:11px}
+  .btn{display:inline-block;background:#3a4148;padding:7px 12px;margin-top:6px;font-size:12px;text-align:center}
+  .fakecheck:before{content:'□';display:inline-block;width:18px;color:#ddd}.fakecheck.on:before{content:'☑'}
+  .resize{position:absolute;right:0;bottom:0;width:14px;height:14px;background:linear-gradient(135deg,transparent 50%,#777 50%);cursor:nwse-resize}
+  .systemList{height:calc(100% - 48px);background:#242424;border:1px solid #333;margin-top:6px}
+  .resultsBody{height:calc(100% - 48px);border:1px solid #aaa;background:#242424;margin-top:7px}
+  .tabs{display:flex;gap:2px}.tab{padding:7px 14px;background:#333;border:1px solid #888;font-size:12px}.tab.active{color:var(--orange)}
+  #inspector{position:fixed;right:12px;top:58px;width:230px;background:#181818;border:1px solid #555;padding:10px;z-index:10000;font-size:12px}
+  #inspector h3{margin:0 0 8px;color:var(--orange)}
+  #inspector label{display:grid;grid-template-columns:25px 1fr;gap:6px;align-items:center;margin:5px 0}
+  #inspector input{width:100%;background:#2d2d2d;color:#fff;border:1px solid #555;padding:4px}
+  #inspector textarea{width:100%;height:110px;background:#111;color:#ddd;border:1px solid #555;font:11px Consolas,monospace}
+  .locked{opacity:.75;cursor:default}
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <button id="resetBtn">Reset</button>
+  <button id="copyBtn">Copia JSON</button>
+  <button id="downloadBtn">Scarica layout.json</button>
+  <span class="hint">Trascina i riquadri. Usa il triangolino in basso a destra per ridimensionare. Frecce = 1 px, Shift+frecce = 10 px.</span>
+</div>
+<div id="inspector">
+  <h3>Elemento selezionato</h3>
+  <div id="selName">nessuno</div>
+  <label>X <input id="ix" type="number"></label>
+  <label>Y <input id="iy" type="number"></label>
+  <label>W <input id="iw" type="number"></label>
+  <label>H <input id="ih" type="number"></label>
+  <textarea id="jsonOut" readonly></textarea>
+</div>
+<div id="stageWrap"><div id="stage">
+  <div id="header"><h1>Hotspots &amp; Landables Finder</h1><div>v8 local interface · Spansh · no Google Sheets</div></div>
+  <div id="bottom"><div class="scan">SCAN</div><div class="stop">STOP</div><div style="width:150px;height:16px;background:#ddd"></div><div class="status">Ready</div></div>
+
+  <div class="item" data-id="hotspots" style="left:18px;top:92px;width:250px;height:145px;padding:10px">
+    <div class="title">HOTSPOTS</div><div class="row"><span class="fakecheck on">Enable hotspots</span><span class="fakecheck">Only pristine</span></div>
+    <div class="row" style="align-items:flex-start"><div class="col"><span class="muted">Ring types</span><span class="fakecheck">Icy</span><span class="fakecheck">Metallic</span><span class="fakecheck">Metal Rich</span><span class="fakecheck">Rocky</span></div><div class="col"><span class="muted">Commodities</span><span class="fakecheck">Platinum</span><span class="fakecheck">Bromellite</span><span class="fakecheck">Monazite</span></div></div><div class="resize"></div>
+  </div>
+
+  <div class="item" data-id="planets" style="left:18px;top:242px;width:250px;height:135px;padding:10px">
+    <div class="title">PLANETS</div><div class="row"><span class="fakecheck on">Enable planets</span><span class="fakecheck">Only landables</span></div>
+    <div class="muted">Planet types</div><div class="row" style="align-items:flex-start"><div class="col"><span class="fakecheck">Metal Rich</span><span class="fakecheck">High Metal Content</span><span class="fakecheck">Rocky</span></div><div class="col"><span class="fakecheck">Rocky Ice</span><span class="fakecheck">Icy</span></div></div><div class="resize"></div>
+  </div>
+
+  <div class="item" data-id="resultsOptions" style="left:18px;top:382px;width:250px;height:62px;padding:10px"><div class="title">RESULTS</div><span class="fakecheck">Only positive results</span><div class="resize"></div></div>
+
+  <div class="item" data-id="community" style="left:18px;top:448px;width:250px;height:105px;padding:10px"><div class="title">COMMUNITY DEPOSITS</div><span class="fakecheck on">Show Community Deposits</span><div class="btn">Upload RhinoSpotter</div><div class="resize"></div></div>
+
+  <div class="item" data-id="systems" style="left:285px;top:92px;width:250px;height:470px;padding:10px"><div class="title">SYSTEMS</div><div class="muted">0 systems</div><div class="systemList"></div><div class="resize"></div></div>
+
+  <div class="item" data-id="systemFiltersTitle" style="left:18px;top:570px;width:160px;height:38px;padding:8px"><div class="title">SYSTEM FILTERS</div><div class="resize"></div></div>
+
+  <div class="item" data-id="faction" style="left:18px;top:610px;width:225px;height:58px;padding:6px"><div class="muted">Faction</div><div class="box"></div><div class="resize"></div></div>
+  <div class="item" data-id="power" style="left:18px;top:670px;width:225px;height:58px;padding:6px"><div class="muted">Power</div><div class="combo"></div><div class="resize"></div></div>
+  <div class="item" data-id="powerStates" style="left:18px;top:730px;width:225px;height:55px;padding:6px"><div class="muted">Power states</div><div class="row"><span class="fakecheck">Unoccupied</span><span class="fakecheck">Fortified</span></div><div class="row"><span class="fakecheck">Exploited</span><span class="fakecheck">Stronghold</span></div><div class="resize"></div></div>
+
+  <div class="item" data-id="reference" style="left:265px;top:610px;width:225px;height:58px;padding:6px"><div class="muted">Reference system</div><div class="box"></div><div class="resize"></div></div>
+  <div class="item" data-id="distance" style="left:265px;top:670px;width:225px;height:58px;padding:6px"><div class="muted">Max distance (LY)</div><div class="box">50</div><div class="resize"></div></div>
+
+  <div class="item" data-id="resultsPanel" style="left:550px;top:92px;width:790px;height:650px;padding:10px"><div class="title">RESULTS</div><div class="tabs"><div class="tab active">Hotspots</div><div class="tab">Planets</div><div class="tab">Community Deposits</div></div><div class="resultsBody"></div><div class="resize"></div></div>
+</div></div>
+<script>
+const stage=document.getElementById('stage');
+const items=[...document.querySelectorAll('.item')];
+const defaults={};
+let selected=null, drag=null, resize=null;
+const fields={x:ix,y:iy,w:iw,h:ih};
+
+function num(v){return Math.round(parseFloat(v)||0)}
+function capture(el){return {x:num(el.style.left),y:num(el.style.top),w:num(el.style.width),h:num(el.style.height)}}
+items.forEach(el=>defaults[el.dataset.id]=capture(el));
+
+function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
+function select(el){items.forEach(i=>i.classList.remove('selected'));selected=el;if(el)el.classList.add('selected');refreshInspector()}
+function refreshInspector(){
+  if(!selected){selName.textContent='nessuno'; Object.values(fields).forEach(f=>f.value=''); updateJSON(); return}
+  const g=capture(selected); selName.textContent=selected.dataset.id; ix.value=g.x;iy.value=g.y;iw.value=g.w;ih.value=g.h;updateJSON();
+}
+function applyInspector(){if(!selected)return; selected.style.left=num(ix.value)+'px';selected.style.top=num(iy.value)+'px';selected.style.width=Math.max(60,num(iw.value))+'px';selected.style.height=Math.max(35,num(ih.value))+'px';updateJSON()}
+Object.values(fields).forEach(f=>f.addEventListener('input',applyInspector));
+
+items.forEach(el=>{
+  el.addEventListener('pointerdown',e=>{
+    select(el);
+    if(e.target.classList.contains('resize')){
+      resize={el,sx:e.clientX,sy:e.clientY,g:capture(el)};
+      e.target.setPointerCapture(e.pointerId); e.preventDefault(); return;
+    }
+    drag={el,sx:e.clientX,sy:e.clientY,g:capture(el)};
+    el.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  el.addEventListener('pointermove',e=>{
+    if(drag&&drag.el===el){
+      const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;
+      el.style.left=clamp(drag.g.x+dx,0,stage.clientWidth-60)+'px';
+      el.style.top=clamp(drag.g.y+dy,76,stage.clientHeight-90)+'px';refreshInspector();
+    }
+    if(resize&&resize.el===el){
+      const dx=e.clientX-resize.sx,dy=e.clientY-resize.sy;
+      el.style.width=Math.max(60,resize.g.w+dx)+'px';el.style.height=Math.max(35,resize.g.h+dy)+'px';refreshInspector();
+    }
+  });
+  el.addEventListener('pointerup',()=>{drag=null;resize=null;updateJSON()});
+});
+stage.addEventListener('pointerdown',e=>{if(e.target===stage)select(null)});
+
+document.addEventListener('keydown',e=>{
+  if(!selected||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))return;
+  const step=e.shiftKey?10:1,g=capture(selected);
+  if(e.key==='ArrowLeft')selected.style.left=(g.x-step)+'px';
+  if(e.key==='ArrowRight')selected.style.left=(g.x+step)+'px';
+  if(e.key==='ArrowUp')selected.style.top=(g.y-step)+'px';
+  if(e.key==='ArrowDown')selected.style.top=(g.y+step)+'px';
+  e.preventDefault();refreshInspector();
+});
+
+function layout(){const out={stage:{width:stage.clientWidth,height:stage.clientHeight},items:{}};items.forEach(el=>out.items[el.dataset.id]=capture(el));return out}
+function updateJSON(){jsonOut.value=JSON.stringify(layout(),null,2)}
+resetBtn.onclick=()=>{items.forEach(el=>{const g=defaults[el.dataset.id];el.style.left=g.x+'px';el.style.top=g.y+'px';el.style.width=g.w+'px';el.style.height=g.h+'px'});select(null);updateJSON()}
+copyBtn.onclick=async()=>{const t=JSON.stringify(layout(),null,2);try{await navigator.clipboard.writeText(t);copyBtn.textContent='Copiato!';setTimeout(()=>copyBtn.textContent='Copia JSON',1000)}catch{jsonOut.focus();jsonOut.select();document.execCommand('copy')}}
+downloadBtn.onclick=()=>{const blob=new Blob([JSON.stringify(layout(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='layout.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+updateJSON();
+</script>
+</body>
+</html>
