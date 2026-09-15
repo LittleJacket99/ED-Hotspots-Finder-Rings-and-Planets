@@ -10,22 +10,24 @@ from hotspots_finder_gui_v8 import COLORS
 from hotspots_finder_gui_v8_layout import FinderV8LayoutApp
 
 
-FILTERS_PANEL_WIDTH = 265
-SYSTEMS_PANEL_WIDTH = 260
+# Geometry taken from the annotated layout target.
+FILTERS_PANEL_WIDTH = 250
+SYSTEMS_PANEL_WIDTH = 240
 LEFT_CLUSTER_WIDTH = 550
-RIGHT_SPACER_WIDTH = LEFT_CLUSTER_WIDTH - FILTERS_PANEL_WIDTH - SYSTEMS_PANEL_WIDTH
-OPTION_COLUMN_WIDTH = 115
-SYSTEM_FILTER_COLUMN_WIDTH = 245
-SYSTEM_INPUT_WIDTH = 225
+CONTENT_WIDTH = FILTERS_PANEL_WIDTH + SYSTEMS_PANEL_WIDTH
+RIGHT_SPACER_WIDTH = LEFT_CLUSTER_WIDTH - CONTENT_WIDTH
+
+OPTION_COLUMN_WIDTH = 108
+SYSTEM_FILTERS_HEIGHT = 195
+SYSTEM_FILTER_BOTTOM_GAP = 35
+SYSTEM_FILTER_COLUMN_WIDTH = 230
+SYSTEM_INPUT_WIDTH = 205
 SYSTEM_INPUT_HEIGHT = 25
-SYSTEMS_LEFT_PAD = 4
-SYSTEMS_RIGHT_PAD = 28
 
 
 class FinderV8PolishApp(FinderV8LayoutApp):
     @staticmethod
     def _two_column_frame(parent):
-        """Slightly tighter filter columns so the Filters panel can move left."""
         frame = tk.Frame(parent, bg=COLORS["panel"])
         frame.pack(fill="x")
         frame.columnconfigure(0, weight=0, minsize=OPTION_COLUMN_WIDTH)
@@ -35,18 +37,53 @@ class FinderV8PolishApp(FinderV8LayoutApp):
     def _build_ui(self):
         super()._build_ui()
 
-        # Keep Filters and Systems as fixed zones, but leave a deliberate gap
-        # between the Systems content and Results.
+        # The previous polish only changed requested widths inside the old grid,
+        # so visually almost nothing moved. Here the three left-side zones are
+        # positioned explicitly to match the sketch.
         self._left_cluster.configure(width=LEFT_CLUSTER_WIDTH)
-        self._left_cluster.columnconfigure(0, weight=0, minsize=FILTERS_PANEL_WIDTH)
-        self._left_cluster.columnconfigure(1, weight=0, minsize=SYSTEMS_PANEL_WIDTH)
-        self._left_cluster.columnconfigure(2, weight=0, minsize=RIGHT_SPACER_WIDTH)
 
-        self._filters_panel.configure(width=FILTERS_PANEL_WIDTH)
-        self._systems_panel.configure(width=SYSTEMS_PANEL_WIDTH)
+        for panel in (
+            self._filters_panel,
+            self._systems_panel,
+            self._system_filters_panel,
+        ):
+            try:
+                panel.grid_forget()
+            except tk.TclError:
+                pass
+            panel.place_forget()
 
-        # Pull the Systems content toward Filters and detach it from the right
-        # edge. This applies to the title/count, list, buttons and help text.
+        # Filters on the far left. Systems begins immediately after it, rather
+        # than being pushed toward Results. A visible spacer remains on the
+        # right side before the Results panel.
+        upper_height_offset = -(SYSTEM_FILTERS_HEIGHT + SYSTEM_FILTER_BOTTOM_GAP)
+
+        self._filters_panel.place(
+            x=0,
+            y=0,
+            width=FILTERS_PANEL_WIDTH,
+            relheight=1.0,
+            height=upper_height_offset,
+        )
+        self._systems_panel.place(
+            x=FILTERS_PANEL_WIDTH,
+            y=0,
+            width=SYSTEMS_PANEL_WIDTH,
+            relheight=1.0,
+            height=upper_height_offset,
+        )
+
+        # Pull SYSTEM FILTERS upward and keep it aligned only with the useful
+        # left-side content. The remaining RIGHT_SPACER_WIDTH stays empty.
+        self._system_filters_panel.place(
+            x=0,
+            rely=1.0,
+            y=-(SYSTEM_FILTERS_HEIGHT + SYSTEM_FILTER_BOTTOM_GAP),
+            width=CONTENT_WIDTH,
+            height=SYSTEM_FILTERS_HEIGHT,
+        )
+
+        # Keep every widget inside Systems comfortably away from the right edge.
         for child in self._systems_panel.winfo_children():
             try:
                 info = child.pack_info()
@@ -60,7 +97,7 @@ class FinderV8PolishApp(FinderV8LayoutApp):
 
             if info:
                 try:
-                    child.pack_configure(padx=(SYSTEMS_LEFT_PAD, SYSTEMS_RIGHT_PAD))
+                    child.pack_configure(padx=(4, 18))
                 except tk.TclError:
                     pass
 
@@ -77,8 +114,8 @@ class FinderV8PolishApp(FinderV8LayoutApp):
         return holder
 
     @staticmethod
-    def _fill_holder(widget, holder):
-        """Force every input control to the exact same pixel box."""
+    def _fill_holder(widget):
+        # Exact pixel size for Faction, Power, Reference system and Max distance.
         widget.place(
             x=0,
             y=0,
@@ -88,7 +125,6 @@ class FinderV8PolishApp(FinderV8LayoutApp):
         return widget
 
     def _build_system_filters(self, parent):
-        """Use four equal input boxes in two clean, aligned columns."""
         tk.Label(
             parent,
             text="SYSTEM FILTERS",
@@ -108,15 +144,15 @@ class FinderV8PolishApp(FinderV8LayoutApp):
             bg=COLORS["panel"],
             width=SYSTEM_FILTER_COLUMN_WIDTH,
         )
-        reference_col = tk.Frame(
+        right_col = tk.Frame(
             columns,
             bg=COLORS["panel"],
             width=SYSTEM_FILTER_COLUMN_WIDTH,
         )
         left_col.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
-        reference_col.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+        right_col.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
         left_col.grid_propagate(False)
-        reference_col.grid_propagate(False)
+        right_col.grid_propagate(False)
 
         self._small_label(left_col, "Faction").pack(anchor="w")
         faction_holder = self._fixed_control_frame(left_col, pady=(1, 4))
@@ -128,8 +164,7 @@ class FinderV8PolishApp(FinderV8LayoutApp):
                 fg=COLORS["text"],
                 insertbackground=COLORS["text"],
                 relief="flat",
-            ),
-            faction_holder,
+            )
         )
 
         self._small_label(left_col, "Power").pack(anchor="w")
@@ -140,16 +175,19 @@ class FinderV8PolishApp(FinderV8LayoutApp):
                 textvariable=self.power_var,
                 values=[""] + list(legacy_engine.POWER_LIST),
                 state="readonly",
-            ),
-            power_holder,
+            )
         )
 
         self._small_label(left_col, "Power states").pack(anchor="w")
-        state_grid = tk.Frame(left_col, bg=COLORS["panel"], width=SYSTEM_INPUT_WIDTH)
+        state_grid = tk.Frame(
+            left_col,
+            bg=COLORS["panel"],
+            width=SYSTEM_INPUT_WIDTH,
+        )
         state_grid.pack(anchor="w")
         state_grid.grid_propagate(False)
-        state_grid.columnconfigure(0, weight=0, minsize=112)
-        state_grid.columnconfigure(1, weight=0, minsize=113)
+        state_grid.columnconfigure(0, weight=0, minsize=102)
+        state_grid.columnconfigure(1, weight=0, minsize=103)
         self._grid_check(
             state_grid, "Unoccupied", self.power_state_vars["Unoccupied"], 0, 0
         )
@@ -163,8 +201,8 @@ class FinderV8PolishApp(FinderV8LayoutApp):
             state_grid, "Stronghold", self.power_state_vars["Stronghold"], 1, 1
         )
 
-        self._small_label(reference_col, "Reference system").pack(anchor="w")
-        reference_holder = self._fixed_control_frame(reference_col, pady=(1, 8))
+        self._small_label(right_col, "Reference system").pack(anchor="w")
+        reference_holder = self._fixed_control_frame(right_col, pady=(1, 8))
         self._fill_holder(
             tk.Entry(
                 reference_holder,
@@ -173,12 +211,11 @@ class FinderV8PolishApp(FinderV8LayoutApp):
                 fg=COLORS["text"],
                 insertbackground=COLORS["text"],
                 relief="flat",
-            ),
-            reference_holder,
+            )
         )
 
-        self._small_label(reference_col, "Max distance (LY)").pack(anchor="w")
-        distance_holder = self._fixed_control_frame(reference_col, pady=(1, 0))
+        self._small_label(right_col, "Max distance (LY)").pack(anchor="w")
+        distance_holder = self._fixed_control_frame(right_col, pady=(1, 0))
         self._fill_holder(
             tk.Entry(
                 distance_holder,
@@ -187,8 +224,7 @@ class FinderV8PolishApp(FinderV8LayoutApp):
                 fg=COLORS["text"],
                 insertbackground=COLORS["text"],
                 relief="flat",
-            ),
-            distance_holder,
+            )
         )
 
 
