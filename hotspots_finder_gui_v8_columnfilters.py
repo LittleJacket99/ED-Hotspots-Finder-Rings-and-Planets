@@ -3,6 +3,7 @@
 """v8 feature test: filters directly in result-table column headers."""
 
 import tkinter as tk
+import tkinter.font as tkfont
 
 from hotspots_finder_gui_v8_community import FinderV8CommunityApp
 
@@ -42,6 +43,7 @@ class FinderV8ColumnFiltersApp(FinderV8CommunityApp):
             table: {column: None for column in columns}
             for table, columns in FILTER_COLUMNS.items()
         }
+        self._autosize_next_populate = set()
         super()._build_ui()
 
     def _build_results(self, parent):
@@ -59,6 +61,12 @@ class FinderV8ColumnFiltersApp(FinderV8CommunityApp):
         }
 
     def _scan_complete(self, result):
+        # A fresh scan gets a fresh content-based column fit. Later filtering
+        # preserves whatever widths the user has manually chosen.
+        self._autosize_next_populate.update(
+            {self.hotspot_tree, self.planet_tree, self.community_tree}
+        )
+
         # Display terminology: hotspot "Material" becomes "Commodity".
         mapped = dict(result)
         hotspot_headers = [
@@ -106,13 +114,7 @@ class FinderV8ColumnFiltersApp(FinderV8CommunityApp):
         self._render_filtered_table(table)
 
     def _effective_rows(self, table, rows):
-        """Restore repeated values hidden by the compact result display.
-
-        The underlying v8 result tables blank repeated System/Status/ring data
-        for readability. Filters need the logical value on every row, so we
-        forward-fill those values internally and compact them again only when
-        rendering the filtered result.
-        """
+        """Restore repeated values hidden by the compact result display."""
 
         if table == "community":
             return rows
@@ -135,8 +137,6 @@ class FinderV8ColumnFiltersApp(FinderV8CommunityApp):
         for source in rows:
             row = dict(source)
 
-            # A visible System starts a new logical group. Do not allow ring or
-            # planet values from the previous system to leak into the new one.
             if str(row.get("System", "")).strip():
                 context = {}
 
@@ -200,6 +200,60 @@ class FinderV8ColumnFiltersApp(FinderV8CommunityApp):
             display_rows,
         )
         self._configure_filter_headings(table)
+
+    def _populate_tree(self, tree, headers, rows):
+        """Populate a table without undoing user-selected column widths.
+
+        On a new scan columns are fitted to their heading/content. Filtering
+        then keeps the current widths, including any manual drag-resizing.
+        """
+
+        headers = list(headers)
+        old_headers = list(tree["columns"])
+        old_widths = {}
+        if old_headers == headers:
+            for header in headers:
+                try:
+                    old_widths[header] = int(tree.column(header, "width"))
+                except (tk.TclError, TypeError, ValueError):
+                    pass
+
+        tree.delete(*tree.get_children())
+        tree["columns"] = headers
+
+        for header in headers:
+            tree.heading(header, text=header, command="")
+            tree.column(header, minwidth=55, stretch=False)
+
+        for row in rows:
+            values = [row.get(header, "") for header in headers]
+            tree.insert("", "end", values=values)
+
+        should_autosize = tree in self._autosize_next_populate or not old_widths
+        if should_autosize:
+            self._autosize_tree_columns(tree, headers, rows)
+            self._autosize_next_populate.discard(tree)
+        else:
+            for header, width in old_widths.items():
+                tree.column(header, width=width)
+
+    def _autosize_tree_columns(self, tree, headers, rows):
+        font = tkfont.nametofont("TkDefaultFont")
+        heading_font = tkfont.Font(font=font)
+
+        for header in headers:
+            # Reserve a little extra space for the filter marker on filterable
+            # columns. Content is capped so one unusually long value does not
+            # make the whole table impractical; the user can still drag wider.
+            heading_text = str(header) + " ▼*"
+            width = heading_font.measure(heading_text) + 24
+
+            for row in rows:
+                value = str(row.get(header, "") or "")
+                width = max(width, font.measure(value) + 24)
+
+            width = max(70, min(width, 360))
+            tree.column(header, width=width, minwidth=55, stretch=False)
 
     @staticmethod
     def _compact_planet_rows(rows):
@@ -268,27 +322,13 @@ class FinderV8ColumnFiltersApp(FinderV8CommunityApp):
                     command=lambda t=table, c=column: self._show_column_filter(t, c),
                 )
             else:
-                tree.heading(
-                    column,
-                    text=column,
-                    command=lambda c=column, tr=tree: self._sort_tree(tr, c, False),
-                )
+                tree.heading(column, text=column, command="")
 
     def _show_column_filter(self, table, column):
-        tree = self._table_trees[table]
         selected = self._column_filter_state[table].get(column)
         choices = self._choices_for_column(table, column)
 
         menu = tk.Menu(self, tearoff=False)
-        menu.add_command(
-            label="Sort A → Z",
-            command=lambda: self._sort_tree(tree, column, False),
-        )
-        menu.add_command(
-            label="Sort Z → A",
-            command=lambda: self._sort_tree(tree, column, True),
-        )
-        menu.add_separator()
 
         all_label = "✓ All" if selected is None else "All"
         menu.add_command(
