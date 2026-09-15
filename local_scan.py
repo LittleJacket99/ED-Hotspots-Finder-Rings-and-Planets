@@ -8,6 +8,7 @@ Google-free Finder engine.
 
 import community_deposits
 import finder_engine as engine
+import system_filter_search
 
 
 class LocalScanError(RuntimeError):
@@ -22,6 +23,30 @@ def normalize_config(config):
         for value in config.get("systems", [])
         if str(value).strip()
     ])
+
+    reference_system = str(
+        config.get("reference_system", "") or ""
+    ).strip()
+
+    max_distance_raw = str(
+        config.get("max_distance_ly", "50") or ""
+    ).strip()
+    if not max_distance_raw:
+        max_distance_raw = "50"
+
+    max_distance_ly = 50.0
+    if reference_system:
+        try:
+            max_distance_ly = float(max_distance_raw.replace(",", "."))
+        except ValueError as exc:
+            raise LocalScanError(
+                "Max Distance (LY) must be a number."
+            ) from exc
+
+        if max_distance_ly <= 0:
+            raise LocalScanError(
+                "Max Distance (LY) must be greater than 0."
+            )
 
     normalized = {
         "systems": systems,
@@ -59,6 +84,8 @@ def normalize_config(config):
             "Stronghold": False,
             **dict(config.get("power_states", {})),
         },
+        "reference_system": reference_system,
+        "max_distance_ly": max_distance_ly,
         "only_positive_results": bool(
             config.get("only_positive_results", False)
         ),
@@ -86,6 +113,8 @@ def run_local_scan(config, cancel_event=None):
 
     faction_name = config["faction_name"]
     power_name = config["power_name"]
+    reference_system = config["reference_system"]
+    max_distance_ly = config["max_distance_ly"]
 
     selected_power_states = [
         state
@@ -96,10 +125,12 @@ def run_local_scan(config, cancel_event=None):
     effective_power_states = selected_power_states if power_name else []
 
     if faction_name or power_name:
-        systems = engine.search_systems_by_filters(
+        systems = system_filter_search.search_systems_by_filters(
             faction_name,
             power_name,
             effective_power_states,
+            reference_system=reference_system,
+            max_distance_ly=max_distance_ly,
             cancel_event=cancel_event,
         )
 
@@ -119,6 +150,10 @@ def run_local_scan(config, cancel_event=None):
                     "faction_name": faction_name,
                     "power_name": power_name,
                     "power_state_filters": effective_power_states,
+                    "reference_system": reference_system,
+                    "max_distance_ly": (
+                        max_distance_ly if reference_system else None
+                    ),
                     "hotspots_enabled": config["hotspots_enabled"],
                     "planets_enabled": config["planets_enabled"],
                     "community_deposits_enabled": config[
@@ -140,6 +175,10 @@ def run_local_scan(config, cancel_event=None):
                     "faction_name": faction_name,
                     "power_name": power_name,
                     "power_state_filters": effective_power_states,
+                    "reference_system": reference_system,
+                    "max_distance_ly": (
+                        max_distance_ly if reference_system else None
+                    ),
                     "hotspots_enabled": False,
                     "planets_enabled": False,
                     "community_deposits_enabled": False,
@@ -174,6 +213,11 @@ def run_local_scan(config, cancel_event=None):
     print(f"Hotspots: {config['hotspots_enabled']}")
     print(f"Planets: {config['planets_enabled']}")
     print(f"Community Deposits: {config['community_deposits_enabled']}")
+    if reference_system and (faction_name or power_name):
+        print(
+            f"Reference filter: {reference_system} / "
+            f"{max_distance_ly:g} LY max"
+        )
 
     bodies_by_system = {}
     unresolved = []
@@ -258,6 +302,12 @@ def run_local_scan(config, cancel_event=None):
         "community_deposits_enabled"
     ]
     summary["community_deposits_found"] = len(community_rows)
+    summary["reference_system"] = reference_system
+    summary["max_distance_ly"] = (
+        max_distance_ly
+        if reference_system and (faction_name or power_name)
+        else None
+    )
 
     return {
         "status": "COMPLETED",
