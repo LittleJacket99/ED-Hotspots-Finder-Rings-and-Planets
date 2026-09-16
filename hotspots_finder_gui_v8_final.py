@@ -51,6 +51,29 @@ class FinderV8FinalApp(FinderV8VisualApp):
         except tk.TclError:
             pass
 
+        # Power uses the same light one-pixel outline as text fields/buttons,
+        # with a small internal left inset so its text does not touch the edge.
+        style.configure(
+            "TCombobox",
+            fieldbackground=THEME["field"],
+            background=THEME["panel2"],
+            foreground=THEME["text"],
+            arrowcolor=THEME["muted"],
+            bordercolor=THEME["line2"],
+            lightcolor=THEME["line2"],
+            darkcolor=THEME["line2"],
+            borderwidth=1,
+            relief="flat",
+            padding=(4, 1, 1, 1),
+        )
+        style.map(
+            "TCombobox",
+            fieldbackground=[("readonly", THEME["field"])],
+            foreground=[("readonly", THEME["text"])],
+            selectbackground=[("readonly", THEME["field"])],
+            selectforeground=[("readonly", THEME["text"])],
+        )
+
     def _build_ui(self):
         super()._build_ui()
         self.after_idle(self._install_flat_result_tabs)
@@ -390,7 +413,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
         self._checkbox_checked_image = checked
 
     def _style_mockup_controls(self, parent):
-        """Style classic buttons/checks to follow ui_mockup_v8.html."""
+        """Style classic controls to follow ui_mockup_v8.html."""
 
         self._ensure_checkbox_images()
 
@@ -400,6 +423,10 @@ class FinderV8FinalApp(FinderV8VisualApp):
                     self._style_mockup_button(widget)
                 elif isinstance(widget, tk.Checkbutton):
                     self._style_mockup_checkbutton(widget)
+                elif isinstance(widget, tk.Entry):
+                    self._style_mockup_entry(widget)
+                elif isinstance(widget, tk.Text):
+                    self._style_mockup_text(widget)
             except tk.TclError:
                 pass
 
@@ -408,8 +435,63 @@ class FinderV8FinalApp(FinderV8VisualApp):
             except tk.TclError:
                 pass
 
+    @staticmethod
+    def _is_rhinospotter_path_entry(entry):
+        """Identify the Settings > RhinoSpotter path field without hard wiring it."""
+
+        try:
+            for sibling in entry.master.winfo_children():
+                if not isinstance(sibling, tk.Label):
+                    continue
+                if str(sibling.cget("text") or "").strip() == "Data folder":
+                    return True
+        except tk.TclError:
+            pass
+        return False
+
+    def _style_mockup_entry(self, entry):
+        """Give text inputs the shared outline plus a small left text inset."""
+
+        no_padding = self._is_rhinospotter_path_entry(entry)
+        try:
+            entry.configure(
+                bg=THEME["field"],
+                fg=THEME["text"],
+                insertbackground=THEME["text"],
+                relief="flat",
+                # A flat classic Entry still reserves border width internally;
+                # use it as text padding while the visible outline is the
+                # one-pixel highlight. RhinoSpotter's path stays unpadded.
+                bd=0 if no_padding else 3,
+                highlightthickness=1,
+                highlightbackground=THEME["line2"],
+                highlightcolor=THEME["accent"],
+            )
+        except tk.TclError:
+            pass
+
+    def _style_mockup_text(self, text_widget):
+        """Match text areas to entries; pad only the manual System Input box."""
+
+        is_system_input = text_widget is getattr(self, "systems_text", None)
+        try:
+            text_widget.configure(
+                bg=THEME["field"],
+                fg=THEME["text"],
+                insertbackground=THEME["text"],
+                relief="flat",
+                bd=0,
+                highlightthickness=1,
+                highlightbackground=THEME["line2"],
+                highlightcolor=THEME["accent"],
+                padx=4 if is_system_input else 0,
+                pady=2 if is_system_input else 0,
+            )
+        except tk.TclError:
+            pass
+
     def _style_mockup_button(self, button):
-        """Flat button with the mockup's lighter border and hover fill."""
+        """Flat button with the same light one-pixel outline as input fields."""
 
         text = str(button.cget("text") or "").strip().upper()
 
@@ -418,19 +500,18 @@ class FinderV8FinalApp(FinderV8VisualApp):
             hover_bg = THEME["accent2"]
             fg = "#121512"
             active_fg = "#121512"
-            border = THEME["accent"]
         elif text == "STOP":
             base_bg = "#3b2d2d"
             hover_bg = "#503737"
             fg = "#d9bcbc"
             active_fg = "#f0d6d6"
-            border = THEME["line2"]
         else:
             base_bg = THEME["panel2"]
             hover_bg = THEME["hover"]
             fg = THEME["text"]
             active_fg = THEME["text"]
-            border = THEME["line2"]
+
+        border = THEME["line2"]
 
         try:
             button.configure(
@@ -511,6 +592,14 @@ class FinderV8FinalApp(FinderV8VisualApp):
             return "break"
 
         checkbutton.bind("<Button-1>", _click)
+
+    def _open_settings_dialog(self):
+        """Apply the final mockup styling after the settings widgets exist."""
+
+        super()._open_settings_dialog()
+        window = getattr(self, "_settings_window", None)
+        if window is not None:
+            self.after_idle(lambda: self._style_mockup_controls(window))
 
     def _apply_brand_header(self):
         """Use a clean text-only header; the window icon can stay separate later."""
