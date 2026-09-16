@@ -53,6 +53,37 @@ class FinderV8Layout2App(BasePolishApp):
         self._configure_power_combobox_behavior()
         self._build_external_clear_buttons()
 
+    def _make_tree(self, parent):
+        """Create a result tree with an always-visible horizontal scrollbar."""
+
+        frame = tk.Frame(parent, bg=COLORS["panel"])
+        frame.pack(fill="both", expand=True)
+
+        tree = ttk.Treeview(frame, show="headings", selectmode="extended")
+        ybar = ttk.Scrollbar(
+            frame,
+            orient="vertical",
+            command=tree.yview,
+            style="Vertical.TScrollbar",
+        )
+        xbar = ttk.Scrollbar(
+            frame,
+            orient="horizontal",
+            command=tree.xview,
+            style="Horizontal.TScrollbar",
+        )
+        tree.configure(yscrollcommand=ybar.set, xscrollcommand=xbar.set)
+
+        tree.grid(row=0, column=0, sticky="nsew")
+        ybar.grid(row=0, column=1, sticky="ns")
+        xbar.grid(row=1, column=0, sticky="ew")
+        frame.rowconfigure(0, weight=1)
+        # Reserve physical space for the bar so it cannot disappear when the
+        # notebook/result panel is resized or the custom ttk style is applied.
+        frame.rowconfigure(1, weight=0, minsize=12)
+        frame.columnconfigure(0, weight=1)
+        return tree
+
     def _build_results(self, parent):
         super()._build_results(parent)
 
@@ -168,6 +199,11 @@ class FinderV8Layout2App(BasePolishApp):
                 self._show_result_context_menu,
                 add="+",
             )
+            tree.bind(
+                "<Control-c>",
+                self._copy_selected_rows_shortcut,
+                add="+",
+            )
 
     def _show_result_context_menu(self, event):
         tree = event.widget
@@ -175,15 +211,40 @@ class FinderV8Layout2App(BasePolishApp):
         if not iid:
             return "break"
 
-        tree.selection_set(iid)
+        # Right-clicking one of several already-selected rows must preserve the
+        # multi-selection. Right-clicking elsewhere starts a new selection.
+        if iid not in tree.selection():
+            tree.selection_set(iid)
         tree.focus(iid)
         self._context_tree = tree
         self._context_iid = iid
 
-        has_system = bool(self._context_system())
-        system_state = "normal" if has_system else "disabled"
-        for index in (1, 3, 4, 5):
-            self._result_context_menu.entryconfigure(index, state=system_state)
+        selected_iids = self._selected_context_iids()
+        selected_systems = self._selected_context_systems()
+        row_count = len(selected_iids)
+        system_count = len(selected_systems)
+
+        self._result_context_menu.entryconfigure(
+            0,
+            label="Copy row" if row_count == 1 else f"Copy {row_count} rows",
+            state="normal" if row_count else "disabled",
+        )
+        self._result_context_menu.entryconfigure(
+            1,
+            label=(
+                "Copy system"
+                if system_count <= 1
+                else f"Copy {system_count} systems"
+            ),
+            state="normal" if system_count else "disabled",
+        )
+
+        # Website actions intentionally apply to the row that was right-clicked,
+        # even when several rows are selected.
+        has_context_system = bool(self._context_system())
+        link_state = "normal" if has_context_system else "disabled"
+        for index in (3, 4, 5):
+            self._result_context_menu.entryconfigure(index, state=link_state)
 
         try:
             self._result_context_menu.tk_popup(event.x_root, event.y_root)
@@ -191,9 +252,20 @@ class FinderV8Layout2App(BasePolishApp):
             self._result_context_menu.grab_release()
         return "break"
 
-    def _context_system(self):
+    def _selected_context_iids(self):
         tree = self._context_tree
-        iid = self._context_iid
+        if tree is None:
+            return []
+
+        selected = set(tree.selection())
+        if not selected and self._context_iid:
+            selected.add(self._context_iid)
+
+        # Treeview.selection() order is not guaranteed. Copy rows in the same
+        # top-to-bottom order currently visible to the user.
+        return [iid for iid in tree.get_children("") if iid in selected]
+
+    def _system_for_iid(self, tree, iid):
         if tree is None or not iid:
             return ""
 
@@ -206,6 +278,22 @@ class FinderV8Layout2App(BasePolishApp):
             return str(tree.set(iid, "System") or "").strip()
         return ""
 
+    def _selected_context_systems(self):
+        tree = self._context_tree
+        systems = []
+        seen = set()
+        for iid in self._selected_context_iids():
+            system = self._system_for_iid(tree, iid)
+            key = system.casefold()
+            if not system or key in seen:
+                continue
+            seen.add(key)
+            systems.append(system)
+        return systems
+
+    def _context_system(self):
+        return self._system_for_iid(self._context_tree, self._context_iid)
+
     def _copy_text(self, text, status):
         if not text:
             return
@@ -215,25 +303,55 @@ class FinderV8Layout2App(BasePolishApp):
 
     def _copy_context_row(self):
         tree = self._context_tree
-        iid = self._context_iid
-        if tree is None or not iid:
+        if tree is None:
+            return
+
+        iids = self._selected_context_iids()
+        if not iids:
             return
 
         columns = list(tree["columns"])
-        values = [str(tree.set(iid, column) or "") for column in columns]
+        lines = []
+        for iid in iids:
+            values = [str(tree.set(iid, column) or "") for column in columns]
 
-        # If compact display blanked the repeated System cell, copy the actual
-        # system name so the copied row remains useful outside the application.
-        if "System" in columns:
-            index = columns.index("System")
-            if not values[index].strip():
-                values[index] = self._context_system()
+            # If compact display blanked the repeated System cell, copy the
+            # actual system name so every copied row is self-contained.
+            if "System" in columns:
+                index = columns.index("System")
+                if not values[index].strip():
+                    values[index] = self._system_for_iid(tree, iid)
 
-        self._copy_text("\t".join(values), "Row copied")
+            lines.append("\t".join(values))
+
+        count = len(lines)
+        status = "Row copied" if count == 1 else f"{count} rows copied"
+        self._copy_text("\n".join(lines), status)
 
     def _copy_context_system(self):
-        system = self._context_system()
-        self._copy_text(system, f'Copied system: {system}')
+        systems = self._selected_context_systems()
+        if not systems:
+            return
+
+        count = len(systems)
+        status = (
+            f"Copied system: {systems[0]}"
+            if count == 1
+            else f"{count} systems copied"
+        )
+        self._copy_text("\n".join(systems), status)
+
+    def _copy_selected_rows_shortcut(self, event):
+        tree = event.widget
+        selected = list(tree.selection())
+        if not selected:
+            return "break"
+
+        self._context_tree = tree
+        focused = tree.focus()
+        self._context_iid = focused if focused in selected else selected[0]
+        self._copy_context_row()
+        return "break"
 
     def _open_context_system(self, target):
         system = self._context_system()
