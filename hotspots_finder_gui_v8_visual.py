@@ -510,6 +510,9 @@ class FinderV8VisualApp(FinderV8Layout2App):
                         insertbackground=THEME["text"],
                         relief="flat",
                         bd=0,
+                        highlightthickness=1,
+                        highlightbackground=THEME["line2"],
+                        highlightcolor=THEME["accent"],
                     )
 
                 elif isinstance(widget, tk.Scrollbar):
