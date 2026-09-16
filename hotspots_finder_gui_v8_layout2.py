@@ -18,11 +18,11 @@ LAYOUT = {
     "_community_box": (18, 372, 250, 195),
     "_systems_panel": (285, 92, 225, 420),
     "_system_filters_title_box": (18, 577, 160, 35),
-    "_faction_box": (18, 620, 225, 55),
+    "_faction_box": (18, 620, 237, 55),
     "_power_box": (285, 620, 225, 55),
     "_power_states_box": (285, 680, 225, 70),
     "_reference_box": (18, 680, 142, 55),
-    "_distance_box": (151, 680, 60, 55),
+    "_distance_box": (165, 680, 90, 55),
     "_results_panel": (525, 92, 815, 650),
 }
 
@@ -45,7 +45,7 @@ class FinderV8Layout2App(BasePolishApp):
         # The obsolete RESULTS options frame is never used in this layout.
         self._results_options_box.place_forget()
 
-        # Apply the exact geometry from layout (6).json. The designer's
+        # Apply the exact geometry from layout (7).json. The designer's
         # resultsOptions rectangle is deliberately ignored because the Results
         # options section has been removed from v8.
         for attr, (x, y, width, height) in LAYOUT.items():
@@ -309,7 +309,11 @@ class FinderV8Layout2App(BasePolishApp):
                     child.place_configure(x=9, y=361, width=207, height=50)
 
     def _reflow_compact_reference_distance(self):
-        """Fit Reference and Max Distance into the compact layout (6) boxes."""
+        """Fit Faction, Reference and Max Distance into layout (7) boxes."""
+        for child in self._faction_box.winfo_children():
+            if isinstance(child, tk.Entry):
+                child.place_configure(x=4, y=22, width=229, height=27)
+
         for child in self._reference_box.winfo_children():
             if isinstance(child, tk.Entry):
                 child.place_configure(x=4, y=22, width=134, height=27)
@@ -317,9 +321,9 @@ class FinderV8Layout2App(BasePolishApp):
         for child in self._distance_box.winfo_children():
             if isinstance(child, tk.Label):
                 child.configure(text="Max LY")
-                child.place_configure(x=4, y=3, width=52)
+                child.place_configure(x=4, y=3, width=82)
             elif isinstance(child, tk.Entry):
-                child.place_configure(x=4, y=22, width=52, height=27)
+                child.place_configure(x=4, y=22, width=82, height=27)
 
     def _build_external_clear_buttons(self):
         x = LAYOUT["_systems_panel"][0]
