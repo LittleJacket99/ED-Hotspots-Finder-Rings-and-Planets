@@ -4,7 +4,10 @@ a = Analysis(
     ['hotspots_finder_gui_v8_final.py'],
     pathex=[],
     binaries=[],
-    datas=[('app.ico', '.')],
+    datas=[
+        ('app.ico', '.'),
+        ('ED_Hotspots_Finder.png', '.'),
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
