@@ -5,6 +5,7 @@
 import tkinter as tk
 
 from hotspots_finder_gui_v8_expandresults import FinderV8ExpandResultsApp
+from hotspots_finder_gui_v8_settings import FinderV8SettingsMixin
 
 
 LOG_PANEL_HEIGHT = 400
@@ -13,10 +14,17 @@ LOG_PANEL_MIN_WIDTH = 360
 LOG_PANEL_GAP = 6
 
 
-class FinderV8LogLayoutApp(FinderV8ExpandResultsApp):
+class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
     def __init__(self):
         self._log_reposition_pending = False
+        self._load_v8_settings_state()
         super().__init__()
+
+        # Apply startup defaults only after all Tk variables in the complete
+        # active GUI chain have been created.
+        self._apply_startup_settings()
+        self._build_settings_button()
+        self.protocol("WM_DELETE_WINDOW", self._on_v8_close)
 
         # The log is a fixed-size overlay over the right side of Results.
         self._log_panel.configure(
