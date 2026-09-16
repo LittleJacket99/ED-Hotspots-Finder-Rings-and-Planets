@@ -18,13 +18,13 @@ class FinderV8FinalApp(_BaseFinalApp):
     """Cover the platform-specific Results bevel with one flat uniform outline."""
 
     RESULTS_OUTLINE = "#59616b"
-    RESULTS_OUTLINE_THICKNESS = 2
+    RESULTS_OUTLINE_THICKNESS = 1
 
     def _configure_styles(self):
         super()._configure_styles()
 
         # The visible light top/left edge comes from the Notebook client element,
-        # not from the Treeview.  Neutralise every native relief colour here.
+        # not from the Treeview. Neutralise every native relief colour here.
         style = ttk.Style(self)
         style.configure(
             "FlatResults.TNotebook",
