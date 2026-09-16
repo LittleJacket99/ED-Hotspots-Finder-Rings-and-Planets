@@ -294,6 +294,26 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
         )
         return [row for _value, row in with_value] + without_value
 
+    @staticmethod
+    def _compact_community_rows(rows):
+        """Hide only consecutive duplicate system names in Community results."""
+
+        compacted = []
+        previous_system_key = None
+        for row in rows:
+            display_row = dict(row)
+            system = str(display_row.get("System", "") or "").strip()
+            system_key = system.casefold() if system else None
+
+            if system_key is not None and system_key == previous_system_key:
+                display_row["System"] = ""
+            else:
+                previous_system_key = system_key
+
+            compacted.append(display_row)
+
+        return compacted
+
     def _render_filtered_table(self, table):
         tree = self._table_trees[table]
         rows = [
@@ -306,6 +326,8 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
             display_rows = self._compact_hotspot_rows(rows)
         elif table == "planets":
             display_rows = self._compact_planet_rows(rows)
+        elif table == "community":
+            display_rows = self._compact_community_rows(rows)
         else:
             display_rows = rows
 
