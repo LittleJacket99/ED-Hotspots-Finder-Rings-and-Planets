@@ -158,6 +158,29 @@ class FinderV8Layout2App(BasePolishApp):
 
         return headers, mapped_rows
 
+    @classmethod
+    def _database_row_systems(cls, rows):
+        systems = []
+        seen = set()
+        for row in rows:
+            system = str(row.get("System", "") or "").strip()
+            key = cls._database_system_key(system)
+            if system and key not in seen:
+                seen.add(key)
+                systems.append(system)
+        return systems
+
+    @staticmethod
+    def _parse_max_distance(config):
+        raw = str(config.get("max_distance_ly", "50") or "50").strip()
+        try:
+            value = float(raw.replace(",", "."))
+        except ValueError as exc:
+            raise ValueError("Max Distance (LY) must be a number.") from exc
+        if value <= 0:
+            raise ValueError("Max Distance (LY) must be greater than 0.")
+        return value
+
     def _database_load_worker(self, config):
         try:
             headers, rows = community_deposits.fetch_all_deposits()
@@ -175,42 +198,42 @@ class FinderV8Layout2App(BasePolishApp):
                 if enabled
             ]
 
-            # Match normal SCAN semantics: Faction / Power generate the system
-            # set and replace any manually-entered SYSTEMS for this operation.
+            # First determine which database systems are allowed by the normal
+            # system selectors. Faction/Power are resolved without Reference
+            # System because Spansh can reject the combined systems-search
+            # payload with HTTP 400.
             if faction_name or power_name:
-                max_distance_raw = str(
-                    config.get("max_distance_ly", "50") or "50"
-                ).strip()
-                try:
-                    max_distance_ly = float(max_distance_raw.replace(",", "."))
-                except ValueError as exc:
-                    raise ValueError("Max Distance (LY) must be a number.") from exc
-                if max_distance_ly <= 0:
-                    raise ValueError("Max Distance (LY) must be greater than 0.")
-
-                systems, distances = system_filter_search.search_systems_by_filters(
+                systems = system_filter_search.search_systems_by_filters(
                     faction_name,
                     power_name,
                     selected_power_states if power_name else [],
-                    reference_system=reference_system,
-                    max_distance_ly=max_distance_ly,
-                    include_distances=True,
+                    reference_system="",
+                    include_distances=False,
                 )
                 rows = self._filter_database_rows_by_systems(rows, systems)
-
-                if reference_system:
-                    headers, rows = self._add_database_distances(
-                        headers,
-                        rows,
-                        distances,
-                    )
-
             elif manual_systems:
                 rows = self._filter_database_rows_by_systems(rows, manual_systems)
 
-            # Reference System alone intentionally does not alter the database
-            # load yet. We first reuse the same Reference behaviour as SCAN:
-            # it constrains a Faction / Power generated search.
+            # Apply Reference System / Max Distance only to systems that still
+            # have Community Deposit rows. This works with Reference alone,
+            # Faction/Power + Reference, or manual SYSTEMS + Reference, without
+            # doing a galaxy-wide search.
+            if reference_system:
+                max_distance_ly = self._parse_max_distance(config)
+                candidate_systems = self._database_row_systems(rows)
+                nearby_systems, distances = (
+                    system_filter_search.filter_systems_within_distance(
+                        reference_system,
+                        candidate_systems,
+                        max_distance_ly=max_distance_ly,
+                    )
+                )
+                rows = self._filter_database_rows_by_systems(rows, nearby_systems)
+                headers, rows = self._add_database_distances(
+                    headers,
+                    rows,
+                    distances,
+                )
 
             self.after(0, self._database_load_complete, headers, rows)
         except Exception as exc:
