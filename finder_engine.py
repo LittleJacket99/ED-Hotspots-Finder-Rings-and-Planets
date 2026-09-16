@@ -32,6 +32,20 @@ POWER_LIST = [
     "Zemina Torval",
 ]
 
+STATUS_LABELS = {
+    "UNKNOWN_API_ERROR": "Unknown API Error",
+    "SYSTEM_NOT_FOUND": "System Not Found",
+    "NO_RINGS": "No Rings",
+    "NO_HOTSPOT / NOT SCANNED": "No Hotspot / Not Scanned",
+    "HOTSPOT_FOUND": "Hotspot Found",
+    "NO_MATCHING_HOTSPOTS": "No Matching Hotspots",
+    "PLANET_FOUND": "Planet Found",
+    "NO_PLANETS": "No Planets",
+    "NO_MATCHING_LANDABLE_PLANETS": "No Matching Landable Planets",
+    "NO_LANDABLE_PLANETS": "No Landable Planets",
+    "NO_MATCHING_PLANET_TYPES": "No Matching Planet Types",
+}
+
 
 class ScanCancelled(RuntimeError):
     pass
@@ -84,6 +98,13 @@ def norm_filter(value):
     value = norm(value)
     value = value.replace("-", " ")
     return " ".join(value.split())
+
+
+def display_status(value):
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    return STATUS_LABELS.get(text, text.replace("_", " ").title())
 
 
 def deduplicate(values):
@@ -468,6 +489,8 @@ def clean_hotspot_rows(raw_rows):
         elif ring:
             previous_ring_key = ring_key
 
+        if row["Status"]:
+            row["Status"] = display_status(row["Status"])
         clean_rows.append(row)
 
     return clean_rows
@@ -626,6 +649,8 @@ def clean_planet_rows(raw_rows):
             row["Status"] = ""
         else:
             previous_system = system
+        if row["Status"]:
+            row["Status"] = display_status(row["Status"])
         clean_rows.append(row)
 
     return clean_rows
