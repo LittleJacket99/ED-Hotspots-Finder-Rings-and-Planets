@@ -507,8 +507,83 @@ class FinderV8FinalApp(FinderV8VisualApp):
         except tk.TclError:
             pass
 
+    def _sync_button_outline(self, button):
+        """Keep an explicit one-pixel frame exactly around a regular button."""
+
+        outline = getattr(button, "_edhf_outline_frame", None)
+        if outline is None:
+            return
+        try:
+            if not button.winfo_exists() or not button.winfo_ismapped():
+                outline.place_forget()
+                return
+            x = button.winfo_x()
+            y = button.winfo_y()
+            width = button.winfo_width()
+            height = button.winfo_height()
+            if width <= 1 or height <= 1:
+                return
+            outline.place(
+                x=x - 1,
+                y=y - 1,
+                width=width + 2,
+                height=height + 2,
+            )
+            outline.lower(button)
+        except tk.TclError:
+            pass
+
+    def _ensure_button_outline(self, button):
+        """Use a real frame border so Windows cannot suppress Tk's highlight ring."""
+
+        outline = getattr(button, "_edhf_outline_frame", None)
+        if outline is None:
+            try:
+                outline = tk.Frame(
+                    button.master,
+                    bg=THEME["line2"],
+                    bd=0,
+                    highlightthickness=0,
+                )
+            except tk.TclError:
+                return
+            button._edhf_outline_frame = outline
+
+            button.bind(
+                "<Configure>",
+                lambda _event, w=button: self.after_idle(
+                    lambda: self._sync_button_outline(w)
+                ),
+                add="+",
+            )
+            button.bind(
+                "<Map>",
+                lambda _event, w=button: self.after_idle(
+                    lambda: self._sync_button_outline(w)
+                ),
+                add="+",
+            )
+            button.bind(
+                "<Unmap>",
+                lambda _event, f=outline: f.place_forget(),
+                add="+",
+            )
+
+        self.after_idle(lambda w=button: self._sync_button_outline(w))
+
+    @staticmethod
+    def _remove_button_outline(button):
+        outline = getattr(button, "_edhf_outline_frame", None)
+        if outline is None:
+            return
+        try:
+            outline.destroy()
+        except tk.TclError:
+            pass
+        button._edhf_outline_frame = None
+
     def _style_mockup_button(self, button):
-        """Flat buttons; regular actions share the exact text-field outline."""
+        """Flat buttons; regular actions use the exact text-field outline."""
 
         text = str(button.cget("text") or "").strip().upper()
         outlined = text not in {"SCAN", "STOP"}
@@ -538,13 +613,19 @@ class FinderV8FinalApp(FinderV8VisualApp):
                 relief="flat",
                 overrelief="flat",
                 bd=0,
-                highlightthickness=1 if outlined else 0,
-                highlightbackground=THEME["line2"],
-                highlightcolor=THEME["line2"],
+                # The visible regular-button border is the explicit frame below;
+                # disabling the native highlight prevents Windows from drawing a
+                # different-looking ring on some buttons.
+                highlightthickness=0,
                 cursor="hand2",
             )
         except tk.TclError:
             return
+
+        if outlined:
+            self._ensure_button_outline(button)
+        else:
+            self._remove_button_outline(button)
 
         if getattr(button, "_edhf_mockup_bound", False):
             return
