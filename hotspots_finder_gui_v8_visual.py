@@ -116,18 +116,47 @@ class FinderV8VisualApp(FinderV8Layout2App):
             foreground=[("selected", THEME["accent"])],
         )
 
+        # Remove ttk's own beveled Treeview border completely. A single flat
+        # #59616b outline is drawn by the containing frame in _make_tree(), so
+        # all four sides are guaranteed to use exactly the same colour.
         style.configure(
             "Treeview",
             background=THEME["field"],
             foreground=THEME["text"],
             fieldbackground=THEME["field"],
             rowheight=25,
-            bordercolor=THEME["line2"],
-            lightcolor=THEME["line2"],
-            darkcolor=THEME["line2"],
+            borderwidth=0,
             relief="flat",
-            borderwidth=1,
+            bordercolor=THEME["field"],
+            lightcolor=THEME["field"],
+            darkcolor=THEME["field"],
         )
+        try:
+            style.layout(
+                "Treeview",
+                [
+                    (
+                        "Treeview.field",
+                        {
+                            "sticky": "nswe",
+                            "border": "0",
+                            "children": [
+                                (
+                                    "Treeview.padding",
+                                    {
+                                        "sticky": "nswe",
+                                        "children": [
+                                            ("Treeview.treearea", {"sticky": "nswe"})
+                                        ],
+                                    },
+                                )
+                            ],
+                        },
+                    )
+                ],
+            )
+        except tk.TclError:
+            pass
         style.map(
             "Treeview",
             background=[("selected", THEME["selected"])],
@@ -402,9 +431,16 @@ class FinderV8VisualApp(FinderV8Layout2App):
             return
 
     def _make_tree(self, parent):
-        """Create result tables with matching themed vertical/horizontal scrollbars."""
+        """Create result tables with one flat #59616b outline around everything."""
 
-        frame = tk.Frame(parent, bg=THEME["panel"])
+        frame = tk.Frame(
+            parent,
+            bg=THEME["panel"],
+            bd=0,
+            highlightthickness=1,
+            highlightbackground=THEME["line2"],
+            highlightcolor=THEME["line2"],
+        )
         frame.pack(fill="both", expand=True)
 
         tree = ttk.Treeview(frame, show="headings", selectmode="extended")
