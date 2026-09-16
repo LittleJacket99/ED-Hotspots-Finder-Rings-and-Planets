@@ -35,10 +35,8 @@ CLEAR_BUTTON_GAP = 7
 
 class FinderV8Layout2App(BasePolishApp):
     def _configure_styles(self):
-        """Keep the dark scrollbar styling without breaking the movable thumb."""
+        """Keep the native scrollbar geometry available to the active layout."""
 
-        # Save the native clam scrollbar layouts before the polish layer
-        # replaces them with its older full-track thumb layout.
         style = ttk.Style(self)
         try:
             style.theme_use("clam")
@@ -50,8 +48,6 @@ class FinderV8Layout2App(BasePolishApp):
 
         super()._configure_styles()
 
-        # Restore the native geometry. The colours/width configured by the
-        # polish layer remain in effect, while the thumb becomes draggable.
         try:
             style.layout("Horizontal.TScrollbar", horizontal_layout)
             style.layout("Vertical.TScrollbar", vertical_layout)
@@ -78,7 +74,7 @@ class FinderV8Layout2App(BasePolishApp):
         self._build_external_clear_buttons()
 
     def _make_tree(self, parent):
-        """Create a result tree with an always-visible horizontal scrollbar."""
+        """Create a result tree with a deliberately obvious test scrollbar."""
 
         frame = tk.Frame(parent, bg=COLORS["panel"])
         frame.pack(fill="both", expand=True)
@@ -90,11 +86,20 @@ class FinderV8Layout2App(BasePolishApp):
             command=tree.yview,
             style="Vertical.TScrollbar",
         )
-        xbar = ttk.Scrollbar(
+
+        # Use a classic Tk scrollbar temporarily. It is intentionally large
+        # and light so functionality can be verified before final GUI styling.
+        xbar = tk.Scrollbar(
             frame,
             orient="horizontal",
             command=tree.xview,
-            style="Horizontal.TScrollbar",
+            bg="#e6e6e6",
+            activebackground="#ffffff",
+            troughcolor="#666666",
+            relief="raised",
+            bd=1,
+            highlightthickness=0,
+            width=18,
         )
         tree.configure(yscrollcommand=ybar.set, xscrollcommand=xbar.set)
 
@@ -102,7 +107,7 @@ class FinderV8Layout2App(BasePolishApp):
         ybar.grid(row=0, column=1, sticky="ns")
         xbar.grid(row=1, column=0, sticky="ew")
         frame.rowconfigure(0, weight=1)
-        frame.rowconfigure(1, weight=0, minsize=12)
+        frame.rowconfigure(1, weight=0, minsize=20)
         frame.columnconfigure(0, weight=1)
         return tree
 
@@ -118,16 +123,39 @@ class FinderV8Layout2App(BasePolishApp):
         self._build_result_context_menu()
 
     def _populate_tree(self, tree, headers, rows):
-        """Populate a result table and remember its real System per row.
-
-        Hotspot/planet display compaction intentionally blanks repeated System
-        cells. Keeping the resolved System against each Treeview iid means the
-        right-click actions remain correct even after sorting the visible table.
-        """
+        """Populate results, retain row systems, and keep columns scrollable."""
 
         headers = list(headers or [])
         rows = list(rows or [])
         super()._populate_tree(tree, headers, rows)
+
+        # Do not let Treeview stretch every column to the viewport. Fixed
+        # minimum widths create real horizontal overflow when a result table
+        # contains many columns, which makes xview/scrollbar actually usable.
+        preferred_widths = {
+            "System": 190,
+            "Star system": 190,
+            "Body": 180,
+            "Ring": 170,
+            "Commodity": 145,
+            "Distance": 115,
+            "Distance (LY)": 115,
+            "Latitude": 115,
+            "Longitude": 115,
+        }
+        for header in headers:
+            current_width = int(tree.column(header, "width") or 0)
+            preferred = preferred_widths.get(header, 135)
+            tree.column(
+                header,
+                width=max(current_width, preferred),
+                minwidth=70,
+                stretch=False,
+            )
+        try:
+            tree.xview_moveto(0)
+        except tk.TclError:
+            pass
 
         system_map = {}
         current_system = ""
@@ -188,7 +216,7 @@ class FinderV8Layout2App(BasePolishApp):
 
     def _build_result_context_menu(self):
         # Menu entries are rebuilt for every right-click so website actions can
-        # disappear entirely when several different systems are selected.
+        # disappear entirely for a multi-row selection.
         self._result_context_menu = tk.Menu(self, tearoff=False)
 
         for tree in (
@@ -244,10 +272,9 @@ class FinderV8Layout2App(BasePolishApp):
             state="normal" if system_count else "disabled",
         )
 
-        # Opening a website is only unambiguous when the current selection
-        # resolves to one system. With different systems selected the three
-        # website actions are omitted instead of opening the right-clicked row.
-        if system_count == 1:
+        # Website actions are shown only for exactly one selected row. This
+        # removes any ambiguity when Shift/Ctrl selection is active.
+        if row_count == 1 and system_count == 1:
             menu.add_separator()
             menu.add_command(
                 label="Open system in Inara",
@@ -370,6 +397,9 @@ class FinderV8Layout2App(BasePolishApp):
         return "break"
 
     def _open_context_system(self, target):
+        if len(self._selected_context_iids()) != 1:
+            return
+
         systems = self._selected_context_systems()
         if len(systems) != 1:
             return
