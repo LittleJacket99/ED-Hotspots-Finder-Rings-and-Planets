@@ -31,14 +31,10 @@ CLEAR_BUTTON_GAP = 7
 
 
 class FinderV8Layout2App(BasePolishApp):
-    def _build_results_options_box(self, parent):
-        """Only-positive results was removed from the v8 interface."""
-        return None
-
     def _build_ui(self):
         super()._build_ui()
 
-        # The obsolete RESULTS options frame is never used in this layout.
+        # The unused compatibility frame is never shown in this layout.
         self._results_options_box.place_forget()
 
         for attr, (x, y, width, height) in LAYOUT.items():
