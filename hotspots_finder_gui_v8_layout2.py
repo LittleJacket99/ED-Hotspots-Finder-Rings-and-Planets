@@ -23,7 +23,7 @@ LAYOUT = {
 }
 
 CLEAR_BUTTON_Y = 500
-CLEAR_BUTTON_WIDTH = 106
+CLEAR_BUTTON_WIDTH = 109
 CLEAR_BUTTON_HEIGHT = 27
 CLEAR_BUTTON_GAP = 7
 
@@ -65,6 +65,27 @@ class FinderV8Layout2App(BasePolishApp):
 
     def _build_external_clear_buttons(self):
         x = LAYOUT["_systems_panel"][0]
+        right_x = x + CLEAR_BUTTON_WIDTH + CLEAR_BUTTON_GAP
+
+        # Inverted order: Clear Filters on the left, Clear Systems on the right.
+        # 109 + 7 + 109 = 225 px, exactly matching the Systems box width.
+        self._external_clear_filters_button = tk.Button(
+            self._stage,
+            text="Clear Filters",
+            command=self._clear_scan_filters,
+            bg="#3a4148",
+            fg=COLORS["text"],
+            activebackground="#46515c",
+            activeforeground=COLORS["text"],
+            relief="flat",
+            font=("Segoe UI", 8),
+        )
+        self._external_clear_filters_button.place(
+            x=x,
+            y=CLEAR_BUTTON_Y,
+            width=CLEAR_BUTTON_WIDTH,
+            height=CLEAR_BUTTON_HEIGHT,
+        )
 
         self._external_clear_systems_button = tk.Button(
             self._stage,
@@ -78,25 +99,7 @@ class FinderV8Layout2App(BasePolishApp):
             font=("Segoe UI", 8),
         )
         self._external_clear_systems_button.place(
-            x=x,
-            y=CLEAR_BUTTON_Y,
-            width=CLEAR_BUTTON_WIDTH,
-            height=CLEAR_BUTTON_HEIGHT,
-        )
-
-        self._external_clear_filters_button = tk.Button(
-            self._stage,
-            text="Clear Filters",
-            command=self._clear_scan_filters,
-            bg="#3a4148",
-            fg=COLORS["text"],
-            activebackground="#46515c",
-            activeforeground=COLORS["text"],
-            relief="flat",
-            font=("Segoe UI", 8),
-        )
-        self._external_clear_filters_button.place(
-            x=x + CLEAR_BUTTON_WIDTH + CLEAR_BUTTON_GAP,
+            x=right_x,
             y=CLEAR_BUTTON_Y,
             width=CLEAR_BUTTON_WIDTH,
             height=CLEAR_BUTTON_HEIGHT,
@@ -108,14 +111,16 @@ class FinderV8Layout2App(BasePolishApp):
 
     def _show_external_clear_buttons(self):
         x = LAYOUT["_systems_panel"][0]
-        self._external_clear_systems_button.place(
+        right_x = x + CLEAR_BUTTON_WIDTH + CLEAR_BUTTON_GAP
+
+        self._external_clear_filters_button.place(
             x=x,
             y=CLEAR_BUTTON_Y,
             width=CLEAR_BUTTON_WIDTH,
             height=CLEAR_BUTTON_HEIGHT,
         )
-        self._external_clear_filters_button.place(
-            x=x + CLEAR_BUTTON_WIDTH + CLEAR_BUTTON_GAP,
+        self._external_clear_systems_button.place(
+            x=right_x,
             y=CLEAR_BUTTON_Y,
             width=CLEAR_BUTTON_WIDTH,
             height=CLEAR_BUTTON_HEIGHT,
