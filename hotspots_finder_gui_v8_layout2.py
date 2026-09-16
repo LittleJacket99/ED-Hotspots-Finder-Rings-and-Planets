@@ -35,6 +35,8 @@ CLEAR_BUTTON_GAP = 7
 WINDOW_TOP_MARGIN = 10
 WINDOW_WIDTH = 1359
 RHINOSPOTTER_REPOSITORY_URL = "https://github.com/Fumlop/EDRhinoSpotter"
+MINERALS_TABLE_URL = "https://docs.google.com/spreadsheets/d/1SVTKW-Uy6sjjR0oFqKjCI5tDvYAu97ORmocXwl1ckU0/edit?gid=0#gid=0"
+VOLCANISM_TABLE_URL = "https://wiknow.pages.dev/ref/ground-mining"
 
 
 class FinderV8Layout2App(BasePolishApp):
@@ -85,6 +87,46 @@ class FinderV8Layout2App(BasePolishApp):
         self._configure_power_combobox_behavior()
         self._configure_rhino_upload_help()
         self._build_external_clear_buttons()
+        self._build_reference_tables_button()
+
+    def _build_reference_tables_button(self):
+        """Add quick links to the external mining reference tables."""
+
+        self.reference_tables_menu = tk.Menu(self, tearoff=False)
+        self.reference_tables_menu.add_command(
+            label="Minerals Table",
+            command=lambda: webbrowser.open(MINERALS_TABLE_URL, new=2),
+        )
+        self.reference_tables_menu.add_command(
+            label="Volcanism Table",
+            command=lambda: webbrowser.open(VOLCANISM_TABLE_URL, new=2),
+        )
+
+        self.reference_tables_button = tk.Button(
+            self._stage,
+            text="Reference Tables ▾",
+            command=self._show_reference_tables_menu,
+            bg="#3a4148",
+            fg=COLORS["text"],
+            activebackground="#46515c",
+            activeforeground=COLORS["text"],
+            relief="flat",
+            padx=10,
+            pady=3,
+            font=("Segoe UI", 9),
+        )
+        # Align the right edge with the Results panel / Expand Results button.
+        self.reference_tables_button.place(x=1170, y=20, width=170, height=30)
+
+    def _show_reference_tables_menu(self):
+        button = self.reference_tables_button
+        try:
+            self.reference_tables_menu.tk_popup(
+                button.winfo_rootx(),
+                button.winfo_rooty() + button.winfo_height(),
+            )
+        finally:
+            self.reference_tables_menu.grab_release()
 
     def _configure_rhino_upload_help(self):
         """Make the Community Deposits actions obvious and self-explanatory."""
