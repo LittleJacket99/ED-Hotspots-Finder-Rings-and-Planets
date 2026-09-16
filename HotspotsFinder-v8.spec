@@ -1,10 +1,10 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 a = Analysis(
-    ['hotspots_finder_gui_v8_layout2.py'],
+    ['hotspots_finder_gui_v8_final.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('app.ico', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
