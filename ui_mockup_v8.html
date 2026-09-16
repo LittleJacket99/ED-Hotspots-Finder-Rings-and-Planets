@@ -15,7 +15,7 @@ html,body{margin:0;background:#0f1113;color:var(--text);font-family:"Segoe UI",A
 body{padding:16px}
 .app{min-width:1180px;max-width:1500px;height:790px;margin:auto;background:var(--bg);border:1px solid var(--line);box-shadow:var(--shadow);display:grid;grid-template-rows:76px 1fr 58px;overflow:hidden}
 .header{background:var(--header);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 18px}
-.title{display:flex;flex-direction:column;justify-content:center}.title h1{font-size:20px;margin:0;font-weight:700;letter-spacing:.1px;line-height:1.1}.brand-green{color:#5acd57}.brand-sub{color:#f1f1f1;font-size:15px;font-weight:600;line-height:1.15;margin-top:3px}
+.title{display:flex;flex-direction:column;justify-content:center}.title h1{font-size:20px;margin:0;font-weight:700;letter-spacing:.1px;line-height:1.1}.brand-green{color:#5acd57}.brand-sub{color:#f1f1f1;font-size:15px;font-weight:600;line-height:1.15;margin-top:3px}.brand-version{color:var(--muted);font-size:12px;font-weight:500;margin-left:5px}
 .header-actions{display:flex;gap:8px;align-items:center}.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:7px 12px;border-radius:4px;cursor:pointer;transition:.12s ease}.btn:hover{background:var(--hover);border-color:var(--line2)}.btn.primary{background:var(--accent);border-color:var(--accent);color:#121512;font-weight:700}.btn.primary:hover{background:var(--accent2)}.btn.danger{background:#3b2d2d;color:#d9bcbc}.btn.small{padding:6px 10px;font-size:12px}
 .main{display:grid;grid-template-columns:250px 225px minmax(0,1fr);gap:10px;padding:10px;min-height:0}.leftcol{display:grid;grid-template-rows:130px 130px 195px 1fr;gap:10px;min-height:0}.midcol{display:grid;grid-template-rows:420px 28px 1fr;gap:10px;min-height:0}.card{background:var(--panel);border:1px solid var(--line);border-radius:5px;min-height:0}.card.pad{padding:10px}.section-title{color:var(--accent);font-weight:700;font-size:12px;margin-bottom:6px}.sub{color:var(--muted);font-size:11px;margin-top:5px}.row{display:flex;gap:10px;align-items:center}.cols{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px}.checks label{display:flex;align-items:center;gap:6px;line-height:19px;color:#dce1e6}.checks input{accent-color:var(--accent)}
 .input,select,textarea{width:100%;background:var(--field);color:var(--text);border:1px solid var(--line);border-radius:3px;padding:6px 7px;outline:none}.input:focus,select:focus,textarea:focus{border-color:var(--accent)}
@@ -33,7 +33,7 @@ body.green-warm{--bg:#171d18;--header:#1d251f;--panel:#242d26;--panel2:#2d392f;-
 <body class="green-deep">
 <div class="app">
   <div class="header">
-    <div class="title"><h1 class="brand-green">ED Hotspots Finder</h1><div class="brand-sub">Rings &amp; Planets</div></div>
+    <div class="title"><h1 class="brand-green">ED Hotspots Finder</h1><div class="brand-sub">Rings &amp; Planets <span class="brand-version">· v8</span></div></div>
     <div class="header-actions"><button class="btn small">Reference Tables ▾</button><button class="btn small">Settings ⚙</button></div>
   </div>
   <div class="main">
@@ -44,7 +44,7 @@ body.green-warm{--bg:#171d18;--header:#1d251f;--panel:#242d26;--panel2:#2d392f;-
       <div></div>
     </div>
     <div class="midcol">
-      <div class="card system-input"><div class="section-title">SYSTEM INPUT</div><div class="tiny">0 systems</div><textarea spellcheck="false"></textarea><div class="tiny">When System Input is empty, use System Filters to find systems; matching systems will appear in the Systems tab.</div></div>
+      <div class="card system-input"><div class="section-title">SYSTEM INPUT</div><div class="tiny">0 systems</div><textarea spellcheck="false"></textarea><div class="tiny">When System Input is empty, use System Filters to find matching systems.</div></div>
       <div class="clearbar"><button class="btn small">Clear Filters</button><button class="btn small">Clear Systems</button></div>
       <div class="card system-filters"><div class="section-title">SYSTEM FILTERS</div><div class="filter-grid"><div><div class="label">Faction</div><input class="input"></div><div><div class="label">Power</div><select><option>Edmund Mahon</option></select></div><div><div class="label">Reference system</div><input class="input" value="HIP 59425"></div><div><div class="label">Max LY</div><input class="input" value="50" style="max-width:74px"></div><div class="wide"><div class="label">Power states</div><div class="states checks"><label><input type="checkbox"> Unoccupied</label><label><input type="checkbox" checked> Fortified</label><label><input type="checkbox" checked> Exploited</label><label><input type="checkbox"> Stronghold</label></div></div></div></div>
     </div>
