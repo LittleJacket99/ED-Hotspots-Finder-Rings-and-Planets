@@ -241,15 +241,15 @@ class FinderV8SettingsMixin:
             startup_panel,
             "Community Deposits enabled",
             community_var,
-            285,
-            37,
+            12,
+            91,
         )
         check(
             startup_panel,
             "Remember last filters",
             remember_var,
             285,
-            64,
+            37,
         )
 
         tk.Label(
@@ -258,7 +258,7 @@ class FinderV8SettingsMixin:
             bg=COLORS["panel"],
             fg=COLORS["muted"],
             font=("Segoe UI", 9),
-        ).place(x=12, y=105)
+        ).place(x=285, y=73)
         tk.Entry(
             startup_panel,
             textvariable=max_distance_var,
@@ -267,7 +267,7 @@ class FinderV8SettingsMixin:
             insertbackground=COLORS["text"],
             relief="flat",
             font=("Segoe UI", 9),
-        ).place(x=125, y=101, width=85, height=26)
+        ).place(x=398, y=69, width=55, height=26)
 
         tk.Label(
             startup_panel,
@@ -366,10 +366,10 @@ class FinderV8SettingsMixin:
             text = str(rhino_path_var.get() or "").strip()
             path = Path(text).expanduser() if text else Path(auto_rhino_path)
             if path.is_dir():
-                rhino_status_var.set("RhinoSpotter detected")
+                rhino_status_var.set("RhinoSpotter data folder detected")
                 status_label.configure(fg=COLORS["green"])
             else:
-                rhino_status_var.set("RhinoSpotter not detected")
+                rhino_status_var.set("RhinoSpotter data folder not detected")
                 status_label.configure(fg=COLORS["red"])
 
         def browse_rhino():
@@ -431,12 +431,12 @@ class FinderV8SettingsMixin:
         def save_dialog_settings():
             try:
                 max_distance = float(str(max_distance_var.get()).strip())
-                if max_distance <= 0:
+                if max_distance <= 0 or max_distance > 200:
                     raise ValueError
             except ValueError:
                 messagebox.showerror(
                     APP_TITLE,
-                    "Default Max LY must be a number greater than 0.",
+                    "Default Max LY must be a number between 1 and 200.",
                     parent=window,
                 )
                 return
