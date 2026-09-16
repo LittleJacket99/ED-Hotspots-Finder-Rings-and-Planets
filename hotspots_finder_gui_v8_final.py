@@ -76,7 +76,39 @@ class FinderV8FinalApp(FinderV8VisualApp):
 
     def _build_ui(self):
         super()._build_ui()
+        # Clicking anywhere that is not another text input releases the current
+        # Entry/Text/Combobox focus. This also removes the green focus outline.
+        self.bind_all("<Button-1>", self._clear_input_focus_on_click, add="+")
         self.after_idle(self._install_flat_result_tabs)
+
+    @staticmethod
+    def _is_text_input_widget(widget):
+        return isinstance(widget, (tk.Entry, tk.Text, ttk.Entry, ttk.Combobox))
+
+    def _clear_input_focus(self, clicked_widget=None):
+        """Release focus from text-entry controls after clicking elsewhere."""
+
+        try:
+            focused = self.focus_get()
+        except tk.TclError:
+            return
+
+        if focused is None or not self._is_text_input_widget(focused):
+            return
+        if clicked_widget is not None and self._is_text_input_widget(clicked_widget):
+            return
+
+        try:
+            target = clicked_widget.winfo_toplevel() if clicked_widget is not None else self
+            target.focus_set()
+        except tk.TclError:
+            try:
+                self.focus_set()
+            except tk.TclError:
+                pass
+
+    def _clear_input_focus_on_click(self, event):
+        self._clear_input_focus(getattr(event, "widget", None))
 
     def _install_flat_result_tabs(self):
         """Replace ttk's native tabs with a mockup-like flat tab strip."""
@@ -435,24 +467,9 @@ class FinderV8FinalApp(FinderV8VisualApp):
             except tk.TclError:
                 pass
 
-    @staticmethod
-    def _is_rhinospotter_path_entry(entry):
-        """Identify the Settings > RhinoSpotter path field without hard wiring it."""
-
-        try:
-            for sibling in entry.master.winfo_children():
-                if not isinstance(sibling, tk.Label):
-                    continue
-                if str(sibling.cget("text") or "").strip() == "Data folder":
-                    return True
-        except tk.TclError:
-            pass
-        return False
-
     def _style_mockup_entry(self, entry):
-        """Give text inputs the shared outline plus a small left text inset."""
+        """Give every text input the shared outline plus a small left inset."""
 
-        no_padding = self._is_rhinospotter_path_entry(entry)
         try:
             entry.configure(
                 bg=THEME["field"],
@@ -460,9 +477,9 @@ class FinderV8FinalApp(FinderV8VisualApp):
                 insertbackground=THEME["text"],
                 relief="flat",
                 # A flat classic Entry still reserves border width internally;
-                # use it as text padding while the visible outline is the
-                # one-pixel highlight. RhinoSpotter's path stays unpadded.
-                bd=0 if no_padding else 3,
+                # use it as a small, consistent text inset for every field,
+                # including the RhinoSpotter data folder path.
+                bd=3,
                 highlightthickness=1,
                 highlightbackground=THEME["line2"],
                 highlightcolor=THEME["accent"],
@@ -491,9 +508,10 @@ class FinderV8FinalApp(FinderV8VisualApp):
             pass
 
     def _style_mockup_button(self, button):
-        """Flat button with the same light one-pixel outline as input fields."""
+        """Flat buttons; regular actions share the exact text-field outline."""
 
         text = str(button.cget("text") or "").strip().upper()
+        outlined = text not in {"SCAN", "STOP"}
 
         if text == "SCAN":
             base_bg = THEME["accent"]
@@ -511,8 +529,6 @@ class FinderV8FinalApp(FinderV8VisualApp):
             fg = THEME["text"]
             active_fg = THEME["text"]
 
-        border = THEME["line2"]
-
         try:
             button.configure(
                 bg=base_bg,
@@ -522,9 +538,9 @@ class FinderV8FinalApp(FinderV8VisualApp):
                 relief="flat",
                 overrelief="flat",
                 bd=0,
-                highlightthickness=1,
-                highlightbackground=border,
-                highlightcolor=border,
+                highlightthickness=1 if outlined else 0,
+                highlightbackground=THEME["line2"],
+                highlightcolor=THEME["line2"],
                 cursor="hand2",
             )
         except tk.TclError:
@@ -535,6 +551,9 @@ class FinderV8FinalApp(FinderV8VisualApp):
         button._edhf_mockup_bound = True
         button._edhf_base_bg = base_bg
         button._edhf_hover_bg = hover_bg
+
+        def _press(event, w=button):
+            self._clear_input_focus(w)
 
         def _enter(_event, w=button):
             try:
@@ -549,6 +568,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
             except tk.TclError:
                 pass
 
+        button.bind("<Button-1>", _press, add="+")
         button.bind("<Enter>", _enter, add="+")
         button.bind("<Leave>", _leave, add="+")
 
@@ -584,6 +604,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
         checkbutton._edhf_mockup_bound = True
 
         def _click(_event, w=checkbutton):
+            self._clear_input_focus(w)
             try:
                 if str(w.cget("state")) != "disabled":
                     w.invoke()
