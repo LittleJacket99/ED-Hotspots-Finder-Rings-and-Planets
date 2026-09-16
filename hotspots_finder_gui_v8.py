@@ -39,7 +39,6 @@ class FinderV8App(tk.Tk):
         self.planets_enabled = tk.BooleanVar(value=True)
         self.only_pristine = tk.BooleanVar(value=False)
         self.only_landables = tk.BooleanVar(value=False)
-        self.only_positive = tk.BooleanVar(value=False)
 
         self.ring_vars = {
             "icy": tk.BooleanVar(value=False),
@@ -266,7 +265,7 @@ class FinderV8App(tk.Tk):
             lambda _e: canvas.unbind_all(
                 "<MouseWheel>"
             ),
-        )       
+        )
 
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
@@ -321,9 +320,6 @@ class FinderV8App(tk.Tk):
             ("rocky ice", "Rocky Ice"),
         ):
             self._check(inner, label, self.planet_type_vars[key], indent=28)
-
-        self._section(inner, "RESULTS")
-        self._check(inner, "Only positive results", self.only_positive)
 
         self._section(inner, "SYSTEM FILTERS")
 
@@ -570,7 +566,6 @@ class FinderV8App(tk.Tk):
                 key: var.get()
                 for key, var in self.power_state_vars.items()
             },
-            "only_positive_results": self.only_positive.get(),
         }
 
     def start_scan(self):
