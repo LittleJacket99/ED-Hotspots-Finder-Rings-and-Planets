@@ -15,10 +15,11 @@ from hotspots_finder_gui_v8_visual import THEME
 
 
 class FinderV8FinalApp(_BaseFinalApp):
-    """Cover the platform-specific Results bevel with one flat uniform outline."""
+    """Mask the platform Results bevel and draw one crisp 1 px outline."""
 
     RESULTS_OUTLINE = "#59616b"
     RESULTS_OUTLINE_THICKNESS = 1
+    RESULTS_NATIVE_MASK = 3
 
     def _configure_styles(self):
         super()._configure_styles()
@@ -29,9 +30,9 @@ class FinderV8FinalApp(_BaseFinalApp):
         style.configure(
             "FlatResults.TNotebook",
             background=THEME["field"],
-            bordercolor=self.RESULTS_OUTLINE,
-            lightcolor=self.RESULTS_OUTLINE,
-            darkcolor=self.RESULTS_OUTLINE,
+            bordercolor=THEME["field"],
+            lightcolor=THEME["field"],
+            darkcolor=THEME["field"],
             relief="flat",
             borderwidth=0,
             tabmargins=(0, 0, 0, 0),
@@ -42,7 +43,7 @@ class FinderV8FinalApp(_BaseFinalApp):
         self.after_idle(self._install_results_outline)
 
     def _install_results_outline(self):
-        """Draw one explicit outline over ttk's platform-dependent notebook edge."""
+        """Hide ttk's native bevel, then draw one explicit 1 px border."""
 
         notebook = getattr(self, "notebook", None)
         panel = getattr(self, "_results_panel", None)
@@ -54,6 +55,18 @@ class FinderV8FinalApp(_BaseFinalApp):
             return
 
         try:
+            # First cover the platform bevel itself. These strips sit just inside
+            # the notebook edge and use the content background, so the old 2/3 px
+            # light edge disappears instead of being stacked under our outline.
+            self._results_outline_masks = [
+                tk.Frame(
+                    panel,
+                    bg=THEME["field"],
+                    bd=0,
+                    highlightthickness=0,
+                )
+                for _ in range(4)
+            ]
             self._results_outline_lines = [
                 tk.Frame(
                     panel,
@@ -86,14 +99,21 @@ class FinderV8FinalApp(_BaseFinalApp):
 
     def _sync_results_outline(self):
         notebook = getattr(self, "notebook", None)
+        masks = getattr(self, "_results_outline_masks", None)
         lines = getattr(self, "_results_outline_lines", None)
-        if notebook is None or not lines or len(lines) != 4:
+        if (
+            notebook is None
+            or not masks
+            or len(masks) != 4
+            or not lines
+            or len(lines) != 4
+        ):
             return
 
         try:
             if not notebook.winfo_exists() or not notebook.winfo_ismapped():
-                for line in lines:
-                    line.place_forget()
+                for widget in (*masks, *lines):
+                    widget.place_forget()
                 return
 
             x = notebook.winfo_x()
@@ -101,16 +121,29 @@ class FinderV8FinalApp(_BaseFinalApp):
             width = notebook.winfo_width()
             height = notebook.winfo_height()
             t = self.RESULTS_OUTLINE_THICKNESS
-            if width <= t * 2 or height <= t * 2:
+            m = self.RESULTS_NATIVE_MASK
+            if width <= m * 2 or height <= m * 2:
                 return
 
-            positions = (
+            # Cover only the native border area just inside the notebook bounds.
+            mask_positions = (
+                (x, y, width, m),
+                (x, y + height - m, width, m),
+                (x, y, m, height),
+                (x + width - m, y, m, height),
+            )
+            for mask, (lx, ly, lw, lh) in zip(masks, mask_positions):
+                mask.place(x=lx, y=ly, width=lw, height=lh)
+                mask.lift()
+
+            # Then place one single-pixel outline on top.
+            line_positions = (
                 (x, y, width, t),
                 (x, y + height - t, width, t),
                 (x, y, t, height),
                 (x + width - t, y, t, height),
             )
-            for line, (lx, ly, lw, lh) in zip(lines, positions):
+            for line, (lx, ly, lw, lh) in zip(lines, line_positions):
                 line.place(x=lx, y=ly, width=lw, height=lh)
                 line.lift()
         except tk.TclError:
