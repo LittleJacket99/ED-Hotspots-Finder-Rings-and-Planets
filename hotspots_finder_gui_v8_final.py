@@ -186,14 +186,25 @@ class FinderV8FinalApp(FinderV8VisualApp):
                 anchor="w",
             ).pack(side="left")
 
+            # Use a real centered bullet as separator, in its own label, so it
+            # stays vertically aligned instead of looking like a low full stop.
             tk.Label(
                 subtitle_row,
-                text="· v8",
+                text="•",
+                bg=THEME["header"],
+                fg=THEME["muted"],
+                font=("Segoe UI", 8, "bold"),
+                anchor="center",
+            ).pack(side="left", padx=(7, 6), pady=(1, 0))
+
+            tk.Label(
+                subtitle_row,
+                text="v8",
                 bg=THEME["header"],
                 fg=THEME["muted"],
                 font=("Segoe UI", 8),
                 anchor="w",
-            ).pack(side="left", padx=(8, 0), pady=(2, 0))
+            ).pack(side="left", pady=(1, 0))
 
         except tk.TclError:
             return
