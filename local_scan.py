@@ -90,9 +90,6 @@ def normalize_config(config):
         },
         "reference_system": reference_system,
         "max_distance_ly": max_distance_ly,
-        "only_positive_results": bool(
-            config.get("only_positive_results", False)
-        ),
         "community_deposits_enabled": bool(
             config.get("community_deposits_enabled", False)
         ),
@@ -478,13 +475,6 @@ def run_local_scan(config, cancel_event=None):
             config["only_pristine"],
         )
 
-        if config["only_positive_results"]:
-            hotspot_filtered = [
-                row
-                for row in hotspot_filtered
-                if row["Status"] == "HOTSPOT_FOUND"
-            ]
-
         hotspot_clean = engine.clean_hotspot_rows(hotspot_filtered)
 
     if config["planets_enabled"]:
@@ -500,13 +490,6 @@ def run_local_scan(config, cancel_event=None):
             config["only_landables"],
             config["planet_types"],
         )
-
-        if config["only_positive_results"]:
-            planet_filtered = [
-                row
-                for row in planet_filtered
-                if row["Status"] == "PLANET_FOUND"
-            ]
 
         planet_clean = engine.clean_planet_rows(planet_filtered)
 
