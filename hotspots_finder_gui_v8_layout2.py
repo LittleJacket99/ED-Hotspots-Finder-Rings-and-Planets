@@ -71,24 +71,9 @@ class FinderV8Layout2App(BasePolishApp):
                     child.configure(text="Enable Community Deposits")
 
         for child in self._systems_panel.winfo_children():
-            if not isinstance(child, tk.Label):
-                continue
-            text = str(child.cget("text") or "")
-            if text == "SYSTEMS":
-                child.configure(text="SYSTEM INPUT")
-            elif text.startswith("If Faction or Power is set"):
-                child.configure(
-                    text=(
-                        "Optional manual input. System Filters narrow this list; "
-                        "scan results stay in Results."
-                    )
-                )
-
-    def _collect_config(self):
-        config = super()._collect_config()
-        # Remove the obsolete results filter from the scan configuration too.
-        config.pop("only_positive_results", None)
-        return config
+            if isinstance(child, tk.Label):
+                if str(child.cget("text") or "") == "SYSTEMS":
+                    child.configure(text="SYSTEM INPUT")
 
     def start_scan(self):
         """Start the unified SCAN flow with the new system-resolution rules."""
@@ -143,17 +128,7 @@ class FinderV8Layout2App(BasePolishApp):
             self.rhino_upload_button.configure(state="normal")
 
     def _scan_complete(self, result):
-        # Older base layers still contain the legacy behavior that copied a
-        # Faction/Power result back into the Systems text box. Preserve the
-        # manual input verbatim while those layers are being consolidated.
-        manual_input = self.systems_text.get("1.0", "end-1c")
-        try:
-            super()._scan_complete(result)
-        finally:
-            self.systems_text.delete("1.0", "end")
-            if manual_input:
-                self.systems_text.insert("1.0", manual_input)
-            self._refresh_system_count()
+        super()._scan_complete(result)
 
         headers = list(result.get("system_headers", ["System"]) or ["System"])
         rows = list(result.get("system_rows", []) or [])
