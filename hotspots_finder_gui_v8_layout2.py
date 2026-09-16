@@ -15,14 +15,14 @@ from hotspots_finder_gui_v8_polish import FinderV8PolishApp as BasePolishApp
 LAYOUT = {
     "_hotspots_box": (18, 92, 250, 130),
     "_planets_box": (18, 232, 250, 130),
-    "_community_box": (18, 372, 250, 140),
+    "_community_box": (18, 372, 250, 195),
     "_systems_panel": (285, 92, 225, 420),
-    "_system_filters_title_box": (18, 517, 160, 38),
-    "_faction_box": (17, 560, 225, 55),
-    "_power_box": (18, 620, 225, 55),
-    "_power_states_box": (18, 680, 225, 70),
-    "_reference_box": (285, 560, 225, 55),
-    "_distance_box": (285, 620, 225, 55),
+    "_system_filters_title_box": (18, 577, 160, 35),
+    "_faction_box": (18, 620, 225, 55),
+    "_power_box": (285, 620, 225, 55),
+    "_power_states_box": (285, 680, 225, 70),
+    "_reference_box": (18, 680, 142, 55),
+    "_distance_box": (151, 680, 60, 55),
     "_results_panel": (525, 92, 815, 650),
 }
 
@@ -45,13 +45,16 @@ class FinderV8Layout2App(BasePolishApp):
         # The obsolete RESULTS options frame is never used in this layout.
         self._results_options_box.place_forget()
 
-        # Apply the exact geometry from layout (5).json.
+        # Apply the exact geometry from layout (6).json. The designer's
+        # resultsOptions rectangle is deliberately ignored because the Results
+        # options section has been removed from v8.
         for attr, (x, y, width, height) in LAYOUT.items():
             getattr(self, attr).place(x=x, y=y, width=width, height=height)
 
         self._rename_filter_labels()
         self._build_load_database_button()
         self._reflow_systems_contents()
+        self._reflow_compact_reference_distance()
         self._build_external_clear_buttons()
 
     def _rename_filter_labels(self):
@@ -305,6 +308,19 @@ class FinderV8Layout2App(BasePolishApp):
                 if text.startswith("If Faction or Power is set"):
                     child.place_configure(x=9, y=361, width=207, height=50)
 
+    def _reflow_compact_reference_distance(self):
+        """Fit Reference and Max Distance into the compact layout (6) boxes."""
+        for child in self._reference_box.winfo_children():
+            if isinstance(child, tk.Entry):
+                child.place_configure(x=4, y=22, width=134, height=27)
+
+        for child in self._distance_box.winfo_children():
+            if isinstance(child, tk.Label):
+                child.configure(text="Max LY")
+                child.place_configure(x=4, y=3, width=52)
+            elif isinstance(child, tk.Entry):
+                child.place_configure(x=4, y=22, width=52, height=27)
+
     def _build_external_clear_buttons(self):
         x = LAYOUT["_systems_panel"][0]
         right_x = x + CLEAR_BUTTON_WIDTH + CLEAR_BUTTON_GAP
@@ -403,6 +419,7 @@ class FinderV8Layout2App(BasePolishApp):
 
         self._results_options_box.place_forget()
         self._reflow_systems_contents()
+        self._reflow_compact_reference_distance()
         self._show_external_clear_buttons()
 
         if getattr(self, "_bottom_bar", None) is not None:
