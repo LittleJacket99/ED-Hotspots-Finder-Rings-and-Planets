@@ -216,7 +216,24 @@ class FinderV8Layout2App(BasePolishApp):
         except Exception as exc:
             self.after(0, self._database_load_failed, str(exc))
 
+    def _clear_non_database_results(self):
+        """Keep Load Database Deposits isolated to the Community tab."""
+        if hasattr(self, "_set_filter_dataset"):
+            self._set_filter_dataset("hotspots", [], [])
+            self._set_filter_dataset("planets", [], [])
+            return
+
+        for tree_name in ("hotspot_tree", "planet_tree"):
+            tree = getattr(self, tree_name, None)
+            if tree is not None:
+                tree.delete(*tree.get_children(""))
+
     def _database_load_complete(self, headers, rows):
+        # Database browsing is a separate action from SCAN. Clear any previous
+        # Hotspots / Planets results so this operation leaves only Community
+        # Deposits in the results area.
+        self._clear_non_database_results()
+
         try:
             self._autosize_next_populate.add(self.community_tree)
         except AttributeError:
