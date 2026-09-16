@@ -6,7 +6,9 @@ Keeps the approved menu/filter visual layer intact while adding the last
 application-level settings before the consolidation pass.
 """
 
+import sys
 import tkinter as tk
+from pathlib import Path
 from tkinter import ttk
 
 import app_settings
@@ -29,12 +31,38 @@ class FinderV8FinalApp(_BaseFinalApp):
 
     def __init__(self):
         super().__init__()
+        self._apply_app_icon(self)
 
         # Old remembered settings may still contain a Power that is no longer
         # offered. Do not display or silently use an unsupported value.
         current_power = str(self.power_var.get() or "").strip()
         if current_power not in ALLOWED_POWERS:
             self.power_var.set("")
+
+    # ------------------------------------------------------------------
+    # Application icon
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _app_icon_path():
+        """Return app.ico both from source and from a PyInstaller bundle."""
+
+        base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+        return base / "app.ico"
+
+    def _apply_app_icon(self, window):
+        icon_path = self._app_icon_path()
+        if not icon_path.is_file():
+            return
+
+        try:
+            # ``default`` also makes child Toplevel windows inherit the icon on
+            # Windows instead of falling back to Tk's feather icon.
+            window.iconbitmap(default=str(icon_path))
+        except (tk.TclError, OSError):
+            try:
+                window.iconbitmap(str(icon_path))
+            except (tk.TclError, OSError):
+                pass
 
     # ------------------------------------------------------------------
     # Theme handling
@@ -192,6 +220,7 @@ class FinderV8FinalApp(_BaseFinalApp):
         if getattr(window, "_edhf_theme_controls", False):
             return
         window._edhf_theme_controls = True
+        self._apply_app_icon(window)
 
         original_theme = self._selected_theme_name()
         selected_label = THEME_NAMES.get(original_theme, "Deep Black")
