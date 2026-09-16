@@ -13,6 +13,7 @@ import finder_engine as engine
 
 
 DEFAULT_MAX_DISTANCE_LY = 50.0
+MAX_ALLOWED_DISTANCE_LY = 300.0
 SYSTEM_NAME_LOOKUP_URL = "https://spansh.co.uk/api/systems/field_values/system_names"
 FACTION_LOOKUP_URL = (
     "https://spansh.co.uk/api/systems/field_values/"
@@ -22,6 +23,19 @@ FACTION_LOOKUP_URL = (
 
 def _format_distance(value):
     return f"{float(value):g}"
+
+
+def _validate_max_distance(value):
+    try:
+        distance = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Max Distance (LY) must be a number.") from exc
+
+    if distance <= 0 or distance > MAX_ALLOWED_DISTANCE_LY:
+        raise ValueError(
+            "Max Distance (LY) must be greater than 0 and no more than 300."
+        )
+    return distance
 
 
 def _lookup_system_record(system_name, *, cancel_event=None):
@@ -231,12 +245,7 @@ def search_systems_by_filters(
             )
 
     if reference_system:
-        try:
-            max_distance_ly = float(max_distance_ly)
-        except (TypeError, ValueError) as exc:
-            raise ValueError("Max Distance (LY) must be a number.") from exc
-        if max_distance_ly <= 0:
-            raise ValueError("Max Distance (LY) must be greater than 0.")
+        max_distance_ly = _validate_max_distance(max_distance_ly)
 
         entered_reference = reference_system
         reference_system = canonicalize_system_name(
@@ -409,12 +418,7 @@ def filter_systems_within_distance(
     if not reference_system:
         return list(systems or []), {}
 
-    try:
-        max_distance_ly = float(max_distance_ly)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("Max Distance (LY) must be a number.") from exc
-    if max_distance_ly <= 0:
-        raise ValueError("Max Distance (LY) must be greater than 0.")
+    max_distance_ly = _validate_max_distance(max_distance_ly)
 
     candidates = engine.deduplicate(systems or [])
     if not candidates:
