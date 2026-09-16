@@ -267,7 +267,7 @@ class FinderV8SettingsMixin:
             insertbackground=COLORS["text"],
             relief="flat",
             font=("Segoe UI", 9),
-        ).place(x=398, y=69, width=55, height=26)
+        ).place(x=398, y=69, width=40, height=26)
 
         tk.Label(
             startup_panel,
