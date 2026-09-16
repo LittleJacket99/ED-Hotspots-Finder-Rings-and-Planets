@@ -34,6 +34,112 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
 
         self.bind("<Configure>", self._schedule_log_reposition, add="+")
 
+        # In the active layout the System Filters controls are separate frames
+        # placed over the root stage. Reuse the title frame as one shared panel
+        # behind them so the whole filter area reads visually as a single box.
+        self.after_idle(self._refresh_unified_system_filters_panel)
+
+        # Layout2 restores its original pixel geometry after Restore Panels.
+        # Re-apply the shared System Filters background after the button command
+        # has completed.
+        expand_button = getattr(self, "expand_results_button", None)
+        if expand_button is not None:
+            expand_button.bind(
+                "<ButtonRelease-1>",
+                self._schedule_unified_system_filters_refresh,
+                add="+",
+            )
+
+    def _schedule_unified_system_filters_refresh(self, _event=None):
+        self.after_idle(self._refresh_unified_system_filters_panel)
+
+    def _refresh_unified_system_filters_panel(self):
+        if getattr(self, "_results_expanded", False):
+            return
+
+        title_box = getattr(self, "_system_filters_title_box", None)
+        if title_box is None:
+            return
+
+        boxes = [
+            getattr(self, name, None)
+            for name in (
+                "_system_filters_title_box",
+                "_faction_box",
+                "_power_box",
+                "_power_states_box",
+                "_reference_box",
+                "_distance_box",
+            )
+        ]
+        boxes = [box for box in boxes if box is not None]
+        if not boxes:
+            return
+
+        try:
+            left = min(box.winfo_x() for box in boxes)
+            top = min(box.winfo_y() for box in boxes)
+            right = max(box.winfo_x() + box.winfo_width() for box in boxes)
+            bottom = max(box.winfo_y() + box.winfo_height() for box in boxes)
+
+            title_box.place(
+                x=left,
+                y=top,
+                width=max(1, right - left),
+                height=max(1, bottom - top),
+            )
+            title_box.lower()
+
+            # Keep the actual controls above the shared background panel.
+            for box in boxes[1:]:
+                box.lift()
+        except tk.TclError:
+            return
+
+    def _scan_complete(self, result):
+        super()._scan_complete(result)
+
+        # Layout2 performs a final pass that keeps columns scrollable but also
+        # applies generous fallback widths. Run one final content fit after the
+        # complete scan chain returns, including the Systems result tab.
+        self.after_idle(self._autofit_all_result_columns)
+
+    def _set_community_results(self, headers, rows):
+        super()._set_community_results(headers, rows)
+        self.after_idle(self._autofit_all_result_columns)
+
+    def _autofit_all_result_columns(self):
+        trees = []
+        for name in (
+            "hotspot_tree",
+            "planet_tree",
+            "community_tree",
+            "systems_result_tree",
+        ):
+            tree = getattr(self, name, None)
+            if tree is not None:
+                trees.append(tree)
+
+        for tree in trees:
+            try:
+                columns = list(tree["columns"])
+            except tk.TclError:
+                continue
+
+            for column in columns:
+                try:
+                    # Use the existing content-aware autosizer so headings,
+                    # filter markers and actual values all contribute to width.
+                    self._autosize_single_column(tree, column)
+                    tree.heading(column, anchor="w")
+                except (AttributeError, tk.TclError, TypeError, ValueError):
+                    continue
+
+            try:
+                tree.xview_moveto(0)
+            except tk.TclError:
+                pass
+
     def _schedule_log_reposition(self, _event=None):
         if not getattr(self, "_log_visible", False):
             return
