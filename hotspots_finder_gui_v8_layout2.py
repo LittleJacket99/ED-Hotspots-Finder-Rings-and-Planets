@@ -8,6 +8,7 @@ import webbrowser
 from tkinter import messagebox, ttk
 from urllib.parse import quote_plus
 
+import community_deposits
 import system_filter_search
 from hotspots_finder_gui_v8 import APP_TITLE, COLORS
 from hotspots_finder_gui_v8_polish import FinderV8PolishApp as BasePolishApp
@@ -60,6 +61,7 @@ class FinderV8Layout2App(BasePolishApp):
         self._row_system_by_tree = {}
         self._context_tree = None
         self._context_iid = None
+        self.community_load_running = False
 
         super()._build_ui()
 
@@ -84,7 +86,7 @@ class FinderV8Layout2App(BasePolishApp):
         self._build_external_clear_buttons()
 
     def _configure_rhino_upload_help(self):
-        """Make the RhinoSpotter sync action obvious and explain it on hover."""
+        """Make the Community Deposits actions obvious and self-explanatory."""
 
         self._rhino_help_popup = None
         self.rhino_upload_button.configure(text="Sync Deposits to Database")
@@ -103,6 +105,22 @@ class FinderV8Layout2App(BasePolishApp):
         self.rhino_help_button.place(x=203, y=61, width=24, height=24)
         self.rhino_help_button.bind("<Enter>", self._show_rhino_upload_help)
         self.rhino_help_button.bind("<Leave>", self._hide_rhino_upload_help)
+
+        self.load_all_deposits_button = tk.Button(
+            self._community_box,
+            text="Load All Deposits",
+            command=self.start_load_all_deposits,
+            bg="#3a4148",
+            fg=COLORS["text"],
+            activebackground="#46515c",
+            activeforeground=COLORS["text"],
+            disabledforeground="#777777",
+            relief="flat",
+            padx=8,
+            pady=2,
+            font=("Segoe UI", 9),
+        )
+        self.load_all_deposits_button.place(x=7, y=96, width=190, height=30)
 
     def _show_rhino_upload_help(self, _event=None):
         if self._rhino_help_popup is not None:
@@ -148,6 +166,70 @@ class FinderV8Layout2App(BasePolishApp):
                 popup.destroy()
             except tk.TclError:
                 pass
+
+    def start_load_all_deposits(self):
+        """Load the complete shared deposit database into the Community tab."""
+
+        if self.community_load_running:
+            return
+
+        if self.running:
+            messagebox.showwarning(
+                APP_TITLE,
+                "Wait for the current scan to finish before loading all deposits.",
+                parent=self,
+            )
+            return
+
+        if self.rhino_upload_running:
+            messagebox.showwarning(
+                APP_TITLE,
+                "Wait for the deposit synchronization to finish before loading all deposits.",
+                parent=self,
+            )
+            return
+
+        self.community_load_running = True
+        self.load_all_deposits_button.configure(state="disabled")
+        self.rhino_upload_button.configure(state="disabled")
+        self.scan_button.configure(state="disabled")
+        self.progress.start(12)
+        self.status_var.set("Loading all Community Deposits...")
+
+        threading.Thread(
+            target=self._load_all_deposits_worker,
+            daemon=True,
+        ).start()
+
+    def _load_all_deposits_worker(self):
+        try:
+            headers, rows = community_deposits.fetch_all_deposits()
+            self.after(0, self._load_all_deposits_complete, headers, rows)
+        except Exception as exc:
+            self.after(0, self._load_all_deposits_failed, str(exc))
+
+    def _load_all_deposits_complete(self, headers, rows):
+        # This is deliberately independent from Systems/Faction/Power/Reference
+        # filters: the button always shows the complete shared database here.
+        self._set_community_results(headers, rows)
+        self.notebook.select(self.community_tab)
+        self._finish_load_all_deposits(
+            f"Loaded {len(rows)} Community Deposits"
+        )
+
+    def _load_all_deposits_failed(self, message):
+        self._finish_load_all_deposits("Community Deposits load error")
+        messagebox.showerror(APP_TITLE, message, parent=self)
+
+    def _finish_load_all_deposits(self, status):
+        self.community_load_running = False
+        self.progress.stop()
+        self.load_all_deposits_button.configure(state="normal")
+        if not self.rhino_upload_running:
+            self.rhino_upload_button.configure(state="normal")
+        if not self.running:
+            self.scan_button.configure(state="normal")
+        self.status_var.set(status)
 
     def _make_tree(self, parent):
         """Create a result tree with a deliberately obvious test scrollbar."""
