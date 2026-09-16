@@ -25,7 +25,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
     SYSTEM_FILTERS_BOTTOM_ROW_Y = 670
 
     def _configure_styles(self):
-        """Use flatter ttk widgets so the result tabs follow the HTML mockup."""
+        """Keep ttk content flat; result tabs are rendered by our own bar."""
 
         style = ttk.Style(self)
         try:
@@ -36,36 +36,197 @@ class FinderV8FinalApp(FinderV8VisualApp):
 
         super()._configure_styles()
 
+        # Native notebook tabs are hidden later and replaced by classic Tk
+        # labels so we can match the HTML mockup exactly instead of inheriting
+        # platform-specific bevels from ttk themes.
         style = ttk.Style(self)
         style.configure(
-            "TNotebook",
-            background=THEME["panel"],
+            "FlatResults.TNotebook",
+            background=THEME["field"],
             borderwidth=0,
             tabmargins=(0, 0, 0, 0),
         )
-        style.configure(
-            "TNotebook.Tab",
-            background=THEME["panel2"],
-            foreground=THEME["text"],
-            padding=(12, 7),
-            borderwidth=0,
-            relief="flat",
-            lightcolor=THEME["panel2"],
-            darkcolor=THEME["panel2"],
-            focuscolor=THEME["panel2"],
+        try:
+            style.layout("FlatResults.TNotebook.Tab", [])
+        except tk.TclError:
+            pass
+
+    def _build_ui(self):
+        super()._build_ui()
+        self.after_idle(self._install_flat_result_tabs)
+
+    def _install_flat_result_tabs(self):
+        """Replace ttk's native tabs with a mockup-like flat tab strip."""
+
+        notebook = getattr(self, "notebook", None)
+        panel = getattr(self, "_results_panel", None)
+        if notebook is None or panel is None:
+            return
+
+        if getattr(self, "_flat_tabs_bar", None) is not None:
+            return
+
+        try:
+            notebook.configure(style="FlatResults.TNotebook")
+            if notebook.winfo_manager() == "pack":
+                notebook.pack_configure(pady=(31, 8))
+        except tk.TclError:
+            pass
+
+        self._flat_tabs_bar = tk.Frame(
+            panel,
+            bg=THEME["panel"],
+            bd=0,
+            highlightthickness=0,
         )
-        style.map(
-            "TNotebook.Tab",
-            background=[
-                ("selected", THEME["field"]),
-                ("active", THEME["hover"]),
-            ],
-            foreground=[
-                ("selected", THEME["accent"]),
-                ("active", THEME["text"]),
-            ],
-            relief=[("selected", "flat"), ("active", "flat")],
-        )
+        self._flat_tabs_bar.place(x=12, y=43, height=31)
+
+        self._flat_tab_widgets = {}
+        self._rebuild_flat_result_tabs()
+        notebook.bind("<<NotebookTabChanged>>", self._on_flat_tab_changed, add="+")
+        self._schedule_flat_tab_sync()
+
+    def _rebuild_flat_result_tabs(self):
+        bar = getattr(self, "_flat_tabs_bar", None)
+        notebook = getattr(self, "notebook", None)
+        if bar is None or notebook is None:
+            return
+
+        for child in bar.winfo_children():
+            child.destroy()
+        self._flat_tab_widgets = {}
+
+        try:
+            tabs = list(notebook.tabs())
+        except tk.TclError:
+            return
+
+        for tab_id in tabs:
+            try:
+                text = str(notebook.tab(tab_id, "text") or "")
+            except tk.TclError:
+                text = ""
+
+            label = tk.Label(
+                bar,
+                text=text,
+                bg=THEME["panel2"],
+                fg=THEME["text"],
+                font=("Segoe UI", 9),
+                padx=12,
+                pady=6,
+                bd=0,
+                relief="flat",
+                highlightthickness=1,
+                highlightbackground=THEME["line"],
+                highlightcolor=THEME["line2"],
+                cursor="hand2",
+            )
+            label.pack(side="left", padx=(0, 2))
+            label.bind(
+                "<Button-1>",
+                lambda _event, tab=tab_id: self._select_flat_tab(tab),
+            )
+            label.bind(
+                "<Enter>",
+                lambda _event, tab=tab_id: self._hover_flat_tab(tab, True),
+            )
+            label.bind(
+                "<Leave>",
+                lambda _event, tab=tab_id: self._hover_flat_tab(tab, False),
+            )
+            self._flat_tab_widgets[tab_id] = label
+
+        self._refresh_flat_tab_states()
+
+    def _select_flat_tab(self, tab_id):
+        notebook = getattr(self, "notebook", None)
+        if notebook is None:
+            return
+        try:
+            notebook.select(tab_id)
+        except tk.TclError:
+            return
+        self._refresh_flat_tab_states()
+
+    def _hover_flat_tab(self, tab_id, entering):
+        notebook = getattr(self, "notebook", None)
+        label = getattr(self, "_flat_tab_widgets", {}).get(tab_id)
+        if notebook is None or label is None:
+            return
+
+        try:
+            selected = notebook.select()
+        except tk.TclError:
+            selected = ""
+
+        if tab_id == selected:
+            return
+
+        try:
+            label.configure(
+                bg=THEME["hover"] if entering else THEME["panel2"],
+                highlightbackground=THEME["line2"] if entering else THEME["line"],
+            )
+        except tk.TclError:
+            pass
+
+    def _on_flat_tab_changed(self, _event=None):
+        self._refresh_flat_tab_states()
+
+    def _refresh_flat_tab_states(self):
+        notebook = getattr(self, "notebook", None)
+        widgets = getattr(self, "_flat_tab_widgets", {})
+        if notebook is None or not widgets:
+            return
+
+        try:
+            selected = notebook.select()
+        except tk.TclError:
+            selected = ""
+
+        for tab_id, label in widgets.items():
+            try:
+                label.configure(
+                    bg=THEME["field"] if tab_id == selected else THEME["panel2"],
+                    fg=THEME["accent"] if tab_id == selected else THEME["text"],
+                    highlightbackground=(
+                        THEME["line2"] if tab_id == selected else THEME["line"]
+                    ),
+                )
+            except tk.TclError:
+                pass
+
+    def _schedule_flat_tab_sync(self):
+        """Keep dynamic tab text such as Systems (N) synchronized."""
+
+        if not self.winfo_exists():
+            return
+
+        notebook = getattr(self, "notebook", None)
+        widgets = getattr(self, "_flat_tab_widgets", {})
+        if notebook is not None and widgets:
+            try:
+                tabs = list(notebook.tabs())
+            except tk.TclError:
+                tabs = []
+
+            if set(tabs) != set(widgets):
+                self._rebuild_flat_result_tabs()
+            else:
+                for tab_id in tabs:
+                    label = widgets.get(tab_id)
+                    if label is None:
+                        continue
+                    try:
+                        text = str(notebook.tab(tab_id, "text") or "")
+                        if str(label.cget("text")) != text:
+                            label.configure(text=text)
+                    except tk.TclError:
+                        pass
+                self._refresh_flat_tab_states()
+
+        self.after(250, self._schedule_flat_tab_sync)
 
     def _position_system_filter_controls(self):
         """Apply the compact final geometry for the System Filters controls."""
@@ -166,6 +327,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
         super()._apply_visual_theme()
         self._normalize_system_filters_colors()
         self._style_mockup_controls(self)
+        self._refresh_flat_tab_states()
 
     def _normalize_system_filters_colors(self):
         """Remove any legacy differently-coloured rectangle inside System Filters."""
@@ -213,17 +375,14 @@ class FinderV8FinalApp(FinderV8VisualApp):
         if hasattr(self, "_checkbox_unchecked_image"):
             return
 
-        # 9x9 visible square plus 5 px transparent spacing before the text.
         width = 15
         height = 11
         unchecked = tk.PhotoImage(master=self, width=width, height=height)
         checked = tk.PhotoImage(master=self, width=width, height=height)
 
-        # OFF: dark square with a subtle light outline.
         unchecked.put(THEME["line2"], to=(0, 1, 9, 10))
         unchecked.put(THEME["field"], to=(1, 2, 8, 9))
 
-        # ON: solid green square, deliberately no check mark.
         checked.put(THEME["accent"], to=(0, 1, 9, 10))
         checked.put(THEME["accent"], to=(1, 2, 8, 9))
 
@@ -295,7 +454,6 @@ class FinderV8FinalApp(FinderV8VisualApp):
         button._edhf_mockup_bound = True
         button._edhf_base_bg = base_bg
         button._edhf_hover_bg = hover_bg
-        button._edhf_border = border
 
         def _enter(_event, w=button):
             try:
