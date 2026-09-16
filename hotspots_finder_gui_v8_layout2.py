@@ -80,7 +80,74 @@ class FinderV8Layout2App(BasePolishApp):
         self._reflow_systems_contents()
         self._reflow_compact_reference_distance()
         self._configure_power_combobox_behavior()
+        self._configure_rhino_upload_help()
         self._build_external_clear_buttons()
+
+    def _configure_rhino_upload_help(self):
+        """Make the RhinoSpotter sync action obvious and explain it on hover."""
+
+        self._rhino_help_popup = None
+        self.rhino_upload_button.configure(text="Sync Deposits to Database")
+        self.rhino_upload_button.place_configure(x=7, y=58, width=190, height=30)
+
+        self.rhino_help_button = tk.Label(
+            self._community_box,
+            text="?",
+            bg="#3a4148",
+            fg=COLORS["text"],
+            relief="solid",
+            bd=1,
+            font=("Segoe UI", 10, "bold"),
+            cursor="question_arrow",
+        )
+        self.rhino_help_button.place(x=203, y=61, width=24, height=24)
+        self.rhino_help_button.bind("<Enter>", self._show_rhino_upload_help)
+        self.rhino_help_button.bind("<Leave>", self._hide_rhino_upload_help)
+
+    def _show_rhino_upload_help(self, _event=None):
+        if self._rhino_help_popup is not None:
+            return
+
+        popup = tk.Toplevel(self)
+        popup.overrideredirect(True)
+        try:
+            popup.attributes("-topmost", True)
+        except tk.TclError:
+            pass
+
+        x = self.rhino_help_button.winfo_rootx() + self.rhino_help_button.winfo_width() + 8
+        y = self.rhino_help_button.winfo_rooty() - 5
+        popup.geometry(f"+{x}+{y}")
+
+        tk.Label(
+            popup,
+            text=(
+                "Reads deposit reports saved locally by RhinoSpotter and syncs "
+                "them with the Community Deposits database. Matching reports "
+                "are updated instead of being duplicated."
+            ),
+            bg="#f4f4f4",
+            fg="#111111",
+            justify="left",
+            anchor="w",
+            wraplength=310,
+            padx=9,
+            pady=7,
+            relief="solid",
+            bd=1,
+            font=("Segoe UI", 9),
+        ).pack()
+
+        self._rhino_help_popup = popup
+
+    def _hide_rhino_upload_help(self, _event=None):
+        popup = self._rhino_help_popup
+        self._rhino_help_popup = None
+        if popup is not None:
+            try:
+                popup.destroy()
+            except tk.TclError:
+                pass
 
     def _make_tree(self, parent):
         """Create a result tree with a deliberately obvious test scrollbar."""
