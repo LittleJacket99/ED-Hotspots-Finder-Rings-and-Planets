@@ -6,7 +6,11 @@ Keeps the tested visual layer intact while fixing the last header and
 System Filters presentation issues found during the real-GUI review.
 """
 
+import base64
+import io
 import tkinter as tk
+
+from PIL import Image, ImageTk
 
 from hotspots_finder_gui_v8_visual import FinderV8VisualApp, THEME
 from ui_logo import LOGO_PNG_BASE64
@@ -26,9 +30,8 @@ class FinderV8FinalApp(FinderV8VisualApp):
             bd=0,
         )
 
-        # The tested filter widgets start at x=18 / y=577 and some of them
-        # touch the old card edge exactly. Put the card border two pixels
-        # outside that geometry so child frames can no longer cover/split it.
+        # Put the single outer card a couple of pixels outside the tested
+        # filter geometry so none of the inner frames can split its outline.
         self._system_filters_backplate.place(
             x=16,
             y=575,
@@ -37,8 +40,29 @@ class FinderV8FinalApp(FinderV8VisualApp):
         )
         self._system_filters_backplate.lower()
 
+        # The old title lived in its own frame, which visually broke the card.
+        # Hide that frame and draw the heading directly inside the unified card.
+        old_title_box = getattr(self, "_system_filters_title_box", None)
+        if old_title_box is not None:
+            try:
+                old_title_box.place_forget()
+            except tk.TclError:
+                pass
+
+        self._system_filters_caption = tk.Label(
+            self._system_filters_backplate,
+            text="SYSTEM FILTERS",
+            bg=THEME["panel"],
+            fg=THEME["accent"],
+            font=("Segoe UI", 10, "bold"),
+            anchor="w",
+            bd=0,
+            highlightthickness=0,
+        )
+        self._system_filters_caption.place(x=10, y=7, width=160, height=25)
+
     def _apply_brand_header(self):
-        """Use a larger logo and a non-overlapping two-line title block."""
+        """Render the logo smoothly and keep the two-line title block clean."""
 
         header = getattr(self, "_header_frame", None)
         if header is None:
@@ -49,11 +73,17 @@ class FinderV8FinalApp(FinderV8VisualApp):
             for child in header.winfo_children():
                 child.destroy()
 
-            # Source asset is 64x64. 5/4 gives an 80x80 header version while
-            # keeping the original asset embedded and avoiding another file.
-            base_logo = tk.PhotoImage(data=LOGO_PNG_BASE64)
-            self._window_icon_image = base_logo
-            self._header_logo_image = base_logo.zoom(5, 5).subsample(4, 4)
+            # Tk's zoom() uses nearest-neighbour scaling and produced the
+            # pixelated logo seen in the previous build. Decode the same PNG
+            # through Pillow and resize it with LANCZOS instead.
+            logo_bytes = base64.b64decode(LOGO_PNG_BASE64)
+            source_logo = Image.open(io.BytesIO(logo_bytes)).convert("RGBA")
+
+            header_logo = source_logo.resize((76, 76), Image.Resampling.LANCZOS)
+            window_icon = source_logo.resize((64, 64), Image.Resampling.LANCZOS)
+
+            self._header_logo_image = ImageTk.PhotoImage(header_logo)
+            self._window_icon_image = ImageTk.PhotoImage(window_icon)
             self.iconphoto(True, self._window_icon_image)
 
             tk.Label(
@@ -62,7 +92,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
                 bg=THEME["header"],
                 bd=0,
                 highlightthickness=0,
-            ).place(x=8, y=1, width=80, height=80)
+            ).place(x=10, y=3, width=76, height=76)
 
             title_block = tk.Frame(
                 header,
@@ -70,7 +100,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
                 bd=0,
                 highlightthickness=0,
             )
-            title_block.place(x=99, y=12, width=330, height=56)
+            title_block.place(x=99, y=12, width=360, height=58)
 
             tk.Label(
                 title_block,
@@ -107,7 +137,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
                 anchor="w",
             ).pack(side="left", padx=(8, 0), pady=(2, 0))
 
-        except tk.TclError:
+        except (tk.TclError, ValueError):
             return
 
 
