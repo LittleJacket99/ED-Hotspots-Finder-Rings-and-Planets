@@ -2,12 +2,17 @@
 
 """GUI-friendly wrapper around the already-tested RhinoSpotter sync logic."""
 
+import json
+import sys
+from pathlib import Path
+
 from rhinospotter_sync import (
     CARDS_DIR,
     MAX_BATCH_SIZE,
     chunks,
-    load_cards,
+    normalize_record,
     send_batch,
+    validate_record,
 )
 
 
@@ -15,7 +20,29 @@ class RhinoSpotterSyncError(RuntimeError):
     pass
 
 
-def sync_cards():
+def _load_cards(cards_dir=None):
+    """Load RhinoSpotter cards from the configured folder or default folder."""
+
+    root = Path(cards_dir).expanduser() if cards_dir else CARDS_DIR
+    if not root.exists():
+        raise FileNotFoundError(f"RhinoSpotter folder not found: {root}")
+
+    files = sorted(root.rglob("*.json"))
+    deposits = []
+
+    for path in files:
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                record = json.load(handle)
+            validate_record(record, path)
+            deposits.append(normalize_record(record))
+        except Exception as exc:
+            print(f"[ERROR] {path}: {exc}", file=sys.stderr)
+
+    return root, files, deposits
+
+
+def sync_cards(cards_dir=None):
     """Synchronise RhinoSpotter bookmarks and return a compact result summary.
 
     The actual record normalisation, report_id generation and HTTP payload are
@@ -23,10 +50,10 @@ def sync_cards():
     compatible with the previously tested command-line sync.
     """
 
-    files, deposits = load_cards()
+    root, files, deposits = _load_cards(cards_dir)
 
     summary = {
-        "cards_dir": str(CARDS_DIR),
+        "cards_dir": str(root),
         "files_found": len(files),
         "records_valid": len(deposits),
         "inserted": 0,
