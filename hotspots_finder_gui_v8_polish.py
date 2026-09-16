@@ -323,17 +323,8 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
             )
 
     def _build_results_options_box(self, parent):
-        self._section_label(parent, "RESULTS")
-        self._place_check(
-            parent,
-            "Only positive results",
-            self.only_positive,
-            x=7,
-            y=29,
-            width=180,
-            height=20,
-            font=("Segoe UI", 9),
-        )
+        # Kept as an empty compatibility hook for older layout wrappers.
+        return None
 
     def _build_community_box(self, parent):
         self._section_label(parent, "COMMUNITY DEPOSITS")
@@ -448,8 +439,8 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
         tk.Label(
             parent,
             text=(
-                "If Faction or Power is set, Spansh will replace this list "
-                "for the current scan."
+                "Optional manual input. System Filters narrow this list; "
+                "scan results stay in Results."
             ),
             bg=PANEL,
             fg=COLORS["muted"],
