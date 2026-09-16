@@ -32,6 +32,7 @@ CLEAR_BUTTON_WIDTH = 109
 CLEAR_BUTTON_HEIGHT = 27
 CLEAR_BUTTON_GAP = 7
 WINDOW_TOP_MARGIN = 10
+WINDOW_WIDTH = 1359
 
 
 class FinderV8Layout2App(BasePolishApp):
@@ -62,11 +63,11 @@ class FinderV8Layout2App(BasePolishApp):
 
         super()._build_ui()
 
-        # Keep the fixed-size window near the top of the desktop instead of
-        # accepting the lower automatic position chosen by the window manager.
-        # This leaves the bottom SCAN controls clear of the Windows taskbar.
+        # Keep the fixed-size window near the top of the desktop. Use the real
+        # application width instead of winfo_reqwidth(), which may still be 1
+        # during startup and was pushing the window too far to the right.
         screen_width = self.winfo_screenwidth()
-        x = max(0, (screen_width - self.winfo_reqwidth()) // 2)
+        x = max(10, (screen_width - WINDOW_WIDTH) // 2)
         self.geometry(f"+{x}+{WINDOW_TOP_MARGIN}")
 
         # The unused compatibility frame is never shown in this layout.
