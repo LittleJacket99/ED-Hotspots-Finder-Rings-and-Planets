@@ -504,76 +504,168 @@ class FinderV8FinalApp(FinderV8VisualApp):
         except tk.TclError:
             pass
 
+    def _remove_regular_button_border(self, button):
+        """Destroy the four overlay lines used by a regular button."""
+
+        for line in getattr(button, "_edhf_border_lines", ()):
+            try:
+                line.destroy()
+            except tk.TclError:
+                pass
+        button._edhf_border_lines = []
+
+    def _sync_regular_button_border(self, button):
+        """Draw the border inside the button bounds so geometry never changes."""
+
+        lines = getattr(button, "_edhf_border_lines", None)
+        if not lines or len(lines) != 4:
+            return
+
+        try:
+            if not button.winfo_exists() or not button.winfo_ismapped():
+                for line in lines:
+                    line.place_forget()
+                return
+
+            x = button.winfo_x()
+            y = button.winfo_y()
+            width = button.winfo_width()
+            height = button.winfo_height()
+            if width < 2 or height < 2:
+                return
+
+            positions = (
+                (x, y, width, 1),
+                (x, y + height - 1, width, 1),
+                (x, y, 1, height),
+                (x + width - 1, y, 1, height),
+            )
+            for line, (lx, ly, lw, lh) in zip(lines, positions):
+                line.place(x=lx, y=ly, width=lw, height=lh)
+                line.lift(button)
+        except tk.TclError:
+            pass
+
+    def _ensure_regular_button_border(self, button):
+        """Give every non-SCAN/STOP button one identical visible 1 px outline."""
+
+        lines = getattr(button, "_edhf_border_lines", None)
+        if lines and len(lines) == 4:
+            self.after_idle(lambda w=button: self._sync_regular_button_border(w))
+            return
+
+        try:
+            lines = [
+                tk.Frame(
+                    button.master,
+                    bg=THEME["line2"],
+                    bd=0,
+                    highlightthickness=0,
+                    cursor="hand2",
+                )
+                for _ in range(4)
+            ]
+        except tk.TclError:
+            return
+
+        button._edhf_border_lines = lines
+
+        def _border_click(_event, w=button):
+            self._clear_input_focus(w)
+            try:
+                if str(w.cget("state")) != "disabled":
+                    w.invoke()
+            except tk.TclError:
+                pass
+            return "break"
+
+        def _border_enter(_event, w=button):
+            try:
+                if str(w.cget("state")) != "disabled":
+                    w.configure(bg=w._edhf_hover_bg)
+            except tk.TclError:
+                pass
+
+        def _border_leave(_event, w=button):
+            try:
+                w.configure(bg=w._edhf_base_bg)
+            except tk.TclError:
+                pass
+
+        for line in lines:
+            line.bind("<Button-1>", _border_click)
+            line.bind("<Enter>", _border_enter)
+            line.bind("<Leave>", _border_leave)
+
+        button.bind(
+            "<Configure>",
+            lambda _event, w=button: self.after_idle(
+                lambda: self._sync_regular_button_border(w)
+            ),
+            add="+",
+        )
+        button.bind(
+            "<Map>",
+            lambda _event, w=button: self.after_idle(
+                lambda: self._sync_regular_button_border(w)
+            ),
+            add="+",
+        )
+        button.bind(
+            "<Unmap>",
+            lambda _event, ls=lines: [line.place_forget() for line in ls],
+            add="+",
+        )
+
+        self.after_idle(lambda w=button: self._sync_regular_button_border(w))
+
     def _style_mockup_button(self, button):
-        """Give every regular button one identical flat style."""
+        """Keep SCAN/STOP special; every other button is visually identical."""
 
         text = str(button.cget("text") or "").strip().upper()
 
         if text == "SCAN":
-            try:
-                button.configure(
-                    bg=THEME["accent"],
-                    fg="#121512",
-                    activebackground=THEME["accent2"],
-                    activeforeground="#121512",
-                    relief="flat",
-                    overrelief="flat",
-                    bd=0,
-                    highlightthickness=0,
-                    cursor="hand2",
-                )
-            except tk.TclError:
-                return
             base_bg = THEME["accent"]
             hover_bg = THEME["accent2"]
+            fg = "#121512"
+            active_fg = "#121512"
+            self._remove_regular_button_border(button)
         elif text == "STOP":
-            try:
-                button.configure(
-                    bg="#3b2d2d",
-                    fg="#d9bcbc",
-                    activebackground="#503737",
-                    activeforeground="#f0d6d6",
-                    relief="flat",
-                    overrelief="flat",
-                    bd=0,
-                    highlightthickness=0,
-                    cursor="hand2",
-                )
-            except tk.TclError:
-                return
             base_bg = "#3b2d2d"
             hover_bg = "#503737"
+            fg = "#d9bcbc"
+            active_fg = "#f0d6d6"
+            self._remove_regular_button_border(button)
         else:
-            # Canonical regular-button appearance: this is the same visual used
-            # by Clear Filters, Clear Systems, Reference Tables, Settings and
-            # Show Log Details. Apply it to every other action button too.
-            try:
-                button.configure(
-                    bg=THEME["panel2"],
-                    fg=THEME["text"],
-                    activebackground=THEME["hover"],
-                    activeforeground=THEME["text"],
-                    relief="flat",
-                    overrelief="flat",
-                    bd=0,
-                    highlightthickness=1,
-                    highlightbackground=THEME["line2"],
-                    highlightcolor=THEME["line2"],
-                    cursor="hand2",
-                )
-            except tk.TclError:
-                return
             base_bg = THEME["panel2"]
             hover_bg = THEME["hover"]
+            fg = THEME["text"]
+            active_fg = THEME["text"]
 
-        if getattr(button, "_edhf_mockup_bound", False):
-            button._edhf_base_bg = base_bg
-            button._edhf_hover_bg = hover_bg
+        try:
+            button.configure(
+                bg=base_bg,
+                fg=fg,
+                activebackground=hover_bg,
+                activeforeground=active_fg,
+                relief="flat",
+                overrelief="flat",
+                bd=0,
+                highlightthickness=0,
+                cursor="hand2",
+            )
+        except tk.TclError:
             return
 
-        button._edhf_mockup_bound = True
         button._edhf_base_bg = base_bg
         button._edhf_hover_bg = hover_bg
+
+        if text not in {"SCAN", "STOP"}:
+            self._ensure_regular_button_border(button)
+
+        if getattr(button, "_edhf_mockup_bound", False):
+            return
+        button._edhf_mockup_bound = True
 
         def _press(_event, w=button):
             self._clear_input_focus(w)
