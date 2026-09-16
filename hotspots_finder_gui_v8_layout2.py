@@ -34,6 +34,30 @@ CLEAR_BUTTON_GAP = 7
 
 
 class FinderV8Layout2App(BasePolishApp):
+    def _configure_styles(self):
+        """Keep the dark scrollbar styling without breaking the movable thumb."""
+
+        # Save the native clam scrollbar layouts before the polish layer
+        # replaces them with its older full-track thumb layout.
+        style = ttk.Style(self)
+        try:
+            style.theme_use("clam")
+        except tk.TclError:
+            pass
+
+        horizontal_layout = style.layout("Horizontal.TScrollbar")
+        vertical_layout = style.layout("Vertical.TScrollbar")
+
+        super()._configure_styles()
+
+        # Restore the native geometry. The colours/width configured by the
+        # polish layer remain in effect, while the thumb becomes draggable.
+        try:
+            style.layout("Horizontal.TScrollbar", horizontal_layout)
+            style.layout("Vertical.TScrollbar", vertical_layout)
+        except tk.TclError:
+            pass
+
     def _build_ui(self):
         self._row_system_by_tree = {}
         self._context_tree = None
@@ -78,8 +102,6 @@ class FinderV8Layout2App(BasePolishApp):
         ybar.grid(row=0, column=1, sticky="ns")
         xbar.grid(row=1, column=0, sticky="ew")
         frame.rowconfigure(0, weight=1)
-        # Reserve physical space for the bar so it cannot disappear when the
-        # notebook/result panel is resized or the custom ttk style is applied.
         frame.rowconfigure(1, weight=0, minsize=12)
         frame.columnconfigure(0, weight=1)
         return tree
@@ -165,28 +187,9 @@ class FinderV8Layout2App(BasePolishApp):
             pass
 
     def _build_result_context_menu(self):
+        # Menu entries are rebuilt for every right-click so website actions can
+        # disappear entirely when several different systems are selected.
         self._result_context_menu = tk.Menu(self, tearoff=False)
-        self._result_context_menu.add_command(
-            label="Copy row",
-            command=self._copy_context_row,
-        )
-        self._result_context_menu.add_command(
-            label="Copy system",
-            command=self._copy_context_system,
-        )
-        self._result_context_menu.add_separator()
-        self._result_context_menu.add_command(
-            label="Open system in Inara",
-            command=lambda: self._open_context_system("inara"),
-        )
-        self._result_context_menu.add_command(
-            label="Open system in Spansh",
-            command=lambda: self._open_context_system("spansh"),
-        )
-        self._result_context_menu.add_command(
-            label="Open system in EDSM",
-            command=lambda: self._open_context_system("edsm"),
-        )
 
         for tree in (
             self.hotspot_tree,
@@ -224,32 +227,45 @@ class FinderV8Layout2App(BasePolishApp):
         row_count = len(selected_iids)
         system_count = len(selected_systems)
 
-        self._result_context_menu.entryconfigure(
-            0,
+        menu = self._result_context_menu
+        menu.delete(0, "end")
+        menu.add_command(
             label="Copy row" if row_count == 1 else f"Copy {row_count} rows",
+            command=self._copy_context_row,
             state="normal" if row_count else "disabled",
         )
-        self._result_context_menu.entryconfigure(
-            1,
+        menu.add_command(
             label=(
                 "Copy system"
                 if system_count <= 1
                 else f"Copy {system_count} systems"
             ),
+            command=self._copy_context_system,
             state="normal" if system_count else "disabled",
         )
 
-        # Website actions intentionally apply to the row that was right-clicked,
-        # even when several rows are selected.
-        has_context_system = bool(self._context_system())
-        link_state = "normal" if has_context_system else "disabled"
-        for index in (3, 4, 5):
-            self._result_context_menu.entryconfigure(index, state=link_state)
+        # Opening a website is only unambiguous when the current selection
+        # resolves to one system. With different systems selected the three
+        # website actions are omitted instead of opening the right-clicked row.
+        if system_count == 1:
+            menu.add_separator()
+            menu.add_command(
+                label="Open system in Inara",
+                command=lambda: self._open_context_system("inara"),
+            )
+            menu.add_command(
+                label="Open system in Spansh",
+                command=lambda: self._open_context_system("spansh"),
+            )
+            menu.add_command(
+                label="Open system in EDSM",
+                command=lambda: self._open_context_system("edsm"),
+            )
 
         try:
-            self._result_context_menu.tk_popup(event.x_root, event.y_root)
+            menu.tk_popup(event.x_root, event.y_root)
         finally:
-            self._result_context_menu.grab_release()
+            menu.grab_release()
         return "break"
 
     def _selected_context_iids(self):
@@ -354,9 +370,10 @@ class FinderV8Layout2App(BasePolishApp):
         return "break"
 
     def _open_context_system(self, target):
-        system = self._context_system()
-        if not system:
+        systems = self._selected_context_systems()
+        if len(systems) != 1:
             return
+        system = systems[0]
 
         if target == "inara":
             url = (
