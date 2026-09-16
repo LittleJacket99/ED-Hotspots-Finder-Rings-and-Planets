@@ -149,3 +149,105 @@ def search_systems_by_filters(
     if include_distances:
         return systems, distances
     return systems
+
+
+def search_systems_within_distance(
+    reference_system,
+    *,
+    max_distance_ly=DEFAULT_MAX_DISTANCE_LY,
+    include_distances=False,
+    cancel_event=None,
+):
+    """Return Spansh systems within a radius of a reference system.
+
+    This is intentionally separate from ``search_systems_by_filters`` so the
+    normal SCAN behaviour remains unchanged: Reference System alone is only a
+    special browsing mode for Community database deposits.
+    """
+
+    reference_system = str(reference_system or "").strip()
+    if not reference_system:
+        return ([], {}) if include_distances else []
+
+    try:
+        max_distance_ly = float(max_distance_ly)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Max Distance (LY) must be a number.") from exc
+    if max_distance_ly <= 0:
+        raise ValueError("Max Distance (LY) must be greater than 0.")
+
+    filters = {
+        "distance": {
+            "min": "0",
+            "max": _format_distance(max_distance_ly),
+        }
+    }
+
+    print("Searching Spansh systems by distance:")
+    print(f'  Reference system: "{reference_system}"')
+    print(f"  Max distance: {_format_distance(max_distance_ly)} LY")
+
+    systems = []
+    distances = {}
+    seen = set()
+    page = 0
+
+    while True:
+        engine.check_cancel(cancel_event)
+        payload = {
+            "filters": filters,
+            "size": engine.PAGE_SIZE,
+            "page": page,
+            "reference_system": reference_system,
+            "sort": [{"distance": {"direction": "asc"}}],
+        }
+
+        response = engine.request_with_retries(
+            "POST",
+            engine.SPANSH_SYSTEMS_URL,
+            cancel_event=cancel_event,
+            json=payload,
+            headers={
+                "User-Agent": engine.USER_AGENT,
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+        )
+        data = response.json()
+        results = data.get("results", []) or []
+        total = int(data.get("count", 0) or 0)
+
+        for item in results:
+            distance = item.get("distance")
+            numeric_distance = None
+            if distance not in (None, ""):
+                try:
+                    numeric_distance = float(distance)
+                except (TypeError, ValueError):
+                    numeric_distance = None
+
+            if numeric_distance is None or numeric_distance > max_distance_ly:
+                continue
+
+            system_name = str(
+                item.get("name") or item.get("system_name") or ""
+            ).strip()
+            key = engine.norm(system_name)
+            if system_name and key not in seen:
+                seen.add(key)
+                systems.append(system_name)
+                distances[key] = numeric_distance
+
+        if not results or (page + 1) * engine.PAGE_SIZE >= total:
+            break
+
+        page += 1
+        engine.cancellable_sleep(engine.DELAY, cancel_event)
+
+    engine.check_cancel(cancel_event)
+    systems.sort(key=str.casefold)
+    print(f"Systems within distance: {len(systems)}")
+
+    if include_distances:
+        return systems, distances
+    return systems
