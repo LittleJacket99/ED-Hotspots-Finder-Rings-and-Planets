@@ -13,8 +13,13 @@ if errorlevel 1 (
     goto :fail
 )
 
-python -c "import hotspots_finder_gui_v8_layout2, finder_engine, local_scan, system_filter_search, community_deposits, results_export, rhinospotter_sync_service, requests; print('V8 active GUI imports OK')"
+python -c "import hotspots_finder_gui_v8_final, finder_engine, local_scan, system_filter_search, community_deposits, results_export, rhinospotter_sync_service, requests; print('V8 final GUI imports OK')"
 if errorlevel 1 goto :fail
+
+if not exist app.ico (
+    echo ERROR: app.ico is missing from the repository root.
+    goto :fail
+)
 
 python -m PyInstaller --version >nul 2>&1
 if errorlevel 1 (
