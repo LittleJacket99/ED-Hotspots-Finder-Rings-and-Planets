@@ -310,6 +310,7 @@ class FinderV8Layout2App(BasePolishApp):
                 minwidth=70,
                 stretch=False,
             )
+            tree.heading(header, anchor="w")
         try:
             tree.xview_moveto(0)
         except tk.TclError:
