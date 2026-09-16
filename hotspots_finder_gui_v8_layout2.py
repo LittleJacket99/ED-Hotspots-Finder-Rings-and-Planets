@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import messagebox
 
 import community_deposits
+import system_filter_search
 from hotspots_finder_gui_v8 import APP_TITLE, COLORS
 from hotspots_finder_gui_v8_polish import FinderV8PolishApp as BasePolishApp
 
@@ -29,6 +30,7 @@ CLEAR_BUTTON_Y = 520
 CLEAR_BUTTON_WIDTH = 109
 CLEAR_BUTTON_HEIGHT = 27
 CLEAR_BUTTON_GAP = 7
+DISTANCE_COLUMN = "Distance (LY)"
 
 
 class FinderV8Layout2App(BasePolishApp):
@@ -95,6 +97,10 @@ class FinderV8Layout2App(BasePolishApp):
             )
             return
 
+        # Read Tk variables on the GUI thread, then hand only plain values to
+        # the worker thread.
+        config = self._collect_config()
+
         self.database_load_running = True
         self.load_database_button.configure(state="disabled")
         self.rhino_upload_button.configure(state="disabled")
@@ -104,12 +110,108 @@ class FinderV8Layout2App(BasePolishApp):
 
         threading.Thread(
             target=self._database_load_worker,
+            args=(config,),
             daemon=True,
         ).start()
 
-    def _database_load_worker(self):
+    @staticmethod
+    def _database_system_key(value):
+        return " ".join(str(value or "").strip().casefold().split())
+
+    @classmethod
+    def _filter_database_rows_by_systems(cls, rows, systems):
+        allowed = {
+            cls._database_system_key(system)
+            for system in systems
+            if str(system or "").strip()
+        }
+        return [
+            row
+            for row in rows
+            if cls._database_system_key(row.get("System", "")) in allowed
+        ]
+
+    @classmethod
+    def _add_database_distances(cls, headers, rows, distances):
+        headers = [header for header in list(headers or []) if header != DISTANCE_COLUMN]
+        try:
+            system_index = headers.index("System")
+        except ValueError:
+            headers.insert(0, DISTANCE_COLUMN)
+        else:
+            headers.insert(system_index, DISTANCE_COLUMN)
+
+        mapped_rows = []
+        for source in rows:
+            row = dict(source)
+            distance = distances.get(cls._database_system_key(row.get("System", "")))
+            if distance in (None, ""):
+                row[DISTANCE_COLUMN] = ""
+            else:
+                try:
+                    row[DISTANCE_COLUMN] = (
+                        f"{float(distance):.2f}".rstrip("0").rstrip(".")
+                    )
+                except (TypeError, ValueError):
+                    row[DISTANCE_COLUMN] = str(distance)
+            mapped_rows.append(row)
+
+        return headers, mapped_rows
+
+    def _database_load_worker(self, config):
         try:
             headers, rows = community_deposits.fetch_all_deposits()
+
+            faction_name = str(config.get("faction_name", "") or "").strip()
+            power_name = str(config.get("power_name", "") or "").strip()
+            manual_systems = list(config.get("systems", []) or [])
+            reference_system = str(
+                config.get("reference_system", "") or ""
+            ).strip()
+
+            selected_power_states = [
+                state
+                for state, enabled in dict(config.get("power_states", {})).items()
+                if enabled
+            ]
+
+            # Match normal SCAN semantics: Faction / Power generate the system
+            # set and replace any manually-entered SYSTEMS for this operation.
+            if faction_name or power_name:
+                max_distance_raw = str(
+                    config.get("max_distance_ly", "50") or "50"
+                ).strip()
+                try:
+                    max_distance_ly = float(max_distance_raw.replace(",", "."))
+                except ValueError as exc:
+                    raise ValueError("Max Distance (LY) must be a number.") from exc
+                if max_distance_ly <= 0:
+                    raise ValueError("Max Distance (LY) must be greater than 0.")
+
+                systems, distances = system_filter_search.search_systems_by_filters(
+                    faction_name,
+                    power_name,
+                    selected_power_states if power_name else [],
+                    reference_system=reference_system,
+                    max_distance_ly=max_distance_ly,
+                    include_distances=True,
+                )
+                rows = self._filter_database_rows_by_systems(rows, systems)
+
+                if reference_system:
+                    headers, rows = self._add_database_distances(
+                        headers,
+                        rows,
+                        distances,
+                    )
+
+            elif manual_systems:
+                rows = self._filter_database_rows_by_systems(rows, manual_systems)
+
+            # Reference System alone intentionally does not alter the database
+            # load yet. We first reuse the same Reference behaviour as SCAN:
+            # it constrains a Faction / Power generated search.
+
             self.after(0, self._database_load_complete, headers, rows)
         except Exception as exc:
             self.after(0, self._database_load_failed, str(exc))
