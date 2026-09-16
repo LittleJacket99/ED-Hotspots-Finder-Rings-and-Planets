@@ -136,7 +136,7 @@ class FinderV8Layout2App(BasePolishApp):
             pady=2,
             font=("Segoe UI", 9),
         )
-        self.get_rhinospotter_button.place(x=7, y=140, width=190, height=30)
+        self.get_rhinospotter_button.place(x=7, y=146, width=190, height=30)
 
     @staticmethod
     def _open_rhinospotter_repository():
