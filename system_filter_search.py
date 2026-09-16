@@ -20,76 +20,34 @@ def _format_distance(value):
     return f"{float(value):g}"
 
 
-def search_systems_by_filters(
-    faction_name,
-    power_name,
-    selected_power_states,
+def _query_spansh_systems(
+    filters,
     *,
+    faction_name="",
+    power_name="",
+    power_match_field=None,
+    selected_power_states=None,
     reference_system="",
-    max_distance_ly=DEFAULT_MAX_DISTANCE_LY,
-    include_distances=False,
     cancel_event=None,
 ):
-    faction_name = str(faction_name or "").strip()
-    power_name = str(power_name or "").strip()
-    reference_system = str(reference_system or "").strip()
-    selected_power_states = [
-        str(state).strip()
-        for state in selected_power_states
-        if str(state).strip()
-    ]
+    """Run one paginated Spansh systems/search query and return names/distances."""
 
-    filters = {}
-    if faction_name:
-        filters["controlling_minor_faction"] = {"value": [faction_name]}
-    if power_name:
-        filters["power"] = {"value": [power_name]}
-        if selected_power_states:
-            filters["power_state"] = {"value": selected_power_states}
-
-    # Current Spansh systems/search behaviour matches the approach used by
-    # EliteMining: reference_system belongs at the top level, results are sorted
-    # by distance, and the requested radius is applied client-side from the
-    # returned `distance` field. Sending a `distance` filter together with
-    # reference_system currently produces HTTP 400.
-    if reference_system:
-        try:
-            max_distance_ly = float(max_distance_ly)
-        except (TypeError, ValueError) as exc:
-            raise ValueError("Max Distance (LY) must be a number.") from exc
-        if max_distance_ly <= 0:
-            raise ValueError("Max Distance (LY) must be greater than 0.")
-
-    if not filters and not reference_system:
-        return ([], {}) if include_distances else []
-
-    print("Searching Spansh systems with filters:")
-    if faction_name:
-        print(f'  Controlling faction: "{faction_name}"')
-    if power_name:
-        print(f'  Power: "{power_name}"')
-        print(
-            "  Power states: "
-            + (", ".join(selected_power_states) if selected_power_states else "ALL")
-        )
-    if reference_system:
-        print(f'  Reference system: "{reference_system}"')
-        print(f"  Max distance: {_format_distance(max_distance_ly)} LY")
+    selected_power_states = list(selected_power_states or [])
+    selected_state_keys = {engine.norm(state) for state in selected_power_states}
 
     systems = []
     distances = {}
     seen = set()
     page = 0
-    selected_state_keys = {engine.norm(state) for state in selected_power_states}
 
     while True:
         engine.check_cancel(cancel_event)
+
         payload = {
+            "filters": dict(filters or {}),
             "size": engine.PAGE_SIZE,
             "page": page,
         }
-        if filters:
-            payload["filters"] = filters
 
         if reference_system:
             payload["reference_system"] = reference_system
@@ -115,36 +73,24 @@ def search_systems_by_filters(
         data = response.json()
         results = data.get("results", []) or []
         total = int(data.get("count", 0) or 0)
-        reached_distance_limit = False
 
         for item in results:
-            distance = None
-            if reference_system:
-                try:
-                    distance = float(item.get("distance", ""))
-                except (TypeError, ValueError):
-                    # A reference search should always return distance. If a
-                    # malformed row does not, it cannot be safely radius-filtered.
-                    continue
+            if faction_name and not engine.value_matches_exact(
+                item.get("controlling_minor_faction", ""),
+                faction_name,
+            ):
+                continue
 
-                # Results are requested in ascending distance order, so once we
-                # cross the radius there is no reason to request later pages.
-                if distance > max_distance_ly:
-                    reached_distance_limit = True
-                    break
-
-            if faction_name:
+            if power_name and power_match_field:
                 if not engine.value_matches_exact(
-                    item.get("controlling_minor_faction", ""), faction_name
+                    item.get(power_match_field, []),
+                    power_name,
                 ):
                     continue
 
-            if power_name:
-                if not engine.value_matches_exact(item.get("power", []), power_name):
+            if selected_state_keys:
+                if engine.norm(item.get("power_state", "")) not in selected_state_keys:
                     continue
-                if selected_state_keys:
-                    if engine.norm(item.get("power_state", "")) not in selected_state_keys:
-                        continue
 
             system_name = str(
                 item.get("name") or item.get("system_name") or ""
@@ -156,34 +102,171 @@ def search_systems_by_filters(
             seen.add(key)
             systems.append(system_name)
 
-            if reference_system and distance is not None:
-                distances[key] = distance
+            if reference_system:
+                try:
+                    distances[key] = float(item.get("distance", ""))
+                except (TypeError, ValueError):
+                    pass
 
-        if reached_distance_limit:
-            break
         if not results or (page + 1) * engine.PAGE_SIZE >= total:
             break
 
         page += 1
         engine.cancellable_sleep(engine.DELAY, cancel_event)
 
+    return systems, distances
+
+
+def search_systems_by_filters(
+    faction_name,
+    power_name,
+    selected_power_states,
+    *,
+    reference_system="",
+    max_distance_ly=DEFAULT_MAX_DISTANCE_LY,
+    include_distances=False,
+    cancel_event=None,
+):
+    faction_name = str(faction_name or "").strip()
+    power_name = str(power_name or "").strip()
+    reference_system = str(reference_system or "").strip()
+    selected_power_states = [
+        str(state).strip()
+        for state in selected_power_states
+        if str(state).strip()
+    ]
+
+    if reference_system:
+        try:
+            max_distance_ly = float(max_distance_ly)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Max Distance (LY) must be a number.") from exc
+        if max_distance_ly <= 0:
+            raise ValueError("Max Distance (LY) must be greater than 0.")
+
+    if not faction_name and not power_name and not reference_system:
+        return ([], {}) if include_distances else []
+
+    print("Searching Spansh systems with filters:")
+    if faction_name:
+        print(f'  Controlling faction: "{faction_name}"')
+    if power_name:
+        print(f'  Power: "{power_name}"')
+        print(
+            "  Power states: "
+            + (", ".join(selected_power_states) if selected_power_states else "ALL")
+        )
+    if reference_system:
+        print(f'  Reference system: "{reference_system}"')
+        print(f"  Max distance: {_format_distance(max_distance_ly)} LY")
+
+    common_filters = {}
+
+    # Spansh expects a scalar value for controlling_minor_faction. Sending a
+    # one-item list here causes HTTP 400 when combined with reference filters.
+    if faction_name:
+        common_filters["controlling_minor_faction"] = {"value": faction_name}
+
+    # Reference and distance are both handled server-side. Spansh returns the
+    # distance field as well, so no per-system coordinate lookups are needed for
+    # Systems / Hotspots / Planets resolution.
+    if reference_system:
+        common_filters["distance"] = {
+            "min": "0",
+            "max": _format_distance(max_distance_ly),
+        }
+
+    query_specs = []
+
+    if power_name:
+        if selected_power_states:
+            unoccupied_selected = any(
+                engine.norm(state) == engine.norm("Unoccupied")
+                for state in selected_power_states
+            )
+            controlled_states = [
+                state
+                for state in selected_power_states
+                if engine.norm(state) != engine.norm("Unoccupied")
+            ]
+
+            # Exploited/Fortified/Stronghold have an actual controller, so use
+            # controlling_power rather than the broader `power` presence field.
+            if controlled_states:
+                filters = dict(common_filters)
+                filters["controlling_power"] = {"value": [power_name]}
+                filters["power_state"] = {"value": controlled_states}
+                query_specs.append(
+                    (
+                        filters,
+                        "controlling_power",
+                        controlled_states,
+                    )
+                )
+
+            # Unoccupied systems have controlling_power=None in Spansh, while
+            # the selected power still appears in the `power` array. Query them
+            # separately and union the results when mixed states are selected.
+            if unoccupied_selected:
+                filters = dict(common_filters)
+                filters["power"] = {"value": [power_name]}
+                filters["power_state"] = {"value": ["Unoccupied"]}
+                query_specs.append(
+                    (
+                        filters,
+                        "power",
+                        ["Unoccupied"],
+                    )
+                )
+        else:
+            # With no Power State selected, preserve the broad Power meaning:
+            # every system where the selected power is present/assigned.
+            filters = dict(common_filters)
+            filters["power"] = {"value": [power_name]}
+            query_specs.append((filters, "power", []))
+    else:
+        query_specs.append((dict(common_filters), None, []))
+
+    all_systems = []
+    all_distances = {}
+    seen = set()
+
+    for filters, power_match_field, states_for_query in query_specs:
+        systems, distances = _query_spansh_systems(
+            filters,
+            faction_name=faction_name,
+            power_name=power_name,
+            power_match_field=power_match_field,
+            selected_power_states=states_for_query,
+            reference_system=reference_system,
+            cancel_event=cancel_event,
+        )
+
+        for system_name in systems:
+            key = engine.norm(system_name)
+            if key not in seen:
+                seen.add(key)
+                all_systems.append(system_name)
+            if key in distances:
+                all_distances[key] = distances[key]
+
     engine.check_cancel(cancel_event)
 
     if reference_system:
-        systems.sort(
+        all_systems.sort(
             key=lambda name: (
-                distances.get(engine.norm(name), float("inf")),
+                all_distances.get(engine.norm(name), float("inf")),
                 name.casefold(),
             )
         )
     else:
-        systems.sort(key=str.casefold)
+        all_systems.sort(key=str.casefold)
 
-    print(f"Systems matching filters: {len(systems)}")
+    print(f"Systems matching filters: {len(all_systems)}")
 
     if include_distances:
-        return systems, distances
-    return systems
+        return all_systems, all_distances
+    return all_systems
 
 
 def lookup_system_coordinates(system_name, *, cancel_event=None):
@@ -234,8 +317,9 @@ def filter_systems_within_distance(
 ):
     """Filter a small candidate set by true 3D distance from a reference.
 
-    This is intended for Community Deposits: only systems which already have
-    database rows are looked up, avoiding a galaxy-wide radius search.
+    This remains useful for Community Deposits DB-first filtering, where the
+    candidate set is already small and there is no reason to resolve the whole
+    galaxy through a separate systems search.
     """
 
     reference_system = str(reference_system or "").strip()
