@@ -2,6 +2,7 @@
 
 """Settings mixin for the active v8 desktop interface."""
 
+import os
 import threading
 import tkinter as tk
 from pathlib import Path
@@ -34,6 +35,13 @@ class FinderV8SettingsMixin:
         except (TypeError, ValueError):
             return "50"
         return f"{number:g}"
+
+    @staticmethod
+    def _path_key(value):
+        text = str(value or "").strip()
+        if not text:
+            return ""
+        return os.path.normcase(os.path.abspath(os.path.expanduser(text)))
 
     def _apply_startup_settings(self):
         startup = self.v8_settings.get("startup", {})
@@ -138,8 +146,12 @@ class FinderV8SettingsMixin:
             pady=3,
             font=("Segoe UI", 9),
         )
-        # Reference Tables stays flush-right; Settings sits immediately before it.
-        self.settings_button.place(x=1065, y=20, width=95, height=30)
+
+        # Keep Settings flush-right and Reference Tables immediately to its left.
+        self.settings_button.place(x=1245, y=20, width=95, height=30)
+        reference_button = getattr(self, "reference_tables_button", None)
+        if reference_button is not None:
+            reference_button.place_configure(x=1065, y=20, width=170, height=30)
 
     def _open_settings_dialog(self):
         existing = getattr(self, "_settings_window", None)
@@ -164,6 +176,8 @@ class FinderV8SettingsMixin:
 
         startup = self.v8_settings.get("startup", {})
         rhino = self.v8_settings.get("rhinospotter", {})
+        auto_rhino_path = str(app_settings.default_rhinospotter_cards_dir())
+        saved_rhino_path = str(rhino.get("cards_dir", "") or "").strip()
 
         hotspot_var = tk.BooleanVar(
             window, value=bool(startup.get("hotspots_enabled", True))
@@ -181,13 +195,13 @@ class FinderV8SettingsMixin:
             window,
             value=self._format_distance(startup.get("max_distance_ly", 50.0)),
         )
-        custom_rhino_var = tk.StringVar(
-            window, value=str(rhino.get("cards_dir", "") or "")
+        rhino_path_var = tk.StringVar(
+            window,
+            value=saved_rhino_path or auto_rhino_path,
         )
         ask_sync_var = tk.BooleanVar(
             window, value=bool(rhino.get("ask_before_sync", True))
         )
-        rhino_path_var = tk.StringVar(window)
         rhino_status_var = tk.StringVar(window)
 
         def panel(y, height, title):
@@ -279,12 +293,13 @@ class FinderV8SettingsMixin:
             fg=COLORS["muted"],
             font=("Segoe UI", 9),
         ).place(x=12, y=42)
+
         path_entry = tk.Entry(
             rhino_panel,
             textvariable=rhino_path_var,
-            state="readonly",
-            readonlybackground="#3b3b3b",
+            bg="#3b3b3b",
             fg=COLORS["text"],
+            insertbackground=COLORS["text"],
             relief="flat",
             font=("Segoe UI", 8),
         )
@@ -336,9 +351,8 @@ class FinderV8SettingsMixin:
         tk.Label(
             rhino_panel,
             text=(
-                "Auto-detect uses %LOCALAPPDATA%\\RhinoSpotter\\cards. "
-                "Browse is enabled when the automatic folder is not found, "
-                "or when a custom folder is already in use."
+                "Auto restores %LOCALAPPDATA%\\RhinoSpotter\\cards. "
+                "You can also type a folder directly or select it with Browse."
             ),
             bg=COLORS["panel"],
             fg=COLORS["muted"],
@@ -348,47 +362,43 @@ class FinderV8SettingsMixin:
             font=("Segoe UI", 8),
         ).place(x=12, y=147, width=530, height=42)
 
-        def refresh_rhino_status():
-            custom = str(custom_rhino_var.get() or "").strip()
-            if custom:
-                path = Path(custom).expanduser()
-            else:
-                path = app_settings.default_rhinospotter_cards_dir()
-
-            rhino_path_var.set(str(path))
-            detected = path.is_dir()
-            if detected:
+        def refresh_rhino_status(_event=None):
+            text = str(rhino_path_var.get() or "").strip()
+            path = Path(text).expanduser() if text else Path(auto_rhino_path)
+            if path.is_dir():
                 rhino_status_var.set("RhinoSpotter detected")
                 status_label.configure(fg=COLORS["green"])
             else:
                 rhino_status_var.set("RhinoSpotter not detected")
                 status_label.configure(fg=COLORS["red"])
 
-            browse_button.configure(
-                state="normal" if (custom or not detected) else "disabled"
-            )
-            auto_button.configure(state="normal" if custom else "disabled")
-
         def browse_rhino():
+            current_text = str(rhino_path_var.get() or "").strip()
+            current = Path(current_text).expanduser() if current_text else Path(auto_rhino_path)
+            if current.is_dir():
+                initial = current
+            elif current.parent.is_dir():
+                initial = current.parent
+            else:
+                initial = Path(auto_rhino_path).parent
+
             selected = filedialog.askdirectory(
                 parent=window,
                 title="Select RhinoSpotter cards folder",
-                initialdir=(
-                    str(Path(rhino_path_var.get()).parent)
-                    if rhino_path_var.get()
-                    else None
-                ),
+                initialdir=str(initial),
             )
             if selected:
-                custom_rhino_var.set(selected)
+                rhino_path_var.set(selected)
                 refresh_rhino_status()
 
         def use_auto_rhino():
-            custom_rhino_var.set("")
+            rhino_path_var.set(auto_rhino_path)
             refresh_rhino_status()
 
-        browse_button.configure(command=browse_rhino)
-        auto_button.configure(command=use_auto_rhino)
+        browse_button.configure(command=browse_rhino, state="normal")
+        auto_button.configure(command=use_auto_rhino, state="normal")
+        path_entry.bind("<KeyRelease>", refresh_rhino_status, add="+")
+        path_entry.bind("<FocusOut>", refresh_rhino_status, add="+")
         refresh_rhino_status()
 
         application_panel = panel(430, 55, "APPLICATION")
@@ -410,9 +420,13 @@ class FinderV8SettingsMixin:
             community_var.set(True)
             max_distance_var.set("50")
             remember_var.set(False)
-            custom_rhino_var.set("")
+            rhino_path_var.set(auto_rhino_path)
             ask_sync_var.set(True)
             refresh_rhino_status()
+
+        def close_dialog():
+            self._settings_window = None
+            window.destroy()
 
         def save_dialog_settings():
             try:
@@ -427,6 +441,16 @@ class FinderV8SettingsMixin:
                 )
                 return
 
+            entered_rhino_path = str(rhino_path_var.get() or "").strip()
+            if (
+                not entered_rhino_path
+                or self._path_key(entered_rhino_path)
+                == self._path_key(auto_rhino_path)
+            ):
+                stored_rhino_path = ""
+            else:
+                stored_rhino_path = entered_rhino_path
+
             self.v8_settings["startup"] = {
                 "hotspots_enabled": bool(hotspot_var.get()),
                 "planets_enabled": bool(planets_var.get()),
@@ -435,7 +459,7 @@ class FinderV8SettingsMixin:
                 "remember_last_filters": bool(remember_var.get()),
             }
             self.v8_settings["rhinospotter"] = {
-                "cards_dir": str(custom_rhino_var.get() or "").strip(),
+                "cards_dir": stored_rhino_path,
                 "ask_before_sync": bool(ask_sync_var.get()),
             }
             if remember_var.get():
@@ -449,8 +473,7 @@ class FinderV8SettingsMixin:
 
             self._refresh_runtime_settings()
             self.status_var.set("Settings saved")
-            window.destroy()
-            self._settings_window = None
+            close_dialog()
 
         tk.Button(
             window,
@@ -467,7 +490,7 @@ class FinderV8SettingsMixin:
         tk.Button(
             window,
             text="Cancel",
-            command=window.destroy,
+            command=close_dialog,
             bg="#3a4148",
             fg=COLORS["text"],
             activebackground="#46515c",
@@ -487,10 +510,6 @@ class FinderV8SettingsMixin:
             relief="flat",
             font=("Segoe UI", 9, "bold"),
         ).place(x=490, y=500, width=92, height=28)
-
-        def close_dialog():
-            self._settings_window = None
-            window.destroy()
 
         window.protocol("WM_DELETE_WINDOW", close_dialog)
 
