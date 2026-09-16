@@ -47,9 +47,11 @@ def search_systems_by_filters(
         if selected_power_states:
             filters["power_state"] = {"value": selected_power_states}
 
-    # Spansh's systems search expects Reference System at the top level and
-    # Distance as a normal filter. Putting reference/distance into the wrong
-    # payload shape is what caused the previous HTTP 400 responses.
+    # Current Spansh systems/search behaviour matches the approach used by
+    # EliteMining: reference_system belongs at the top level, results are sorted
+    # by distance, and the requested radius is applied client-side from the
+    # returned `distance` field. Sending a `distance` filter together with
+    # reference_system currently produces HTTP 400.
     if reference_system:
         try:
             max_distance_ly = float(max_distance_ly)
@@ -58,12 +60,7 @@ def search_systems_by_filters(
         if max_distance_ly <= 0:
             raise ValueError("Max Distance (LY) must be greater than 0.")
 
-        filters["distance"] = {
-            "min": "0",
-            "max": _format_distance(max_distance_ly),
-        }
-
-    if not filters:
+    if not filters and not reference_system:
         return ([], {}) if include_distances else []
 
     print("Searching Spansh systems with filters:")
@@ -88,10 +85,11 @@ def search_systems_by_filters(
     while True:
         engine.check_cancel(cancel_event)
         payload = {
-            "filters": filters,
             "size": engine.PAGE_SIZE,
             "page": page,
         }
+        if filters:
+            payload["filters"] = filters
 
         if reference_system:
             payload["reference_system"] = reference_system
@@ -117,8 +115,24 @@ def search_systems_by_filters(
         data = response.json()
         results = data.get("results", []) or []
         total = int(data.get("count", 0) or 0)
+        reached_distance_limit = False
 
         for item in results:
+            distance = None
+            if reference_system:
+                try:
+                    distance = float(item.get("distance", ""))
+                except (TypeError, ValueError):
+                    # A reference search should always return distance. If a
+                    # malformed row does not, it cannot be safely radius-filtered.
+                    continue
+
+                # Results are requested in ascending distance order, so once we
+                # cross the radius there is no reason to request later pages.
+                if distance > max_distance_ly:
+                    reached_distance_limit = True
+                    break
+
             if faction_name:
                 if not engine.value_matches_exact(
                     item.get("controlling_minor_faction", ""), faction_name
@@ -142,13 +156,11 @@ def search_systems_by_filters(
             seen.add(key)
             systems.append(system_name)
 
-            if reference_system:
-                distance = item.get("distance", "")
-                try:
-                    distances[key] = float(distance)
-                except (TypeError, ValueError):
-                    pass
+            if reference_system and distance is not None:
+                distances[key] = distance
 
+        if reached_distance_limit:
+            break
         if not results or (page + 1) * engine.PAGE_SIZE >= total:
             break
 
