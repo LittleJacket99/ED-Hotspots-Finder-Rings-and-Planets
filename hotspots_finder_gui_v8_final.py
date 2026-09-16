@@ -8,6 +8,7 @@ remaining visual overrides that should not depend on native Windows styling.
 """
 
 import tkinter as tk
+import tkinter.font as tkfont
 import webbrowser
 from tkinter import ttk
 
@@ -32,6 +33,13 @@ class FinderV8FinalApp(_BaseFinalApp):
     MENU_TEXT = "#e8edf2"
     MENU_MUTED = "#939ba5"
     MENU_SEPARATOR = "#59616b"
+    MENU_SELECTED_BG = "#1d321e"
+    MENU_SELECTED_TEXT = "#5acd57"
+
+    FILTER_MENU_MIN_WIDTH = 180
+    FILTER_MENU_MAX_WIDTH = 420
+    FILTER_MENU_MAX_LIST_HEIGHT = 300
+    FILTER_MENU_ROW_HEIGHT = 28
 
     def _configure_styles(self):
         super()._configure_styles()
@@ -72,14 +80,25 @@ class FinderV8FinalApp(_BaseFinalApp):
         if command is not None:
             self.after_idle(command)
 
-    def _show_custom_popup(self, items, x_root, y_root, *, min_width=0):
-        """Show a custom popup at real screen coordinates.
+    def _place_custom_popup(self, popup, x_root, y_root, width, height):
+        """Place an overrideredirect popup in absolute screen coordinates."""
 
-        On Windows an overrideredirect Toplevel can ignore its first geometry
-        request when it is mapped immediately. Build it while withdrawn, size
-        and position it in screen coordinates, then reveal it. This keeps the
-        context menu under the cursor and Reference Tables under its button.
-        """
+        screen_width = popup.winfo_screenwidth()
+        screen_height = popup.winfo_screenheight()
+        x = min(max(0, int(x_root)), max(0, screen_width - int(width)))
+        y = min(max(0, int(y_root)), max(0, screen_height - int(height)))
+
+        geometry = f"{int(width)}x{int(height)}+{x}+{y}"
+        popup.geometry(geometry)
+        popup.deiconify()
+        popup.lift()
+
+        # Windows can snap the first overrideredirect map to 0,0.
+        popup.update_idletasks()
+        popup.geometry(geometry)
+
+    def _show_custom_popup(self, items, x_root, y_root, *, min_width=0):
+        """Show a simple custom popup at real screen coordinates."""
 
         self._dismiss_custom_popup()
 
@@ -159,27 +178,10 @@ class FinderV8FinalApp(_BaseFinalApp):
                     add="+",
                 )
 
-        # Measure the withdrawn popup first, then place it using absolute screen
-        # coordinates. Do not make it transient: on Windows that can make an
-        # overrideredirect window get positioned relative to its owner instead.
         popup.update_idletasks()
         width = max(int(min_width), popup.winfo_reqwidth())
         height = popup.winfo_reqheight()
-
-        screen_width = popup.winfo_screenwidth()
-        screen_height = popup.winfo_screenheight()
-        x = min(max(0, int(x_root)), max(0, screen_width - width))
-        y = min(max(0, int(y_root)), max(0, screen_height - height))
-
-        geometry = f"{width}x{height}+{x}+{y}"
-        popup.geometry(geometry)
-        popup.deiconify()
-        popup.lift()
-
-        # Re-assert geometry once mapped. This avoids the Windows window manager
-        # snapping the first overrideredirect map to 0,0.
-        popup.update_idletasks()
-        popup.geometry(geometry)
+        self._place_custom_popup(popup, x_root, y_root, width, height)
 
         popup.bind("<Escape>", self._dismiss_custom_popup, add="+")
         popup.bind(
@@ -315,6 +317,252 @@ class FinderV8FinalApp(_BaseFinalApp):
             min_width=215,
         )
         return "break"
+
+    # ------------------------------------------------------------------
+    # Column-filter popup
+    # ------------------------------------------------------------------
+    def _show_column_filter(self, table, column):
+        """Use the same custom visual language for result-column filters."""
+
+        selected = self._column_filter_state[table].get(column)
+        choices = self._choices_for_column(table, column)
+        labels = [self._filter_label(value) for value in choices]
+
+        self._dismiss_custom_popup()
+
+        popup = tk.Toplevel(self)
+        self._custom_popup = popup
+        popup.withdraw()
+        popup.overrideredirect(True)
+        popup.configure(bg=self.MENU_BORDER)
+
+        outer = tk.Frame(
+            popup,
+            bg=self.MENU_BORDER,
+            bd=0,
+            highlightthickness=0,
+        )
+        outer.pack(fill="both", expand=True)
+
+        inner = tk.Frame(
+            outer,
+            bg=self.MENU_BG,
+            bd=0,
+            highlightthickness=0,
+        )
+        inner.pack(fill="both", expand=True, padx=1, pady=1)
+
+        menu_font = tkfont.Font(family="Segoe UI", size=9)
+        longest = max(["All", *labels], key=lambda text: menu_font.measure(text))
+        content_width = max(
+            self.FILTER_MENU_MIN_WIDTH,
+            min(
+                self.FILTER_MENU_MAX_WIDTH,
+                menu_font.measure(longest) + 34,
+            ),
+        )
+
+        def choose(value):
+            self._dismiss_custom_popup()
+            self.after_idle(
+                lambda v=value: self._set_column_filter(table, column, v)
+            )
+
+        def make_entry(parent, text, value, is_selected):
+            normal_bg = (
+                self.MENU_SELECTED_BG if is_selected else self.MENU_BG
+            )
+            normal_fg = (
+                self.MENU_SELECTED_TEXT if is_selected else self.MENU_TEXT
+            )
+
+            entry = tk.Label(
+                parent,
+                text=text,
+                bg=normal_bg,
+                fg=normal_fg,
+                anchor="w",
+                justify="left",
+                padx=12,
+                pady=5,
+                bd=0,
+                relief="flat",
+                highlightthickness=0,
+                font=("Segoe UI", 9),
+                cursor="hand2",
+            )
+            entry.pack(fill="x")
+
+            entry.bind(
+                "<Enter>",
+                lambda _event, widget=entry, fg=normal_fg: widget.configure(
+                    bg=self.MENU_HOVER,
+                    fg=fg,
+                ),
+                add="+",
+            )
+            entry.bind(
+                "<Leave>",
+                lambda _event, widget=entry, bg=normal_bg, fg=normal_fg: widget.configure(
+                    bg=bg,
+                    fg=fg,
+                ),
+                add="+",
+            )
+            entry.bind(
+                "<ButtonRelease-1>",
+                lambda _event, v=value: choose(v),
+                add="+",
+            )
+            return entry
+
+        # "All" is a normal selected state, not a native-menu checkmark.
+        make_entry(
+            inner,
+            "All",
+            None,
+            selected is None,
+        )
+
+        tk.Frame(
+            inner,
+            bg=self.MENU_SEPARATOR,
+            bd=0,
+            highlightthickness=0,
+            height=1,
+        ).pack(fill="x", padx=7, pady=(3, 4))
+
+        list_height = min(
+            max(self.FILTER_MENU_ROW_HEIGHT, len(choices) * self.FILTER_MENU_ROW_HEIGHT),
+            self.FILTER_MENU_MAX_LIST_HEIGHT,
+        )
+        needs_scroll = (
+            len(choices) * self.FILTER_MENU_ROW_HEIGHT
+            > self.FILTER_MENU_MAX_LIST_HEIGHT
+        )
+
+        if choices:
+            list_host = tk.Frame(
+                inner,
+                bg=self.MENU_BG,
+                bd=0,
+                highlightthickness=0,
+            )
+            list_host.pack(fill="both", expand=True)
+
+            canvas = tk.Canvas(
+                list_host,
+                bg=self.MENU_BG,
+                bd=0,
+                highlightthickness=0,
+                relief="flat",
+                width=content_width,
+                height=list_height,
+            )
+
+            scrollbar = None
+            if needs_scroll:
+                scrollbar = ttk.Scrollbar(
+                    list_host,
+                    orient="vertical",
+                    command=canvas.yview,
+                    style="Vertical.TScrollbar",
+                )
+                canvas.configure(yscrollcommand=scrollbar.set)
+                scrollbar.pack(side="right", fill="y")
+
+            canvas.pack(side="left", fill="both", expand=True)
+
+            list_frame = tk.Frame(
+                canvas,
+                bg=self.MENU_BG,
+                bd=0,
+                highlightthickness=0,
+            )
+            window_id = canvas.create_window(
+                (0, 0),
+                window=list_frame,
+                anchor="nw",
+            )
+
+            for value, label in zip(choices, labels):
+                make_entry(
+                    list_frame,
+                    label,
+                    value,
+                    value == selected,
+                )
+
+            def sync_scroll_region(_event=None):
+                try:
+                    canvas.configure(scrollregion=canvas.bbox("all"))
+                except tk.TclError:
+                    pass
+
+            def sync_list_width(event):
+                try:
+                    canvas.itemconfigure(window_id, width=event.width)
+                except tk.TclError:
+                    pass
+
+            list_frame.bind("<Configure>", sync_scroll_region, add="+")
+            canvas.bind("<Configure>", sync_list_width, add="+")
+            sync_scroll_region()
+
+            if needs_scroll:
+                def on_mousewheel(event):
+                    try:
+                        steps = int(-event.delta / 120)
+                    except (TypeError, ValueError):
+                        steps = 0
+                    if steps:
+                        canvas.yview_scroll(steps, "units")
+                    return "break"
+
+                popup.bind("<MouseWheel>", on_mousewheel, add="+")
+        else:
+            empty = tk.Label(
+                inner,
+                text="(No values)",
+                bg=self.MENU_BG,
+                fg=self.MENU_MUTED,
+                anchor="w",
+                justify="left",
+                padx=12,
+                pady=5,
+                bd=0,
+                relief="flat",
+                highlightthickness=0,
+                font=("Segoe UI", 9),
+            )
+            empty.pack(fill="x")
+
+        popup.update_idletasks()
+
+        # Keep a comfortable text width while letting the popup grow only as
+        # much as needed. The scrollbar, when present, lives inside this width.
+        width = content_width + 2
+        height = popup.winfo_reqheight()
+
+        self._place_custom_popup(
+            popup,
+            self.winfo_pointerx(),
+            self.winfo_pointery(),
+            width,
+            height,
+        )
+
+        popup.bind("<Escape>", self._dismiss_custom_popup, add="+")
+        popup.bind(
+            "<FocusOut>",
+            lambda _event: self.after_idle(self._dismiss_custom_popup),
+            add="+",
+        )
+
+        try:
+            popup.focus_force()
+        except tk.TclError:
+            pass
 
     # ------------------------------------------------------------------
     # Results outline
