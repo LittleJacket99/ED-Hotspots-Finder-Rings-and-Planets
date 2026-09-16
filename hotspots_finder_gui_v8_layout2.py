@@ -34,6 +34,7 @@ CLEAR_BUTTON_HEIGHT = 27
 CLEAR_BUTTON_GAP = 7
 WINDOW_TOP_MARGIN = 10
 WINDOW_WIDTH = 1359
+RHINOSPOTTER_REPOSITORY_URL = "https://github.com/Fumlop/EDRhinoSpotter"
 
 
 class FinderV8Layout2App(BasePolishApp):
@@ -121,6 +122,25 @@ class FinderV8Layout2App(BasePolishApp):
             font=("Segoe UI", 9),
         )
         self.load_all_deposits_button.place(x=7, y=96, width=190, height=30)
+
+        self.get_rhinospotter_button = tk.Button(
+            self._community_box,
+            text="Get RhinoSpotter",
+            command=self._open_rhinospotter_repository,
+            bg="#3a4148",
+            fg=COLORS["text"],
+            activebackground="#46515c",
+            activeforeground=COLORS["text"],
+            relief="flat",
+            padx=8,
+            pady=2,
+            font=("Segoe UI", 9),
+        )
+        self.get_rhinospotter_button.place(x=7, y=140, width=190, height=30)
+
+    @staticmethod
+    def _open_rhinospotter_repository():
+        webbrowser.open(RHINOSPOTTER_REPOSITORY_URL, new=2)
 
     def _show_rhino_upload_help(self, _event=None):
         if self._rhino_help_popup is not None:
