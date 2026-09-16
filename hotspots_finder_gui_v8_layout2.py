@@ -34,6 +34,11 @@ CLEAR_BUTTON_HEIGHT = 27
 CLEAR_BUTTON_GAP = 7
 WINDOW_TOP_MARGIN = 10
 WINDOW_WIDTH = 1359
+WINDOW_HEIGHT = 819
+RESULTS_RIGHT_MARGIN = 19
+RESULTS_BOTTOM_MARGIN = 77
+EXPANDED_LEFT_MARGIN = 18
+EXPANDED_BOTTOM_MARGIN = 19
 RHINOSPOTTER_REPOSITORY_URL = "https://github.com/Fumlop/EDRhinoSpotter"
 MINERALS_TABLE_URL = "https://docs.google.com/spreadsheets/d/1SVTKW-Uy6sjjR0oFqKjCI5tDvYAu97ORmocXwl1ckU0/edit?gid=0#gid=0"
 VOLCANISM_TABLE_URL = "https://wiknow.pages.dev/ref/ground-mining"
@@ -65,21 +70,37 @@ class FinderV8Layout2App(BasePolishApp):
         self._context_tree = None
         self._context_iid = None
         self.community_load_running = False
+        self._responsive_layout_pending = False
 
         super()._build_ui()
 
-        # Keep the fixed-size window near the top of the desktop. Use the real
-        # application width instead of winfo_reqwidth(), which may still be 1
-        # during startup and was pushing the window too far to the right.
+        # Keep the normal window near the top of the desktop. The base size is
+        # also the minimum supported size; larger windows are handled by the
+        # responsive layout below instead of scaling fonts and controls.
         screen_width = self.winfo_screenwidth()
         x = max(10, (screen_width - WINDOW_WIDTH) // 2)
         self.geometry(f"+{x}+{WINDOW_TOP_MARGIN}")
+        self.minsize(WINDOW_WIDTH, WINDOW_HEIGHT)
+        self.resizable(True, True)
+
+        # The header is created by the base layout. Keep a reference so its
+        # background can extend across the full width when the window grows.
+        self._header_frame = None
+        for child in self._stage.winfo_children():
+            if not isinstance(child, tk.Frame):
+                continue
+            try:
+                if str(child.cget("bg")) == "#242424":
+                    self._header_frame = child
+                    break
+            except tk.TclError:
+                continue
 
         # The unused compatibility frame is never shown in this layout.
         self._results_options_box.place_forget()
 
-        for attr, (x, y, width, height) in LAYOUT.items():
-            getattr(self, attr).place(x=x, y=y, width=width, height=height)
+        for attr, (box_x, box_y, width, height) in LAYOUT.items():
+            getattr(self, attr).place(x=box_x, y=box_y, width=width, height=height)
 
         self._rename_filter_labels()
         self._reflow_systems_contents()
@@ -88,6 +109,81 @@ class FinderV8Layout2App(BasePolishApp):
         self._configure_rhino_upload_help()
         self._build_external_clear_buttons()
         self._build_reference_tables_button()
+
+        # Resize only the areas that benefit from extra room. The filters and
+        # input controls keep their tested pixel geometry, while Results grows.
+        self.bind("<Configure>", self._schedule_responsive_layout, add="+")
+        self.after_idle(self._apply_responsive_layout)
+
+    def _schedule_responsive_layout(self, event=None):
+        if event is not None and event.widget is not self:
+            return
+        if self._responsive_layout_pending:
+            return
+        self._responsive_layout_pending = True
+        self.after_idle(self._apply_responsive_layout)
+
+    def _apply_responsive_layout(self):
+        self._responsive_layout_pending = False
+
+        try:
+            width = max(WINDOW_WIDTH, int(self.winfo_width()))
+            height = max(WINDOW_HEIGHT, int(self.winfo_height()))
+        except (TypeError, ValueError, tk.TclError):
+            return
+
+        # Extend the stage and title background to the current client area.
+        try:
+            self._stage.place_configure(width=width, height=height)
+        except tk.TclError:
+            pass
+        if self._header_frame is not None:
+            try:
+                self._header_frame.place_configure(width=width)
+            except tk.TclError:
+                pass
+
+        # Keep the two header actions anchored to the right edge.
+        settings_button = getattr(self, "settings_button", None)
+        if settings_button is not None:
+            try:
+                settings_button.place_configure(x=width - 114, y=20)
+            except tk.TclError:
+                pass
+
+        reference_button = getattr(self, "reference_tables_button", None)
+        if reference_button is not None:
+            try:
+                reference_button.place_configure(x=width - 294, y=20)
+            except tk.TclError:
+                pass
+
+        if getattr(self, "_results_expanded", False):
+            results_width = max(
+                1,
+                width - EXPANDED_LEFT_MARGIN - RESULTS_RIGHT_MARGIN,
+            )
+            results_height = max(
+                1,
+                height - LAYOUT["_results_panel"][1] - EXPANDED_BOTTOM_MARGIN,
+            )
+            self._results_panel.place(
+                x=EXPANDED_LEFT_MARGIN,
+                y=LAYOUT["_results_panel"][1],
+                width=results_width,
+                height=results_height,
+            )
+            return
+
+        results_x, results_y, base_width, base_height = LAYOUT["_results_panel"]
+        results_width = max(base_width, width - results_x - RESULTS_RIGHT_MARGIN)
+        results_height = max(base_height, height - results_y - RESULTS_BOTTOM_MARGIN)
+        self._results_panel.place(
+            x=results_x,
+            y=results_y,
+            width=results_width,
+            height=results_height,
+        )
 
     def _build_reference_tables_button(self):
         """Add quick links to the external mining reference tables."""
@@ -889,17 +985,17 @@ class FinderV8Layout2App(BasePolishApp):
 
             self._results_options_box.place_forget()
             self._hide_external_clear_buttons()
-            self._results_panel.place(x=18, y=92, width=1322, height=650)
 
             if getattr(self, "_bottom_bar", None) is not None:
                 self._bottom_bar.pack_forget()
 
             self._results_expanded = True
             self.expand_results_button.configure(text="Restore Panels")
+            self._apply_responsive_layout()
             return
 
-        for attr, (x, y, width, height) in LAYOUT.items():
-            getattr(self, attr).place(x=x, y=y, width=width, height=height)
+        for attr, (box_x, box_y, width, height) in LAYOUT.items():
+            getattr(self, attr).place(x=box_x, y=box_y, width=width, height=height)
 
         self._results_options_box.place_forget()
         self._reflow_systems_contents()
@@ -911,6 +1007,7 @@ class FinderV8Layout2App(BasePolishApp):
 
         self._results_expanded = False
         self.expand_results_button.configure(text="Expand Results")
+        self._apply_responsive_layout()
 
         if self._log_was_visible_before_results_expand:
             self._log_visible = False
