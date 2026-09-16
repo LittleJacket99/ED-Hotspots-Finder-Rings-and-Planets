@@ -47,10 +47,22 @@ def search_systems_by_filters(
         if selected_power_states:
             filters["power_state"] = {"value": selected_power_states}
 
-    # This search is used for Faction / Power selection. Reference-distance
-    # filtering for Community Deposits is deliberately handled separately via
-    # coordinates, because combining these fields in /api/systems/search can
-    # return HTTP 400 for otherwise valid searches.
+    # Spansh's systems search expects Reference System at the top level and
+    # Distance as a normal filter. Putting reference/distance into the wrong
+    # payload shape is what caused the previous HTTP 400 responses.
+    if reference_system:
+        try:
+            max_distance_ly = float(max_distance_ly)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Max Distance (LY) must be a number.") from exc
+        if max_distance_ly <= 0:
+            raise ValueError("Max Distance (LY) must be greater than 0.")
+
+        filters["distance"] = {
+            "min": "0",
+            "max": _format_distance(max_distance_ly),
+        }
+
     if not filters:
         return ([], {}) if include_distances else []
 
@@ -63,8 +75,12 @@ def search_systems_by_filters(
             "  Power states: "
             + (", ".join(selected_power_states) if selected_power_states else "ALL")
         )
+    if reference_system:
+        print(f'  Reference system: "{reference_system}"')
+        print(f"  Max distance: {_format_distance(max_distance_ly)} LY")
 
     systems = []
+    distances = {}
     seen = set()
     page = 0
     selected_state_keys = {engine.norm(state) for state in selected_power_states}
@@ -76,6 +92,16 @@ def search_systems_by_filters(
             "size": engine.PAGE_SIZE,
             "page": page,
         }
+
+        if reference_system:
+            payload["reference_system"] = reference_system
+            payload["sort"] = [
+                {
+                    "distance": {
+                        "direction": "asc",
+                    }
+                }
+            ]
 
         response = engine.request_with_retries(
             "POST",
@@ -110,9 +136,18 @@ def search_systems_by_filters(
                 item.get("name") or item.get("system_name") or ""
             ).strip()
             key = engine.norm(system_name)
-            if system_name and key not in seen:
-                seen.add(key)
-                systems.append(system_name)
+            if not system_name or key in seen:
+                continue
+
+            seen.add(key)
+            systems.append(system_name)
+
+            if reference_system:
+                distance = item.get("distance", "")
+                try:
+                    distances[key] = float(distance)
+                except (TypeError, ValueError):
+                    pass
 
         if not results or (page + 1) * engine.PAGE_SIZE >= total:
             break
@@ -121,11 +156,21 @@ def search_systems_by_filters(
         engine.cancellable_sleep(engine.DELAY, cancel_event)
 
     engine.check_cancel(cancel_event)
-    systems.sort(key=str.casefold)
+
+    if reference_system:
+        systems.sort(
+            key=lambda name: (
+                distances.get(engine.norm(name), float("inf")),
+                name.casefold(),
+            )
+        )
+    else:
+        systems.sort(key=str.casefold)
+
     print(f"Systems matching filters: {len(systems)}")
 
     if include_distances:
-        return systems, {}
+        return systems, distances
     return systems
 
 
