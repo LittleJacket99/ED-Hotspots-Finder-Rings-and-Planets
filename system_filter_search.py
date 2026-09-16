@@ -20,6 +20,49 @@ def _format_distance(value):
     return f"{float(value):g}"
 
 
+def _lookup_system_record(system_name, *, cancel_event=None):
+    """Return the exact Spansh field-value record for a system name.
+
+    Matching is case-insensitive so user input such as ``mehit`` can be
+    converted to Spansh's canonical ``Mehit`` spelling before systems/search.
+    """
+
+    engine.check_cancel(cancel_event)
+    system_name = str(system_name or "").strip()
+    if not system_name:
+        raise ValueError("Reference System is required.")
+
+    response = engine.request_with_retries(
+        "GET",
+        SYSTEM_NAME_LOOKUP_URL,
+        cancel_event=cancel_event,
+        params={"q": system_name},
+        headers={
+            "User-Agent": engine.USER_AGENT,
+            "Accept": "application/json",
+        },
+    )
+    data = response.json()
+    candidates = data.get("min_max", []) or []
+    wanted = engine.norm(system_name)
+
+    for item in candidates:
+        if engine.norm(item.get("name", "")) == wanted:
+            return item
+
+    raise ValueError(f'System not found on Spansh: "{system_name}".')
+
+
+def canonicalize_system_name(system_name, *, cancel_event=None):
+    """Return Spansh's canonical capitalization for an exact system name."""
+
+    item = _lookup_system_record(system_name, cancel_event=cancel_event)
+    canonical = str(item.get("name") or "").strip()
+    if not canonical:
+        raise ValueError(f'System not found on Spansh: "{system_name}".')
+    return canonical
+
+
 def _query_spansh_systems(
     filters,
     *,
@@ -143,6 +186,17 @@ def search_systems_by_filters(
             raise ValueError("Max Distance (LY) must be a number.") from exc
         if max_distance_ly <= 0:
             raise ValueError("Max Distance (LY) must be greater than 0.")
+
+        entered_reference = reference_system
+        reference_system = canonicalize_system_name(
+            reference_system,
+            cancel_event=cancel_event,
+        )
+        if reference_system != entered_reference:
+            print(
+                f'Reference system normalized: "{entered_reference}" '
+                f'-> "{reference_system}"'
+            )
 
     if not faction_name and not power_name and not reference_system:
         return ([], {}) if include_distances else []
@@ -272,40 +326,18 @@ def search_systems_by_filters(
 def lookup_system_coordinates(system_name, *, cancel_event=None):
     """Return (x, y, z) for an exact system name using Spansh field values."""
 
-    engine.check_cancel(cancel_event)
-    system_name = str(system_name or "").strip()
-    if not system_name:
-        raise ValueError("Reference System is required.")
-
-    response = engine.request_with_retries(
-        "GET",
-        SYSTEM_NAME_LOOKUP_URL,
-        cancel_event=cancel_event,
-        params={"q": system_name},
-        headers={
-            "User-Agent": engine.USER_AGENT,
-            "Accept": "application/json",
-        },
-    )
-    data = response.json()
-    candidates = data.get("min_max", []) or []
-    wanted = engine.norm(system_name)
-
-    for item in candidates:
-        if engine.norm(item.get("name", "")) != wanted:
-            continue
-        try:
-            return (
-                float(item["x"]),
-                float(item["y"]),
-                float(item["z"]),
-            )
-        except (KeyError, TypeError, ValueError) as exc:
-            raise ValueError(
-                f'Spansh returned invalid coordinates for "{system_name}".'
-            ) from exc
-
-    raise ValueError(f'System not found on Spansh: "{system_name}".')
+    item = _lookup_system_record(system_name, cancel_event=cancel_event)
+    canonical = str(item.get("name") or system_name).strip()
+    try:
+        return (
+            float(item["x"]),
+            float(item["y"]),
+            float(item["z"]),
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(
+            f'Spansh returned invalid coordinates for "{canonical}".'
+        ) from exc
 
 
 def filter_systems_within_distance(
@@ -336,6 +368,17 @@ def filter_systems_within_distance(
     candidates = engine.deduplicate(systems or [])
     if not candidates:
         return [], {}
+
+    entered_reference = reference_system
+    reference_system = canonicalize_system_name(
+        reference_system,
+        cancel_event=cancel_event,
+    )
+    if reference_system != entered_reference:
+        print(
+            f'Reference system normalized: "{entered_reference}" '
+            f'-> "{reference_system}"'
+        )
 
     print("Filtering database systems by distance:")
     print(f'  Reference system: "{reference_system}"')
