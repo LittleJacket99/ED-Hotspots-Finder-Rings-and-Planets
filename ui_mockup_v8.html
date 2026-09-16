@@ -16,7 +16,7 @@ html,body{margin:0;background:#0f1113;color:var(--text);font-family:"Segoe UI",A
 body{padding:16px}
 .app{min-width:1180px;max-width:1500px;height:790px;margin:auto;background:var(--bg);border:1px solid #30353b;box-shadow:var(--shadow);display:grid;grid-template-rows:76px 1fr 58px;overflow:hidden}
 .header{background:var(--header);border-bottom:1px solid #2c3137;display:flex;align-items:center;justify-content:space-between;padding:0 18px}
-.title h1{font-size:20px;margin:0;color:var(--accent);font-weight:700;letter-spacing:.1px}.title p{margin:4px 0 0;color:var(--muted);font-size:11px}
+.title h1{font-size:20px;margin:0;color:var(--title-accent,var(--accent));font-weight:700;letter-spacing:.1px}.title p{margin:4px 0 0;color:var(--muted);font-size:11px}
 .header-actions{display:flex;gap:8px;align-items:center}.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:7px 12px;border-radius:4px;cursor:pointer;transition:.12s ease}.btn:hover{background:var(--hover);border-color:var(--line2)}.btn.primary{background:var(--accent);border-color:var(--accent);color:#16181a;font-weight:700}.btn.primary:hover{background:var(--accent2)}.btn.danger{background:#3b2d2d;color:#d9bcbc}.btn.small{padding:6px 10px;font-size:12px}.btn.ghost{background:transparent}
 .main{display:grid;grid-template-columns:250px 225px minmax(0,1fr);gap:10px;padding:10px;min-height:0}.leftcol{display:grid;grid-template-rows:130px 130px 195px 1fr;gap:10px;min-height:0}.midcol{display:grid;grid-template-rows:420px 28px 1fr;gap:10px;min-height:0}.card{background:var(--panel);border:1px solid #2d3339;border-radius:5px;min-height:0}.card.pad{padding:10px}.section-title{color:var(--accent);font-weight:700;font-size:12px;margin-bottom:6px}.sub{color:var(--muted);font-size:11px;margin-top:5px}.row{display:flex;gap:10px;align-items:center}.row.wrap{flex-wrap:wrap}.cols{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px}.checks label{display:flex;align-items:center;gap:6px;line-height:19px;color:#dce1e6}.checks input{accent-color:var(--accent)}
 .input,select,textarea{width:100%;background:var(--field);color:var(--text);border:1px solid var(--line);border-radius:3px;padding:6px 7px;outline:none}.input:focus,select:focus,textarea:focus{border-color:var(--accent)}
@@ -26,7 +26,7 @@ body{padding:16px}
 .results{display:grid;grid-template-rows:42px 1fr 40px;min-width:0}.results-head{display:flex;align-items:center;justify-content:space-between;padding:0 10px}.tabs{display:flex;gap:2px;align-self:end}.tab{background:var(--panel2);border:1px solid var(--line);border-bottom:none;padding:8px 13px;border-radius:4px 4px 0 0;color:#d7dde3}.tab.active{background:var(--field);color:var(--accent);border-color:var(--line2)}
 .tablewrap{margin:0 10px;border:1px solid var(--line2);background:var(--field);overflow:auto}.table{border-collapse:collapse;min-width:980px;width:max-content}.table th{position:sticky;top:0;background:#30353b;color:#e6eaee;text-align:left;font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line2);white-space:nowrap}.table td{padding:7px 10px;border-bottom:1px solid #24292f;white-space:nowrap}.table tr:hover td{background:#20252a}.distance{text-align:center}.results-foot{display:flex;gap:7px;align-items:center;padding:5px 10px;color:var(--muted)}
 .footer{background:var(--header);border-top:1px solid #2c3137;display:flex;align-items:center;padding:0 14px;gap:8px}.progress{width:170px;height:9px;border-radius:5px;background:#343a40;overflow:hidden;margin-left:8px}.progress:after{content:"";display:block;width:42%;height:100%;background:var(--accent)}.status{color:#cfd5da}.footer .spacer{flex:1}.linkbtn{background:transparent;border:0;color:var(--muted);cursor:pointer}.linkbtn:hover{color:var(--text)}
-.previewbar{position:fixed;left:20px;bottom:18px;background:#111418;border:1px solid #353b42;border-radius:6px;padding:6px 8px;display:flex;align-items:center;gap:5px;box-shadow:0 8px 22px rgba(0,0,0,.35);flex-wrap:wrap;max-width:calc(100vw - 40px)}.previewbar span{color:#9da5ad;padding:5px}.previewbar .group-label{padding-left:9px;font-weight:600}.previewbar .group-label.orange{color:#ffa500}.previewbar .group-label.green{color:#5acd57}.theme{padding:5px 8px;border:1px solid #3a4148;background:#24292f;color:#e6e9ec;border-radius:3px;cursor:pointer}.theme:hover{border-color:#6b747e}
+.previewbar{position:fixed;left:20px;bottom:18px;background:#111418;border:1px solid #353b42;border-radius:6px;padding:6px 8px;display:flex;align-items:center;gap:5px;box-shadow:0 8px 22px rgba(0,0,0,.35);flex-wrap:wrap;max-width:calc(100vw - 40px)}.previewbar span{color:#9da5ad;padding:5px}.previewbar .group-label{padding-left:9px;font-weight:600}.previewbar .group-label.orange{color:#ffa500}.previewbar .group-label.green{color:#5acd57}.previewbar .group-label.mixed{color:#d7dde3}.theme{padding:5px 8px;border:1px solid #3a4148;background:#24292f;color:#e6e9ec;border-radius:3px;cursor:pointer}.theme:hover{border-color:#6b747e}
 
 /* Orange family — exact reference accent: #FFA500 */
 body.orange-graphite{--accent:#ffa500;--accent2:#ffb52e;--selected:#3b3321}
@@ -37,6 +37,9 @@ body.orange-elite{--bg:#1b1a18;--header:#24211d;--panel:#2b2823;--panel2:#373129
 body.green-graphite{--accent:#5acd57;--accent2:#74db71;--selected:#213821}
 body.green-deep{--bg:#101214;--header:#15181b;--panel:#1b1f23;--panel2:#252a2f;--field:#111315;--line:#343a40;--line2:#59616b;--hover:#30363d;--selected:#1d321e;--accent:#5acd57;--accent2:#74db71}
 body.green-elite{--bg:#171d18;--header:#1d251f;--panel:#242d26;--panel2:#2d392f;--field:#171d18;--line:#3f5542;--line2:#5e7d62;--hover:#334536;--selected:#203724;--muted:#a8b2aa;--accent:#5acd57;--accent2:#74db71}
+
+/* Mixed variants: green UI with orange app title only */
+body.orange-title{--title-accent:#ffa500}
 
 @media(max-width:1250px){body{padding:0}.app{min-width:1180px}}
 </style>
@@ -77,6 +80,9 @@ body.green-elite{--bg:#171d18;--header:#1d251f;--panel:#242d26;--panel2:#2d392f;
   <button class="theme" onclick="document.body.className='green-graphite'">Graphite</button>
   <button class="theme" onclick="document.body.className='green-deep'">Deep Black</button>
   <button class="theme" onclick="document.body.className='green-elite'">Elite Warm</button>
+  <span class="group-label mixed">Green + orange title</span>
+  <button class="theme" onclick="document.body.className='green-deep orange-title'">Deep Black</button>
+  <button class="theme" onclick="document.body.className='green-elite orange-title'">Green Warm</button>
 </div>
 </body>
 </html>
