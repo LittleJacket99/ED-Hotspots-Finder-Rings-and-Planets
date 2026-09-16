@@ -80,6 +80,61 @@ class FinderV8FinalApp(_BaseFinalApp):
         self._set_theme_globals(self._selected_theme_name())
         super()._configure_styles()
 
+    def _style_export_controls(self, theme):
+        """Repaint the Results export strip during a live theme switch."""
+
+        panel = getattr(self, "_results_panel", None)
+        if panel is None:
+            return
+
+        try:
+            frames = panel.winfo_children()
+        except tk.TclError:
+            return
+
+        for frame in frames:
+            if not isinstance(frame, tk.Frame):
+                continue
+
+            try:
+                children = frame.winfo_children()
+            except tk.TclError:
+                continue
+
+            label = next(
+                (
+                    widget
+                    for widget in children
+                    if isinstance(widget, tk.Label)
+                    and str(widget.cget("text") or "") == "Export current tab:"
+                ),
+                None,
+            )
+            if label is None:
+                continue
+
+            try:
+                frame.configure(bg=theme["panel"])
+                label.configure(bg=theme["panel"], fg=theme["muted"])
+            except tk.TclError:
+                pass
+
+            for widget in children:
+                if not isinstance(widget, tk.Button):
+                    continue
+                try:
+                    widget.configure(
+                        bg=theme["panel2"],
+                        fg=theme["text"],
+                        activebackground=theme["hover"],
+                        activeforeground=theme["text"],
+                        relief="flat",
+                        bd=0,
+                    )
+                except tk.TclError:
+                    pass
+            return
+
     def _apply_theme_choice(self, theme_name):
         theme_name, theme = self._set_theme_globals(theme_name)
         self.v8_settings.setdefault("application", {})["theme"] = theme_name
@@ -87,6 +142,7 @@ class FinderV8FinalApp(_BaseFinalApp):
         # Reconfigure ttk styles and repaint the existing classic Tk widgets.
         self._configure_styles()
         self._apply_visual_theme()
+        self._style_export_controls(theme)
 
         for mask in getattr(self, "_results_outline_masks", ()) or ():
             try:
@@ -107,6 +163,27 @@ class FinderV8FinalApp(_BaseFinalApp):
     # ------------------------------------------------------------------
     # Settings: Application / Theme
     # ------------------------------------------------------------------
+    def _center_settings_window(self, window, width=600, height=585):
+        """Center Settings over the app and re-assert geometry after mapping."""
+
+        try:
+            self.update_idletasks()
+            screen_width = self.winfo_screenwidth()
+            screen_height = self.winfo_screenheight()
+
+            x = self.winfo_rootx() + (self.winfo_width() - width) // 2
+            y = self.winfo_rooty() + (self.winfo_height() - height) // 2
+            x = min(max(0, x), max(0, screen_width - width))
+            y = min(max(0, y), max(0, screen_height - height))
+
+            geometry = f"{width}x{height}+{x}+{y}"
+            window.geometry(geometry)
+            window.update_idletasks()
+            window.geometry(geometry)
+            return geometry
+        except tk.TclError:
+            return None
+
     def _open_settings_dialog(self):
         super()._open_settings_dialog()
         window = getattr(self, "_settings_window", None)
@@ -127,7 +204,10 @@ class FinderV8FinalApp(_BaseFinalApp):
             if not isinstance(child, tk.Frame):
                 continue
             for sub in child.winfo_children():
-                if isinstance(sub, tk.Label) and str(sub.cget("text") or "") == "APPLICATION":
+                if (
+                    isinstance(sub, tk.Label)
+                    and str(sub.cget("text") or "") == "APPLICATION"
+                ):
                     application_panel = child
                     break
             if application_panel is not None:
@@ -137,18 +217,18 @@ class FinderV8FinalApp(_BaseFinalApp):
             return
 
         for sub in application_panel.winfo_children():
-            if isinstance(sub, tk.Checkbutton) and "Check for updates" in str(sub.cget("text") or ""):
+            if (
+                isinstance(sub, tk.Checkbutton)
+                and "Check for updates" in str(sub.cget("text") or "")
+            ):
                 update_check = sub
                 break
 
-        # Make a little more room for Theme while preserving the current layout.
+        # Make room for Theme, then centre the enlarged window over the app.
         try:
-            current_geometry = window.geometry()
-            width = max(600, window.winfo_width())
+            width = 600
             height = 585
-            x = window.winfo_x()
-            y = window.winfo_y()
-            window.geometry(f"{width}x{height}+{x}+{y}")
+            self._center_settings_window(window, width, height)
             application_panel.place_configure(height=100)
             if update_check is not None:
                 update_check.place_configure(x=12, y=68, width=500, height=20)
@@ -158,6 +238,12 @@ class FinderV8FinalApp(_BaseFinalApp):
                     text = str(child.cget("text") or "")
                     if text in {"Reset Defaults", "Cancel", "Save"}:
                         child.place_configure(y=545)
+
+            # Windows can briefly map a Toplevel at 0,0 before respecting the
+            # requested geometry, so re-assert the centred position once idle.
+            self.after_idle(
+                lambda w=window: self._center_settings_window(w, width, height)
+            )
         except tk.TclError:
             pass
 
@@ -188,7 +274,10 @@ class FinderV8FinalApp(_BaseFinalApp):
 
         # Reset Defaults also resets the visual theme to Deep Black.
         for child in window.winfo_children():
-            if isinstance(child, tk.Button) and str(child.cget("text") or "") == "Reset Defaults":
+            if (
+                isinstance(child, tk.Button)
+                and str(child.cget("text") or "") == "Reset Defaults"
+            ):
                 child.bind(
                     "<ButtonRelease-1>",
                     lambda _event: (
