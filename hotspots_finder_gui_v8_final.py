@@ -2,18 +2,13 @@
 
 """Final visual patch for the v8 desktop interface.
 
-Keeps the tested visual layer intact while fixing the last header and
-System Filters presentation issues found during the real-GUI review.
+Keeps the tested visual layer intact while fixing the unified System Filters
+card and using a clean text-only header.
 """
 
-import base64
-import io
 import tkinter as tk
 
-from PIL import Image, ImageFilter, ImageTk
-
 from hotspots_finder_gui_v8_visual import FinderV8VisualApp, THEME
-from ui_logo_hd import LOGO_WEBP_BASE64
 
 
 class FinderV8FinalApp(FinderV8VisualApp):
@@ -38,7 +33,6 @@ class FinderV8FinalApp(FinderV8VisualApp):
         )
         self._system_filters_backplate.lower()
 
-        # The old title frame must never be used as a second shared background.
         old_title_box = getattr(self, "_system_filters_title_box", None)
         if old_title_box is not None:
             try:
@@ -147,7 +141,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
                 pass
 
     def _apply_brand_header(self):
-        """Use a clean small-format mark instead of squeezing the full wordmark."""
+        """Use a clean text-only header; the window icon can stay separate later."""
 
         header = getattr(self, "_header_frame", None)
         if header is None:
@@ -158,56 +152,13 @@ class FinderV8FinalApp(FinderV8VisualApp):
             for child in header.winfo_children():
                 child.destroy()
 
-            # LOGO_WEBP_BASE64 is already derived from the user's original
-            # 1254x1254 artwork. The full badge contains tiny lettering which
-            # cannot remain readable in a ~70 px title-bar image, so the header
-            # uses the illustrative upper portion only. The original artwork is
-            # not altered; this is just a display crop for the compact header.
-            logo_bytes = base64.b64decode(LOGO_WEBP_BASE64)
-            source_logo = Image.open(io.BytesIO(logo_bytes)).convert("RGBA")
-
-            width, height = source_logo.size
-            icon_source = source_logo.crop(
-                (
-                    int(width * 0.125),
-                    0,
-                    int(width * 0.875),
-                    int(height * 0.75),
-                )
-            )
-
-            icon_source = icon_source.filter(
-                ImageFilter.UnsharpMask(radius=0.55, percent=55, threshold=2)
-            )
-
-            header_logo = icon_source.resize(
-                (70, 70),
-                Image.Resampling.LANCZOS,
-            )
-            window_icon = icon_source.resize(
-                (64, 64),
-                Image.Resampling.LANCZOS,
-            )
-
-            self._header_logo_image = ImageTk.PhotoImage(header_logo)
-            self._window_icon_image = ImageTk.PhotoImage(window_icon)
-            self.iconphoto(True, self._window_icon_image)
-
-            tk.Label(
-                header,
-                image=self._header_logo_image,
-                bg=THEME["header"],
-                bd=0,
-                highlightthickness=0,
-            ).place(x=11, y=3, width=70, height=70)
-
             title_block = tk.Frame(
                 header,
                 bg=THEME["header"],
                 bd=0,
                 highlightthickness=0,
             )
-            title_block.place(x=99, y=12, width=360, height=58)
+            title_block.place(x=24, y=12, width=390, height=58)
 
             tk.Label(
                 title_block,
@@ -244,7 +195,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
                 anchor="w",
             ).pack(side="left", padx=(8, 0), pady=(2, 0))
 
-        except (tk.TclError, ValueError, OSError):
+        except tk.TclError:
             return
 
 
