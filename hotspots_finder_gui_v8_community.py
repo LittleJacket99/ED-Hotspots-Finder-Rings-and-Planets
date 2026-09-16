@@ -255,10 +255,29 @@ class FinderV8CommunityApp(FinderV8App):
                 continue
             rows.append(row)
 
+        # Match the compact display used by the other result tabs: keep the
+        # System name on the first visible row of each consecutive group and
+        # blank it on following rows from the same system. Work on copies so
+        # the underlying Community data remains complete for filtering/export
+        # helpers and the active layout can still retain the real row system.
+        display_rows = []
+        previous_system = None
+        for row in rows:
+            display_row = dict(row)
+            system = str(display_row.get("System", "") or "").strip()
+            system_key = system.casefold()
+            if system and previous_system == system_key:
+                display_row["System"] = ""
+            elif system:
+                previous_system = system_key
+            else:
+                previous_system = None
+            display_rows.append(display_row)
+
         self._populate_tree(
             self.community_tree,
             self.community_all_headers,
-            rows,
+            display_rows,
         )
 
     def _current_export_source(self):
