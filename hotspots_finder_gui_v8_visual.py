@@ -73,8 +73,6 @@ class FinderV8VisualApp(FinderV8Layout2App):
     """Apply the approved branding and dark-green visual pass."""
 
     def _configure_styles(self):
-        # Update the shared palette before any widgets are created. The active
-        # inheritance chain imports the same COLORS dictionary by reference.
         COLORS.update(
             {
                 "bg": THEME["bg"],
@@ -82,16 +80,12 @@ class FinderV8VisualApp(FinderV8Layout2App):
                 "panel2": THEME["panel2"],
                 "text": THEME["text"],
                 "muted": THEME["muted"],
-                # Older layers call the accent "orange". Keep the key for
-                # compatibility while switching the visible accent to green.
                 "orange": THEME["accent"],
                 "green": THEME["accent"],
                 "border": THEME["line"],
             }
         )
 
-        # The polish layer cached a few colors at import time. Refresh those
-        # globals before its widgets are built.
         polish_theme.PANEL = THEME["panel"]
         polish_theme.ENTRY_BG = THEME["field"]
         polish_theme.SCROLL_TRACK = THEME["scroll_track"]
@@ -176,9 +170,6 @@ class FinderV8VisualApp(FinderV8Layout2App):
             darkcolor=THEME["accent"],
         )
 
-        # Thin modern scrollbars inspired by the reference image. The polish
-        # layer removes arrows, so restore the standard clam elements here and
-        # then apply the final palette/hover states.
         for scrollbar_style in ("Vertical.TScrollbar", "Horizontal.TScrollbar"):
             style.configure(
                 scrollbar_style,
@@ -279,14 +270,10 @@ class FinderV8VisualApp(FinderV8Layout2App):
         self._build_system_filters_backplate()
         self._apply_brand_header()
         self._right_align_export_controls()
-
-        # Settings is added by the settings mixin after the main build chain
-        # returns, so run the final classic-widget styling after idle.
+        self.after_idle(self._replace_system_input_horizontal_scrollbar)
         self.after_idle(self._apply_visual_theme)
 
     def _build_system_filters_backplate(self):
-        """Draw one continuous card behind all System Filters controls."""
-
         self._system_filters_backplate = tk.Frame(
             self._stage,
             bg=THEME["panel"],
@@ -294,14 +281,12 @@ class FinderV8VisualApp(FinderV8Layout2App):
             highlightbackground=THEME["line"],
             bd=0,
         )
-        # Covers the title plus both filter columns as one visual card.
         self._system_filters_backplate.place(
             x=18,
             y=577,
             width=492,
             height=178,
         )
-        # Existing controls remain fully interactive above the backplate.
         self._system_filters_backplate.lower()
 
     def _apply_brand_header(self):
@@ -334,7 +319,6 @@ class FinderV8VisualApp(FinderV8Layout2App):
                 anchor="w",
             ).place(x=88, y=10)
 
-            # Keep subtitle + version in one label so they can never overlap.
             tk.Label(
                 header,
                 text="Rings & Planets · v8",
@@ -380,8 +364,43 @@ class FinderV8VisualApp(FinderV8Layout2App):
                 )
                 child.place_configure(x=9, y=361, width=207, height=38)
 
+    def _replace_system_input_horizontal_scrollbar(self):
+        """Replace the legacy white classic x-scrollbar with the themed ttk one."""
+
+        text = getattr(self, "systems_text", None)
+        if text is None:
+            return
+
+        frame = text.master
+        for child in list(frame.winfo_children()):
+            if not isinstance(child, tk.Scrollbar):
+                continue
+            try:
+                if str(child.cget("orient")) != "horizontal":
+                    continue
+            except tk.TclError:
+                continue
+
+            try:
+                child.grid_forget()
+                child.destroy()
+            except tk.TclError:
+                pass
+
+            xbar = ttk.Scrollbar(
+                frame,
+                orient="horizontal",
+                command=text.xview,
+                style="Horizontal.TScrollbar",
+            )
+            xbar.grid(row=1, column=0, sticky="ew")
+            text.configure(xscrollcommand=xbar.set)
+            frame.rowconfigure(1, weight=0, minsize=9)
+            self._systems_horizontal_scrollbar = xbar
+            return
+
     def _make_tree(self, parent):
-        """Create result tables with a functional dark classic x-scrollbar."""
+        """Create result tables with matching themed vertical/horizontal scrollbars."""
 
         frame = tk.Frame(parent, bg=THEME["panel"])
         frame.pack(fill="both", expand=True)
@@ -393,19 +412,11 @@ class FinderV8VisualApp(FinderV8Layout2App):
             command=tree.yview,
             style="Vertical.TScrollbar",
         )
-        xbar = tk.Scrollbar(
+        xbar = ttk.Scrollbar(
             frame,
             orient="horizontal",
             command=tree.xview,
-            bg=THEME["scroll_thumb"],
-            activebackground=THEME["scroll_hover"],
-            troughcolor=THEME["scroll_track"],
-            relief="flat",
-            activerelief="flat",
-            bd=0,
-            elementborderwidth=0,
-            highlightthickness=0,
-            width=9,
+            style="Horizontal.TScrollbar",
         )
         tree.configure(yscrollcommand=ybar.set, xscrollcommand=xbar.set)
 
@@ -413,13 +424,11 @@ class FinderV8VisualApp(FinderV8Layout2App):
         ybar.grid(row=0, column=1, sticky="ns")
         xbar.grid(row=1, column=0, sticky="ew")
         frame.rowconfigure(0, weight=1)
-        frame.rowconfigure(1, weight=0, minsize=11)
+        frame.rowconfigure(1, weight=0, minsize=9)
         frame.columnconfigure(0, weight=1)
         return tree
 
     def _right_align_export_controls(self):
-        """Keep Export current tab + CSV/XLSX grouped at the right edge."""
-
         for child in self._results_panel.winfo_children():
             if not isinstance(child, tk.Frame):
                 continue
@@ -491,8 +500,6 @@ class FinderV8VisualApp(FinderV8Layout2App):
             except tk.TclError:
                 pass
 
-        # System Filters is one continuous card. Individual subframes must not
-        # draw their own borders or the outline looks segmented.
         backplate = getattr(self, "_system_filters_backplate", None)
         if backplate is not None:
             try:
@@ -553,7 +560,6 @@ class FinderV8VisualApp(FinderV8Layout2App):
             except tk.TclError:
                 pass
 
-        # Re-assert the branded header after the recursive classic-widget pass.
         self._apply_brand_header()
 
     def _style_classic_widget_tree(self, parent):
@@ -645,8 +651,6 @@ class FinderV8VisualApp(FinderV8Layout2App):
                         widget.bind("<ButtonRelease-1>", _scroll_release, add="+")
 
                 elif isinstance(widget, tk.Label):
-                    # Keep each label's semantic foreground color, but make
-                    # hard-coded legacy backgrounds follow its parent panel.
                     try:
                         parent_bg = str(widget.master.cget("bg"))
                         widget.configure(bg=parent_bg)
