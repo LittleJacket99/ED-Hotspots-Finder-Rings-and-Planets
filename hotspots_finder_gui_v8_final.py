@@ -350,8 +350,19 @@ class FinderV8FinalApp(_BaseFinalApp):
 
 
 def main():
-    app = FinderV8FinalApp()
-    app.mainloop()
+    from startup_splash import close_startup_splash, show_startup_splash
+
+    splash = show_startup_splash()
+    app = None
+    try:
+        app = FinderV8FinalApp()
+        app.update_idletasks()
+    finally:
+        close_startup_splash(splash)
+
+    if app is not None:
+        app.lift()
+        app.mainloop()
 
 
 if __name__ == "__main__":
