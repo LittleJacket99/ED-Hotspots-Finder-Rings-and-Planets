@@ -4,8 +4,11 @@
 
 import threading
 import tkinter as tk
-from tkinter import messagebox
+import webbrowser
+from tkinter import messagebox, ttk
+from urllib.parse import quote_plus
 
+import system_filter_search
 from hotspots_finder_gui_v8 import APP_TITLE, COLORS
 from hotspots_finder_gui_v8_polish import FinderV8PolishApp as BasePolishApp
 
@@ -32,6 +35,10 @@ CLEAR_BUTTON_GAP = 7
 
 class FinderV8Layout2App(BasePolishApp):
     def _build_ui(self):
+        self._row_system_by_tree = {}
+        self._context_tree = None
+        self._context_iid = None
+
         super()._build_ui()
 
         # The unused compatibility frame is never shown in this layout.
@@ -43,6 +50,7 @@ class FinderV8Layout2App(BasePolishApp):
         self._rename_filter_labels()
         self._reflow_systems_contents()
         self._reflow_compact_reference_distance()
+        self._configure_power_combobox_behavior()
         self._build_external_clear_buttons()
 
     def _build_results(self, parent):
@@ -51,8 +59,214 @@ class FinderV8Layout2App(BasePolishApp):
         # Fourth result tab: generated system lists live here. The Systems box
         # remains manual input only and is never used as an output container.
         self.systems_result_tab = tk.Frame(self.notebook, bg=COLORS["panel"])
-        self.notebook.add(self.systems_result_tab, text="Systems")
+        self.notebook.add(self.systems_result_tab, text="Systems (0)")
         self.systems_result_tree = self._make_tree(self.systems_result_tab)
+
+        self._build_result_context_menu()
+
+    def _populate_tree(self, tree, headers, rows):
+        """Populate a result table and remember its real System per row.
+
+        Hotspot/planet display compaction intentionally blanks repeated System
+        cells. Keeping the resolved System against each Treeview iid means the
+        right-click actions remain correct even after sorting the visible table.
+        """
+
+        headers = list(headers or [])
+        rows = list(rows or [])
+        super()._populate_tree(tree, headers, rows)
+
+        system_map = {}
+        current_system = ""
+        if "System" in headers:
+            for iid, row in zip(tree.get_children(""), rows):
+                value = ""
+                if isinstance(row, dict):
+                    value = str(row.get("System", "") or "").strip()
+                if value:
+                    current_system = value
+                if current_system:
+                    system_map[iid] = current_system
+
+        self._row_system_by_tree[tree] = system_map
+
+    def _configure_power_combobox_behavior(self):
+        """Do not let mouse-wheel scrolling accidentally change the Power."""
+
+        for child in self._power_box.winfo_children():
+            if not isinstance(child, ttk.Combobox):
+                continue
+
+            self.power_combo = child
+            child.bind("<MouseWheel>", self._block_power_mousewheel, add="+")
+            child.bind(
+                "<<ComboboxSelected>>",
+                self._power_combobox_selected,
+                add="+",
+            )
+            break
+
+    @staticmethod
+    def _block_power_mousewheel(_event=None):
+        return "break"
+
+    def _power_combobox_selected(self, _event=None):
+        # Drop keyboard focus after a choice so later page scrolling cannot
+        # alter the selected Power through the combobox.
+        self.after_idle(self.focus_set)
+
+    def _build_result_context_menu(self):
+        self._result_context_menu = tk.Menu(self, tearoff=False)
+        self._result_context_menu.add_command(
+            label="Copy row",
+            command=self._copy_context_row,
+        )
+        self._result_context_menu.add_command(
+            label="Copy system",
+            command=self._copy_context_system,
+        )
+        self._result_context_menu.add_separator()
+        self._result_context_menu.add_command(
+            label="Open system in Inara",
+            command=lambda: self._open_context_system("inara"),
+        )
+        self._result_context_menu.add_command(
+            label="Open system in Spansh",
+            command=lambda: self._open_context_system("spansh"),
+        )
+        self._result_context_menu.add_command(
+            label="Open system in EDSM",
+            command=lambda: self._open_context_system("edsm"),
+        )
+
+        for tree in (
+            self.hotspot_tree,
+            self.planet_tree,
+            self.community_tree,
+            self.systems_result_tree,
+        ):
+            tree.bind(
+                "<Button-3>",
+                self._show_result_context_menu,
+                add="+",
+            )
+
+    def _show_result_context_menu(self, event):
+        tree = event.widget
+        iid = tree.identify_row(event.y)
+        if not iid:
+            return "break"
+
+        tree.selection_set(iid)
+        tree.focus(iid)
+        self._context_tree = tree
+        self._context_iid = iid
+
+        has_system = bool(self._context_system())
+        system_state = "normal" if has_system else "disabled"
+        for index in (1, 3, 4, 5):
+            self._result_context_menu.entryconfigure(index, state=system_state)
+
+        try:
+            self._result_context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self._result_context_menu.grab_release()
+        return "break"
+
+    def _context_system(self):
+        tree = self._context_tree
+        iid = self._context_iid
+        if tree is None or not iid:
+            return ""
+
+        mapped = self._row_system_by_tree.get(tree, {}).get(iid, "")
+        if mapped:
+            return str(mapped).strip()
+
+        columns = list(tree["columns"])
+        if "System" in columns:
+            return str(tree.set(iid, "System") or "").strip()
+        return ""
+
+    def _copy_text(self, text, status):
+        if not text:
+            return
+        self.clipboard_clear()
+        self.clipboard_append(text)
+        self.status_var.set(status)
+
+    def _copy_context_row(self):
+        tree = self._context_tree
+        iid = self._context_iid
+        if tree is None or not iid:
+            return
+
+        columns = list(tree["columns"])
+        values = [str(tree.set(iid, column) or "") for column in columns]
+
+        # If compact display blanked the repeated System cell, copy the actual
+        # system name so the copied row remains useful outside the application.
+        if "System" in columns:
+            index = columns.index("System")
+            if not values[index].strip():
+                values[index] = self._context_system()
+
+        self._copy_text("\t".join(values), "Row copied")
+
+    def _copy_context_system(self):
+        system = self._context_system()
+        self._copy_text(system, f'Copied system: {system}')
+
+    def _open_context_system(self, target):
+        system = self._context_system()
+        if not system:
+            return
+
+        if target == "inara":
+            url = (
+                "https://inara.cz/elite/starsystem/?search="
+                + quote_plus(system)
+            )
+            self._open_system_url(url, system, "Inara")
+            return
+
+        if target == "edsm":
+            url = (
+                "https://www.edsm.net/en/system?systemName="
+                + quote_plus(system)
+            )
+            self._open_system_url(url, system, "EDSM")
+            return
+
+        if target == "spansh":
+            self.status_var.set(f'Resolving {system} on Spansh...')
+            threading.Thread(
+                target=self._open_spansh_system_worker,
+                args=(system,),
+                daemon=True,
+            ).start()
+
+    def _open_spansh_system_worker(self, system):
+        try:
+            record = system_filter_search._lookup_system_record(system)
+            id64 = record.get("id64")
+            if id64 in (None, ""):
+                raise ValueError(
+                    f'Spansh did not return an ID64 for "{system}".'
+                )
+            url = f"https://spansh.co.uk/system/{id64}"
+            self.after(0, self._open_system_url, url, system, "Spansh")
+        except Exception as exc:
+            message = str(exc)
+            self.after(0, self._open_system_link_failed, message)
+
+    def _open_system_url(self, url, system, service):
+        webbrowser.open(url, new=2)
+        self.status_var.set(f"Opened {system} in {service}")
+
+    def _open_system_link_failed(self, message):
+        self.status_var.set("Unable to open system link")
+        messagebox.showerror(APP_TITLE, message, parent=self)
 
     def _rename_filter_labels(self):
         # Keep internal filter values unchanged; only change visible labels.
@@ -129,6 +343,10 @@ class FinderV8Layout2App(BasePolishApp):
         headers = list(result.get("system_headers", ["System"]) or ["System"])
         rows = list(result.get("system_rows", []) or [])
         self._populate_tree(self.systems_result_tree, headers, rows)
+        self.notebook.tab(
+            self.systems_result_tab,
+            text=f"Systems ({len(rows)})",
+        )
 
         # The Systems tab is deliberately a simple result table: direct clicks
         # sort System or Distance without adding another filter layer.
