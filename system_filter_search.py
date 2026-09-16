@@ -14,6 +14,10 @@ import finder_engine as engine
 
 DEFAULT_MAX_DISTANCE_LY = 50.0
 SYSTEM_NAME_LOOKUP_URL = "https://spansh.co.uk/api/systems/field_values/system_names"
+FACTION_LOOKUP_URL = (
+    "https://spansh.co.uk/api/systems/field_values/"
+    "autocomplete_controlling_minor_faction"
+)
 
 
 def _format_distance(value):
@@ -61,6 +65,41 @@ def canonicalize_system_name(system_name, *, cancel_event=None):
     if not canonical:
         raise ValueError(f'System not found on Spansh: "{system_name}".')
     return canonical
+
+
+def canonicalize_faction_name(faction_name, *, cancel_event=None):
+    """Return Spansh's canonical capitalization for an exact faction name.
+
+    The autocomplete endpoint can return partial/fuzzy suggestions, so only a
+    case-insensitive exact match is accepted. Similar names are never selected
+    automatically.
+    """
+
+    engine.check_cancel(cancel_event)
+    faction_name = str(faction_name or "").strip()
+    if not faction_name:
+        return ""
+
+    response = engine.request_with_retries(
+        "GET",
+        FACTION_LOOKUP_URL,
+        cancel_event=cancel_event,
+        params={"q": faction_name},
+        headers={
+            "User-Agent": engine.USER_AGENT,
+            "Accept": "application/json",
+        },
+    )
+    data = response.json()
+    values = data.get("values", []) or []
+    wanted = engine.norm(faction_name)
+
+    for value in values:
+        canonical = str(value or "").strip()
+        if canonical and engine.norm(canonical) == wanted:
+            return canonical
+
+    raise ValueError(f'Faction not found on Spansh: "{faction_name}".')
 
 
 def _query_spansh_systems(
@@ -178,6 +217,18 @@ def search_systems_by_filters(
         for state in selected_power_states
         if str(state).strip()
     ]
+
+    if faction_name:
+        entered_faction = faction_name
+        faction_name = canonicalize_faction_name(
+            faction_name,
+            cancel_event=cancel_event,
+        )
+        if faction_name != entered_faction:
+            print(
+                f'Faction normalized: "{entered_faction}" '
+                f'-> "{faction_name}"'
+            )
 
     if reference_system:
         try:
