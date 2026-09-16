@@ -431,12 +431,12 @@ class FinderV8SettingsMixin:
         def save_dialog_settings():
             try:
                 max_distance = float(str(max_distance_var.get()).strip())
-                if max_distance <= 0 or max_distance > 200:
+                if max_distance <= 0 or max_distance > 300:
                     raise ValueError
             except ValueError:
                 messagebox.showerror(
                     APP_TITLE,
-                    "Default Max LY must be a number between 1 and 200.",
+                    "Default Max LY must be a number between 1 and 300.",
                     parent=window,
                 )
                 return
