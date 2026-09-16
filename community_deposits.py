@@ -97,6 +97,66 @@ def _normalise_rows(raw_rows, requested_system=None):
     return list(COMMUNITY_HEADERS), rows
 
 
+def _validate_payload(response, *, context):
+    if response.status_code != 200:
+        text = response.text.strip()
+        if len(text) > 300:
+            text = text[:300] + "..."
+        raise CommunityDepositsError(
+            f"Community Deposits API returned HTTP {response.status_code} "
+            f"for {context}: {text or 'no response body'}"
+        )
+
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise CommunityDepositsError(
+            f"Community Deposits API returned invalid JSON for {context}."
+        ) from exc
+
+    if not isinstance(payload, dict):
+        raise CommunityDepositsError(
+            f"Community Deposits API returned an unexpected response for {context}."
+        )
+
+    if payload.get("status") not in (None, "ok"):
+        message = payload.get("error") or payload.get("message") or payload.get("status")
+        raise CommunityDepositsError(
+            f"Community Deposits API error for {context}: {message}"
+        )
+
+    deposits = payload.get("deposits", [])
+    if deposits is None:
+        deposits = []
+    if not isinstance(deposits, list):
+        raise CommunityDepositsError(
+            f"Community Deposits API returned invalid deposits data for {context}."
+        )
+
+    return deposits
+
+
+def fetch_all_deposits(*, cancel_event=None):
+    """Fetch every Community Deposit currently exposed by the API."""
+
+    _check_cancel(cancel_event)
+
+    try:
+        response = requests.get(
+            DEPOSITS_URL,
+            headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
+            timeout=REQUEST_TIMEOUT,
+        )
+    except requests.RequestException as exc:
+        raise CommunityDepositsError(
+            f"Community Deposits request failed: {exc}"
+        ) from exc
+
+    _check_cancel(cancel_event)
+    deposits = _validate_payload(response, context="all deposits")
+    return _normalise_rows(deposits)
+
+
 def fetch_system_deposits(system, *, session=None, cancel_event=None):
     _check_cancel(cancel_event)
 
@@ -118,42 +178,7 @@ def fetch_system_deposits(system, *, session=None, cancel_event=None):
         ) from exc
 
     _check_cancel(cancel_event)
-
-    if response.status_code != 200:
-        text = response.text.strip()
-        if len(text) > 300:
-            text = text[:300] + "..."
-        raise CommunityDepositsError(
-            f"Community Deposits API returned HTTP {response.status_code} "
-            f"for {system}: {text or 'no response body'}"
-        )
-
-    try:
-        payload = response.json()
-    except ValueError as exc:
-        raise CommunityDepositsError(
-            f"Community Deposits API returned invalid JSON for {system}."
-        ) from exc
-
-    if not isinstance(payload, dict):
-        raise CommunityDepositsError(
-            f"Community Deposits API returned an unexpected response for {system}."
-        )
-
-    if payload.get("status") not in (None, "ok"):
-        message = payload.get("error") or payload.get("message") or payload.get("status")
-        raise CommunityDepositsError(
-            f"Community Deposits API error for {system}: {message}"
-        )
-
-    deposits = payload.get("deposits", [])
-    if deposits is None:
-        deposits = []
-    if not isinstance(deposits, list):
-        raise CommunityDepositsError(
-            f"Community Deposits API returned invalid deposits data for {system}."
-        )
-
+    deposits = _validate_payload(response, context=system)
     return _normalise_rows(deposits, requested_system=system)
 
 
