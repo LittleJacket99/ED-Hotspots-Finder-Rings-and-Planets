@@ -9,7 +9,7 @@ from pathlib import Path
 from PIL import Image, ImageTk
 
 
-SPLASH_IMAGE = "ED_Hotspots_Finder.png"
+SPLASH_IMAGE = "logo.png"
 TRANSPARENT_KEY = "#ff00ff"
 MAX_SPLASH_SIZE = 460
 
