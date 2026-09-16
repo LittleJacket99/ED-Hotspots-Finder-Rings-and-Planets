@@ -188,7 +188,6 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
 
         self.only_pristine.set(False)
         self.only_landables.set(False)
-        self.only_positive.set(False)
         self.faction_var.set("")
         self.power_var.set("")
         self.reference_system_var.set("")
