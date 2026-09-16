@@ -564,8 +564,14 @@ def run_local_scan(config, cancel_event=None):
                 community_distances or system_distances,
             )
 
-    # Systems tab is intentionally empty whenever a result pipeline is active.
-    system_headers, system_rows = _build_system_results([], {}, False)
+    # Keep a compact Systems result alongside every scan output. This is the
+    # resolved candidate set used by Hotspots/Planets, or the effective
+    # database-system set for Community-only scans.
+    system_headers, system_rows = _build_system_results(
+        systems,
+        system_distances,
+        show_reference_distance,
+    )
 
     summary_config = dict(config)
     summary_config["systems"] = systems
