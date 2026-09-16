@@ -26,13 +26,22 @@ body{padding:16px}
 .results{display:grid;grid-template-rows:42px 1fr 40px;min-width:0}.results-head{display:flex;align-items:center;justify-content:space-between;padding:0 10px}.tabs{display:flex;gap:2px;align-self:end}.tab{background:var(--panel2);border:1px solid var(--line);border-bottom:none;padding:8px 13px;border-radius:4px 4px 0 0;color:#d7dde3}.tab.active{background:var(--field);color:var(--accent);border-color:var(--line2)}
 .tablewrap{margin:0 10px;border:1px solid var(--line2);background:var(--field);overflow:auto}.table{border-collapse:collapse;min-width:980px;width:max-content}.table th{position:sticky;top:0;background:#30353b;color:#e6eaee;text-align:left;font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line2);white-space:nowrap}.table td{padding:7px 10px;border-bottom:1px solid #24292f;white-space:nowrap}.table tr:hover td{background:#20252a}.distance{text-align:center}.results-foot{display:flex;gap:7px;align-items:center;padding:5px 10px;color:var(--muted)}
 .footer{background:var(--header);border-top:1px solid #2c3137;display:flex;align-items:center;padding:0 14px;gap:8px}.progress{width:170px;height:9px;border-radius:5px;background:#343a40;overflow:hidden;margin-left:8px}.progress:after{content:"";display:block;width:42%;height:100%;background:var(--accent)}.status{color:#cfd5da}.footer .spacer{flex:1}.linkbtn{background:transparent;border:0;color:var(--muted);cursor:pointer}.linkbtn:hover{color:var(--text)}
-.previewbar{position:fixed;left:20px;bottom:18px;background:#111418;border:1px solid #353b42;border-radius:6px;padding:6px 8px;display:flex;gap:5px;box-shadow:0 8px 22px rgba(0,0,0,.35)}.previewbar span{color:#9da5ad;padding:5px}.theme{padding:5px 8px;border:1px solid #3a4148;background:#24292f;color:#e6e9ec;border-radius:3px;cursor:pointer}.theme:hover{border-color:#6b747e}
-body.deep{--bg:#101214;--header:#15181b;--panel:#1b1f23;--panel2:#252a2f;--field:#111315;--line:#343a40;--line2:#59616b;--hover:#30363d;--selected:#302715}
-body.elite{--bg:#1b1a18;--header:#24211d;--panel:#2b2823;--panel2:#373129;--field:#1b1916;--line:#5b4a2f;--line2:#84652f;--hover:#443b2e;--selected:#3b2c16;--muted:#b0a899}
+.previewbar{position:fixed;left:20px;bottom:18px;background:#111418;border:1px solid #353b42;border-radius:6px;padding:6px 8px;display:flex;align-items:center;gap:5px;box-shadow:0 8px 22px rgba(0,0,0,.35);flex-wrap:wrap;max-width:calc(100vw - 40px)}.previewbar span{color:#9da5ad;padding:5px}.previewbar .group-label{padding-left:9px;font-weight:600}.previewbar .group-label.orange{color:#ffa500}.previewbar .group-label.green{color:#5acd57}.theme{padding:5px 8px;border:1px solid #3a4148;background:#24292f;color:#e6e9ec;border-radius:3px;cursor:pointer}.theme:hover{border-color:#6b747e}
+
+/* Orange family — exact reference accent: #FFA500 */
+body.orange-graphite{--accent:#ffa500;--accent2:#ffb52e;--selected:#3b3321}
+body.orange-deep{--bg:#101214;--header:#15181b;--panel:#1b1f23;--panel2:#252a2f;--field:#111315;--line:#343a40;--line2:#59616b;--hover:#30363d;--selected:#302715;--accent:#ffa500;--accent2:#ffb52e}
+body.orange-elite{--bg:#1b1a18;--header:#24211d;--panel:#2b2823;--panel2:#373129;--field:#1b1916;--line:#5b4a2f;--line2:#84652f;--hover:#443b2e;--selected:#3b2c16;--muted:#b0a899;--accent:#ffa500;--accent2:#ffb52e}
+
+/* Green family — exact reference accent: #5ACD57 */
+body.green-graphite{--accent:#5acd57;--accent2:#74db71;--selected:#213821}
+body.green-deep{--bg:#101214;--header:#15181b;--panel:#1b1f23;--panel2:#252a2f;--field:#111315;--line:#343a40;--line2:#59616b;--hover:#30363d;--selected:#1d321e;--accent:#5acd57;--accent2:#74db71}
+body.green-elite{--bg:#1b1a18;--header:#24211d;--panel:#2b2823;--panel2:#373129;--field:#1b1916;--line:#4c5b3b;--line2:#698454;--hover:#35442f;--selected:#24351e;--muted:#b0a899;--accent:#5acd57;--accent2:#74db71}
+
 @media(max-width:1250px){body{padding:0}.app{min-width:1180px}}
 </style>
 </head>
-<body>
+<body class="orange-graphite">
 <div class="app">
   <div class="header">
     <div class="title"><h1>Hotspots & Landables Finder</h1><p>v8 local interface · Spansh · no Google Sheets</p></div>
@@ -58,6 +67,16 @@ body.elite{--bg:#1b1a18;--header:#24211d;--panel:#2b2823;--panel2:#373129;--fiel
   </div>
   <div class="footer"><button class="btn primary">SCAN</button><button class="btn danger">STOP</button><div class="progress"></div><div class="status">Ready</div><div class="spacer"></div><button class="linkbtn">Show Log Details</button></div>
 </div>
-<div class="previewbar"><span>Preview:</span><button class="theme" onclick="document.body.className=''">Graphite</button><button class="theme" onclick="document.body.className='deep'">Deep Black</button><button class="theme" onclick="document.body.className='elite'">Elite Warm</button></div>
+<div class="previewbar">
+  <span>Preview:</span>
+  <span class="group-label orange">#FFA500</span>
+  <button class="theme" onclick="document.body.className='orange-graphite'">Graphite</button>
+  <button class="theme" onclick="document.body.className='orange-deep'">Deep Black</button>
+  <button class="theme" onclick="document.body.className='orange-elite'">Elite Warm</button>
+  <span class="group-label green">#5ACD57</span>
+  <button class="theme" onclick="document.body.className='green-graphite'">Graphite</button>
+  <button class="theme" onclick="document.body.className='green-deep'">Deep Black</button>
+  <button class="theme" onclick="document.body.className='green-elite'">Elite Warm</button>
+</div>
 </body>
 </html>
