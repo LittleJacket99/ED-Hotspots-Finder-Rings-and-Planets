@@ -10,7 +10,7 @@ import base64
 import io
 import tkinter as tk
 
-from PIL import Image, ImageTk
+from PIL import Image, ImageFilter, ImageTk
 
 from hotspots_finder_gui_v8_visual import FinderV8VisualApp, THEME
 from ui_logo_hd import LOGO_WEBP_BASE64
@@ -30,9 +30,6 @@ class FinderV8FinalApp(FinderV8VisualApp):
             bd=0,
         )
 
-        # Keep only a very small outer margin around the tested controls.
-        # This avoids the extra panel-coloured strip that was visible below
-        # the System Filters section.
         self._system_filters_backplate.place(
             x=16,
             y=575,
@@ -42,8 +39,6 @@ class FinderV8FinalApp(FinderV8VisualApp):
         self._system_filters_backplate.lower()
 
         # The old title frame must never be used as a second shared background.
-        # The parent log-layout layer otherwise re-expands it after idle and
-        # produces a second panel-coloured rectangle behind this section.
         old_title_box = getattr(self, "_system_filters_title_box", None)
         if old_title_box is not None:
             try:
@@ -86,7 +81,6 @@ class FinderV8FinalApp(FinderV8VisualApp):
             )
             backplate.lower()
 
-            # Raise the actual filter controls above the single shared card.
             for name in (
                 "_faction_box",
                 "_power_box",
@@ -104,8 +98,56 @@ class FinderV8FinalApp(FinderV8VisualApp):
         except tk.TclError:
             return
 
+        self._normalize_system_filters_colors()
+
+    def _apply_visual_theme(self):
+        """Run the approved theme and then normalize the unified filters card."""
+
+        super()._apply_visual_theme()
+        self._normalize_system_filters_colors()
+
+    def _normalize_system_filters_colors(self):
+        """Remove any legacy differently-coloured rectangle inside System Filters."""
+
+        backplate = getattr(self, "_system_filters_backplate", None)
+        if backplate is not None:
+            try:
+                backplate.configure(bg=THEME["panel"])
+            except tk.TclError:
+                pass
+
+        for name in (
+            "_faction_box",
+            "_power_box",
+            "_power_states_box",
+            "_reference_box",
+            "_distance_box",
+        ):
+            frame = getattr(self, name, None)
+            if frame is None:
+                continue
+
+            try:
+                frame.configure(bg=THEME["panel"], highlightthickness=0, bd=0)
+            except tk.TclError:
+                pass
+
+            for child in frame.winfo_children():
+                try:
+                    if isinstance(child, (tk.Label, tk.Checkbutton)):
+                        child.configure(bg=THEME["panel"])
+                except tk.TclError:
+                    pass
+
+        caption = getattr(self, "_system_filters_caption", None)
+        if caption is not None:
+            try:
+                caption.configure(bg=THEME["panel"])
+            except tk.TclError:
+                pass
+
     def _apply_brand_header(self):
-        """Render the original high-resolution logo smoothly."""
+        """Use a clean small-format mark instead of squeezing the full wordmark."""
 
         header = getattr(self, "_header_frame", None)
         if header is None:
@@ -116,14 +158,36 @@ class FinderV8FinalApp(FinderV8VisualApp):
             for child in header.winfo_children():
                 child.destroy()
 
-            # Use a 192x192 source generated from the original uploaded logo,
-            # then downsample once to the exact header size. This avoids the
-            # softness caused by enlarging the previous 64x64 embedded asset.
+            # LOGO_WEBP_BASE64 is already derived from the user's original
+            # 1254x1254 artwork. The full badge contains tiny lettering which
+            # cannot remain readable in a ~70 px title-bar image, so the header
+            # uses the illustrative upper portion only. The original artwork is
+            # not altered; this is just a display crop for the compact header.
             logo_bytes = base64.b64decode(LOGO_WEBP_BASE64)
             source_logo = Image.open(io.BytesIO(logo_bytes)).convert("RGBA")
 
-            header_logo = source_logo.resize((76, 76), Image.Resampling.LANCZOS)
-            window_icon = source_logo.resize((64, 64), Image.Resampling.LANCZOS)
+            width, height = source_logo.size
+            icon_source = source_logo.crop(
+                (
+                    int(width * 0.125),
+                    0,
+                    int(width * 0.875),
+                    int(height * 0.75),
+                )
+            )
+
+            icon_source = icon_source.filter(
+                ImageFilter.UnsharpMask(radius=0.55, percent=55, threshold=2)
+            )
+
+            header_logo = icon_source.resize(
+                (70, 70),
+                Image.Resampling.LANCZOS,
+            )
+            window_icon = icon_source.resize(
+                (64, 64),
+                Image.Resampling.LANCZOS,
+            )
 
             self._header_logo_image = ImageTk.PhotoImage(header_logo)
             self._window_icon_image = ImageTk.PhotoImage(window_icon)
@@ -135,7 +199,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
                 bg=THEME["header"],
                 bd=0,
                 highlightthickness=0,
-            ).place(x=10, y=3, width=76, height=76)
+            ).place(x=11, y=3, width=70, height=70)
 
             title_block = tk.Frame(
                 header,
