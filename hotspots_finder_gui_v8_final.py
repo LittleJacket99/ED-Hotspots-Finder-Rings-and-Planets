@@ -13,7 +13,7 @@ import tkinter as tk
 from PIL import Image, ImageTk
 
 from hotspots_finder_gui_v8_visual import FinderV8VisualApp, THEME
-from ui_logo import LOGO_PNG_BASE64
+from ui_logo_hd import LOGO_WEBP_BASE64
 
 
 class FinderV8FinalApp(FinderV8VisualApp):
@@ -30,18 +30,20 @@ class FinderV8FinalApp(FinderV8VisualApp):
             bd=0,
         )
 
-        # Put the single outer card a couple of pixels outside the tested
-        # filter geometry so none of the inner frames can split its outline.
+        # Keep only a very small outer margin around the tested controls.
+        # This avoids the extra panel-coloured strip that was visible below
+        # the System Filters section.
         self._system_filters_backplate.place(
             x=16,
             y=575,
             width=496,
-            height=182,
+            height=177,
         )
         self._system_filters_backplate.lower()
 
-        # The old title lived in its own frame, which visually broke the card.
-        # Hide that frame and draw the heading directly inside the unified card.
+        # The old title frame must never be used as a second shared background.
+        # The parent log-layout layer otherwise re-expands it after idle and
+        # produces a second panel-coloured rectangle behind this section.
         old_title_box = getattr(self, "_system_filters_title_box", None)
         if old_title_box is not None:
             try:
@@ -61,8 +63,49 @@ class FinderV8FinalApp(FinderV8VisualApp):
         )
         self._system_filters_caption.place(x=10, y=7, width=160, height=25)
 
+    def _refresh_unified_system_filters_panel(self):
+        """Keep only the final backplate; disable the legacy shared title panel."""
+
+        old_title_box = getattr(self, "_system_filters_title_box", None)
+        if old_title_box is not None:
+            try:
+                old_title_box.place_forget()
+            except tk.TclError:
+                pass
+
+        backplate = getattr(self, "_system_filters_backplate", None)
+        if backplate is None or getattr(self, "_results_expanded", False):
+            return
+
+        try:
+            backplate.place(
+                x=16,
+                y=575,
+                width=496,
+                height=177,
+            )
+            backplate.lower()
+
+            # Raise the actual filter controls above the single shared card.
+            for name in (
+                "_faction_box",
+                "_power_box",
+                "_power_states_box",
+                "_reference_box",
+                "_distance_box",
+            ):
+                frame = getattr(self, name, None)
+                if frame is not None:
+                    frame.lift()
+
+            caption = getattr(self, "_system_filters_caption", None)
+            if caption is not None:
+                caption.lift()
+        except tk.TclError:
+            return
+
     def _apply_brand_header(self):
-        """Render the logo smoothly and keep the two-line title block clean."""
+        """Render the original high-resolution logo smoothly."""
 
         header = getattr(self, "_header_frame", None)
         if header is None:
@@ -73,10 +116,10 @@ class FinderV8FinalApp(FinderV8VisualApp):
             for child in header.winfo_children():
                 child.destroy()
 
-            # Tk's zoom() uses nearest-neighbour scaling and produced the
-            # pixelated logo seen in the previous build. Decode the same PNG
-            # through Pillow and resize it with LANCZOS instead.
-            logo_bytes = base64.b64decode(LOGO_PNG_BASE64)
+            # Use a 192x192 source generated from the original uploaded logo,
+            # then downsample once to the exact header size. This avoids the
+            # softness caused by enlarging the previous 64x64 embedded asset.
+            logo_bytes = base64.b64decode(LOGO_WEBP_BASE64)
             source_logo = Image.open(io.BytesIO(logo_bytes)).convert("RGBA")
 
             header_logo = source_logo.resize((76, 76), Image.Resampling.LANCZOS)
@@ -137,7 +180,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
                 anchor="w",
             ).pack(side="left", padx=(8, 0), pady=(2, 0))
 
-        except (tk.TclError, ValueError):
+        except (tk.TclError, ValueError, OSError):
             return
 
 
