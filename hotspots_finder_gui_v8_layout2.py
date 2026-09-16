@@ -104,6 +104,11 @@ class FinderV8Layout2App(BasePolishApp):
                 self._power_combobox_selected,
                 add="+",
             )
+            child.bind(
+                "<FocusOut>",
+                self._clear_power_combobox_selection,
+                add="+",
+            )
             break
 
     @staticmethod
@@ -111,9 +116,22 @@ class FinderV8Layout2App(BasePolishApp):
         return "break"
 
     def _power_combobox_selected(self, _event=None):
-        # Drop keyboard focus after a choice so later page scrolling cannot
-        # alter the selected Power through the combobox.
-        self.after_idle(self.focus_set)
+        # Remove focus and the Entry-style text selection left by ttk on
+        # Windows after choosing a readonly combobox item.
+        self.after_idle(self._clear_power_combobox_selection)
+
+    def _clear_power_combobox_selection(self, _event=None):
+        combo = getattr(self, "power_combo", None)
+        if combo is None:
+            return
+
+        try:
+            if self.focus_get() is combo:
+                self.focus_set()
+            combo.selection_clear()
+            combo.icursor("end")
+        except tk.TclError:
+            pass
 
     def _build_result_context_menu(self):
         self._result_context_menu = tk.Menu(self, tearoff=False)
