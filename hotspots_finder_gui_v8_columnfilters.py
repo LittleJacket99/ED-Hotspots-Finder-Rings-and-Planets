@@ -275,7 +275,12 @@ class FinderV8ColumnFiltersApp(FinderV8CommunityApp):
 
         for header in headers:
             tree.heading(header, text=header, command="")
-            tree.column(header, minwidth=55, stretch=False)
+            tree.column(
+                header,
+                minwidth=55,
+                stretch=False,
+                anchor="center" if header == "Distance (LY)" else "w",
+            )
 
         for row in rows:
             values = [row.get(header, "") for header in headers]
