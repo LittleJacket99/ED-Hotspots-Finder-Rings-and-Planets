@@ -36,8 +36,6 @@ class FinderV8FinalApp(_BaseFinalApp):
     def _configure_styles(self):
         super()._configure_styles()
 
-        # The visible light top/left edge comes from the Notebook client element,
-        # not from the Treeview. Neutralise every native relief colour here.
         style = ttk.Style(self)
         style.configure(
             "FlatResults.TNotebook",
@@ -75,18 +73,21 @@ class FinderV8FinalApp(_BaseFinalApp):
             self.after_idle(command)
 
     def _show_custom_popup(self, items, x_root, y_root, *, min_width=0):
-        """Show a frameless popup with one flat 1 px application border."""
+        """Show a custom popup at real screen coordinates.
+
+        On Windows an overrideredirect Toplevel can ignore its first geometry
+        request when it is mapped immediately. Build it while withdrawn, size
+        and position it in screen coordinates, then reveal it. This keeps the
+        context menu under the cursor and Reference Tables under its button.
+        """
 
         self._dismiss_custom_popup()
 
         popup = tk.Toplevel(self)
         self._custom_popup = popup
+        popup.withdraw()
         popup.overrideredirect(True)
         popup.configure(bg=self.MENU_BORDER)
-        try:
-            popup.transient(self)
-        except tk.TclError:
-            pass
 
         outer = tk.Frame(
             popup,
@@ -158,6 +159,9 @@ class FinderV8FinalApp(_BaseFinalApp):
                     add="+",
                 )
 
+        # Measure the withdrawn popup first, then place it using absolute screen
+        # coordinates. Do not make it transient: on Windows that can make an
+        # overrideredirect window get positioned relative to its owner instead.
         popup.update_idletasks()
         width = max(int(min_width), popup.winfo_reqwidth())
         height = popup.winfo_reqheight()
@@ -166,7 +170,16 @@ class FinderV8FinalApp(_BaseFinalApp):
         screen_height = popup.winfo_screenheight()
         x = min(max(0, int(x_root)), max(0, screen_width - width))
         y = min(max(0, int(y_root)), max(0, screen_height - height))
-        popup.geometry(f"{width}x{height}+{x}+{y}")
+
+        geometry = f"{width}x{height}+{x}+{y}"
+        popup.geometry(geometry)
+        popup.deiconify()
+        popup.lift()
+
+        # Re-assert geometry once mapped. This avoids the Windows window manager
+        # snapping the first overrideredirect map to 0,0.
+        popup.update_idletasks()
+        popup.geometry(geometry)
 
         popup.bind("<Escape>", self._dismiss_custom_popup, add="+")
         popup.bind(
@@ -175,7 +188,6 @@ class FinderV8FinalApp(_BaseFinalApp):
             add="+",
         )
 
-        popup.lift()
         try:
             popup.focus_force()
         except tk.TclError:
@@ -248,7 +260,6 @@ class FinderV8FinalApp(_BaseFinalApp):
             self._dismiss_custom_popup()
             return "break"
 
-        # Preserve an existing multi-selection when right-clicking inside it.
         if iid not in tree.selection():
             tree.selection_set(iid)
         tree.focus(iid)
@@ -275,7 +286,6 @@ class FinderV8FinalApp(_BaseFinalApp):
             ),
         ]
 
-        # Website actions remain available only for exactly one selected system.
         if row_count == 1 and system_count == 1:
             items.extend(
                 [
@@ -322,9 +332,6 @@ class FinderV8FinalApp(_BaseFinalApp):
             return
 
         try:
-            # First cover the platform bevel itself. These strips sit just inside
-            # the notebook edge and use the content background, so the old 2/3 px
-            # light edge disappears instead of being stacked under our outline.
             self._results_outline_masks = [
                 tk.Frame(
                     panel,
