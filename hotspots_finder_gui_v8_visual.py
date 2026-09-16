@@ -179,12 +179,33 @@ class FinderV8VisualApp(FinderV8Layout2App):
         super()._build_ui()
 
         self.title(APP_WINDOW_TITLE)
+        self._build_system_filters_backplate()
         self._apply_brand_header()
         self._right_align_export_controls()
 
         # Settings is added by the settings mixin after the main build chain
         # returns, so run the final classic-widget styling after idle.
         self.after_idle(self._apply_visual_theme)
+
+    def _build_system_filters_backplate(self):
+        """Draw one continuous card behind all System Filters controls."""
+
+        self._system_filters_backplate = tk.Frame(
+            self._stage,
+            bg=THEME["panel"],
+            highlightthickness=1,
+            highlightbackground=THEME["line"],
+            bd=0,
+        )
+        # Covers the title plus both filter columns as one visual card.
+        self._system_filters_backplate.place(
+            x=18,
+            y=577,
+            width=492,
+            height=178,
+        )
+        # Existing controls remain fully interactive above the backplate.
+        self._system_filters_backplate.lower()
 
     def _apply_brand_header(self):
         header = getattr(self, "_header_frame", None)
@@ -205,7 +226,7 @@ class FinderV8VisualApp(FinderV8Layout2App):
                 bg=THEME["header"],
                 bd=0,
                 highlightthickness=0,
-            ).place(x=14, y=9, width=56, height=56)
+            ).place(x=12, y=5, width=64, height=64)
 
             tk.Label(
                 header,
@@ -214,25 +235,17 @@ class FinderV8VisualApp(FinderV8Layout2App):
                 fg=THEME["accent"],
                 font=("Segoe UI", 17, "bold"),
                 anchor="w",
-            ).place(x=84, y=10)
+            ).place(x=88, y=10)
 
+            # Keep subtitle + version in one label so they can never overlap.
             tk.Label(
                 header,
-                text="Rings & Planets",
+                text="Rings & Planets · v8",
                 bg=THEME["header"],
                 fg=THEME["text"],
-                font=("Segoe UI", 11, "bold"),
+                font=("Segoe UI", 10, "bold"),
                 anchor="w",
-            ).place(x=85, y=42)
-
-            tk.Label(
-                header,
-                text="· v8",
-                bg=THEME["header"],
-                fg=THEME["muted"],
-                font=("Segoe UI", 9),
-                anchor="w",
-            ).place(x=183, y=44)
+            ).place(x=89, y=42)
         except tk.TclError:
             return
 
@@ -364,7 +377,6 @@ class FinderV8VisualApp(FinderV8Layout2App):
             "_planets_box",
             "_community_box",
             "_systems_panel",
-            "_system_filters_title_box",
             "_results_panel",
         )
         for name in card_names:
@@ -380,7 +392,21 @@ class FinderV8VisualApp(FinderV8Layout2App):
             except tk.TclError:
                 pass
 
+        # System Filters is one continuous card. Individual subframes must not
+        # draw their own borders or the outline looks segmented.
+        backplate = getattr(self, "_system_filters_backplate", None)
+        if backplate is not None:
+            try:
+                backplate.configure(
+                    bg=THEME["panel"],
+                    highlightthickness=1,
+                    highlightbackground=THEME["line"],
+                )
+            except tk.TclError:
+                pass
+
         for name in (
+            "_system_filters_title_box",
             "_faction_box",
             "_power_box",
             "_power_states_box",
