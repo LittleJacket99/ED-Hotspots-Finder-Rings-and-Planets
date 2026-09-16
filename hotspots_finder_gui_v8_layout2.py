@@ -108,7 +108,7 @@ class FinderV8Layout2App(BasePolishApp):
 
         self.load_all_deposits_button = tk.Button(
             self._community_box,
-            text="Load All Deposits",
+            text="Load All Reported Deposits",
             command=self.start_load_all_deposits,
             bg="#3a4148",
             fg=COLORS["text"],
