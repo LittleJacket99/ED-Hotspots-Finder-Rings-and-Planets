@@ -7,6 +7,7 @@ application-level settings before the consolidation pass.
 """
 
 import sys
+import time
 import tkinter as tk
 from pathlib import Path
 from tkinter import ttk
@@ -353,6 +354,13 @@ def main():
     from startup_splash import close_startup_splash, show_startup_splash
 
     splash = show_startup_splash()
+
+    # Temporary 1-second hold so we can verify the transparent splash visibly
+    # renders before the main interface is constructed. Once confirmed, this can
+    # be changed back to a true load-time-only splash.
+    if splash is not None:
+        time.sleep(1.0)
+
     app = None
     try:
         app = FinderV8FinalApp()
