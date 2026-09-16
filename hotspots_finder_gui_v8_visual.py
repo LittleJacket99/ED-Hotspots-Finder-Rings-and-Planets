@@ -33,9 +33,12 @@ THEMES = {
         "accent2": "#74db71",
         "hover": "#30363d",
         "selected": "#1d321e",
-        "scroll_track": "#111315",
-        "scroll_thumb": "#454c53",
-        "scroll_active": "#59636c",
+        "scroll_track": "#121822",
+        "scroll_thumb": "#8e939c",
+        "scroll_hover": "#a7adb7",
+        "scroll_active": "#c3c8cf",
+        "scroll_arrow": "#7f8792",
+        "scroll_arrow_hover": "#cfd4da",
     },
     "green_warm": {
         "bg": "#171d18",
@@ -51,9 +54,12 @@ THEMES = {
         "accent2": "#74db71",
         "hover": "#334536",
         "selected": "#203724",
-        "scroll_track": "#171d18",
-        "scroll_thumb": "#4c6250",
-        "scroll_active": "#658269",
+        "scroll_track": "#121822",
+        "scroll_thumb": "#8e939c",
+        "scroll_hover": "#a7adb7",
+        "scroll_active": "#c3c8cf",
+        "scroll_arrow": "#7f8792",
+        "scroll_arrow_hover": "#cfd4da",
     },
 }
 
@@ -169,6 +175,97 @@ class FinderV8VisualApp(FinderV8Layout2App):
             lightcolor=THEME["accent"],
             darkcolor=THEME["accent"],
         )
+
+        # Thin modern scrollbars inspired by the reference image. The polish
+        # layer removes arrows, so restore the standard clam elements here and
+        # then apply the final palette/hover states.
+        for scrollbar_style in ("Vertical.TScrollbar", "Horizontal.TScrollbar"):
+            style.configure(
+                scrollbar_style,
+                background=THEME["scroll_thumb"],
+                troughcolor=THEME["scroll_track"],
+                bordercolor=THEME["scroll_track"],
+                lightcolor=THEME["scroll_thumb"],
+                darkcolor=THEME["scroll_thumb"],
+                arrowcolor=THEME["scroll_arrow"],
+                relief="flat",
+                borderwidth=0,
+                width=9,
+                arrowsize=7,
+            )
+            style.map(
+                scrollbar_style,
+                background=[
+                    ("pressed", THEME["scroll_active"]),
+                    ("active", THEME["scroll_hover"]),
+                ],
+                arrowcolor=[
+                    ("pressed", THEME["scroll_arrow_hover"]),
+                    ("active", THEME["scroll_arrow_hover"]),
+                ],
+                lightcolor=[
+                    ("pressed", THEME["scroll_active"]),
+                    ("active", THEME["scroll_hover"]),
+                ],
+                darkcolor=[
+                    ("pressed", THEME["scroll_active"]),
+                    ("active", THEME["scroll_hover"]),
+                ],
+            )
+
+        try:
+            style.layout(
+                "Vertical.TScrollbar",
+                [
+                    (
+                        "Vertical.Scrollbar.trough",
+                        {
+                            "sticky": "ns",
+                            "children": [
+                                (
+                                    "Vertical.Scrollbar.uparrow",
+                                    {"side": "top", "sticky": "ew"},
+                                ),
+                                (
+                                    "Vertical.Scrollbar.downarrow",
+                                    {"side": "bottom", "sticky": "ew"},
+                                ),
+                                (
+                                    "Vertical.Scrollbar.thumb",
+                                    {"expand": "1", "sticky": "nswe"},
+                                ),
+                            ],
+                        },
+                    )
+                ],
+            )
+            style.layout(
+                "Horizontal.TScrollbar",
+                [
+                    (
+                        "Horizontal.Scrollbar.trough",
+                        {
+                            "sticky": "ew",
+                            "children": [
+                                (
+                                    "Horizontal.Scrollbar.leftarrow",
+                                    {"side": "left", "sticky": "ns"},
+                                ),
+                                (
+                                    "Horizontal.Scrollbar.rightarrow",
+                                    {"side": "right", "sticky": "ns"},
+                                ),
+                                (
+                                    "Horizontal.Scrollbar.thumb",
+                                    {"expand": "1", "sticky": "nswe"},
+                                ),
+                            ],
+                        },
+                    )
+                ],
+            )
+        except tk.TclError:
+            pass
 
         self.option_add("*TCombobox*Listbox.background", THEME["panel2"])
         self.option_add("*TCombobox*Listbox.foreground", THEME["text"])
@@ -301,12 +398,14 @@ class FinderV8VisualApp(FinderV8Layout2App):
             orient="horizontal",
             command=tree.xview,
             bg=THEME["scroll_thumb"],
-            activebackground=THEME["scroll_active"],
+            activebackground=THEME["scroll_hover"],
             troughcolor=THEME["scroll_track"],
             relief="flat",
+            activerelief="flat",
             bd=0,
+            elementborderwidth=0,
             highlightthickness=0,
-            width=12,
+            width=9,
         )
         tree.configure(yscrollcommand=ybar.set, xscrollcommand=xbar.set)
 
@@ -314,7 +413,7 @@ class FinderV8VisualApp(FinderV8Layout2App):
         ybar.grid(row=0, column=1, sticky="ns")
         xbar.grid(row=1, column=0, sticky="ew")
         frame.rowconfigure(0, weight=1)
-        frame.rowconfigure(1, weight=0, minsize=14)
+        frame.rowconfigure(1, weight=0, minsize=11)
         frame.columnconfigure(0, weight=1)
         return tree
 
@@ -518,12 +617,32 @@ class FinderV8VisualApp(FinderV8Layout2App):
                 elif isinstance(widget, tk.Scrollbar):
                     widget.configure(
                         bg=THEME["scroll_thumb"],
-                        activebackground=THEME["scroll_active"],
+                        activebackground=THEME["scroll_hover"],
                         troughcolor=THEME["scroll_track"],
                         relief="flat",
+                        activerelief="flat",
                         bd=0,
+                        elementborderwidth=0,
                         highlightthickness=0,
+                        width=9,
                     )
+                    if not getattr(widget, "_edhf_scroll_bound", False):
+                        widget._edhf_scroll_bound = True
+
+                        def _scroll_press(_event, w=widget):
+                            try:
+                                w.configure(activebackground=THEME["scroll_active"])
+                            except tk.TclError:
+                                pass
+
+                        def _scroll_release(_event, w=widget):
+                            try:
+                                w.configure(activebackground=THEME["scroll_hover"])
+                            except tk.TclError:
+                                pass
+
+                        widget.bind("<ButtonPress-1>", _scroll_press, add="+")
+                        widget.bind("<ButtonRelease-1>", _scroll_release, add="+")
 
                 elif isinstance(widget, tk.Label):
                     # Keep each label's semantic foreground color, but make
