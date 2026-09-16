@@ -188,7 +188,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
 
             tk.Label(
                 subtitle_row,
-                text="v8",
+                text="· v8",
                 bg=THEME["header"],
                 fg=THEME["muted"],
                 font=("Segoe UI", 8),
