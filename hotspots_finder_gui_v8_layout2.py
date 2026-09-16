@@ -2,9 +2,12 @@
 
 """v8 layout based on the user's latest wireframe."""
 
+import threading
 import tkinter as tk
+from tkinter import messagebox
 
-from hotspots_finder_gui_v8 import COLORS
+import community_deposits
+from hotspots_finder_gui_v8 import APP_TITLE, COLORS
 from hotspots_finder_gui_v8_polish import FinderV8PolishApp as BasePolishApp
 
 
@@ -34,6 +37,7 @@ class FinderV8Layout2App(BasePolishApp):
         return None
 
     def _build_ui(self):
+        self.database_load_running = False
         super()._build_ui()
 
         # The obsolete RESULTS options frame is never used in this layout.
@@ -44,6 +48,7 @@ class FinderV8Layout2App(BasePolishApp):
             getattr(self, attr).place(x=x, y=y, width=width, height=height)
 
         self._rename_filter_labels()
+        self._build_load_database_button()
         self._reflow_systems_contents()
         self._build_external_clear_buttons()
 
@@ -59,6 +64,79 @@ class FinderV8Layout2App(BasePolishApp):
             if isinstance(child, tk.Checkbutton):
                 if str(child.cget("text") or "") == "Show Community Deposits":
                     child.configure(text="Enable Community Deposits")
+
+    def _build_load_database_button(self):
+        """Add a direct database browser action below RhinoSpotter upload."""
+        self.load_database_button = tk.Button(
+            self._community_box,
+            text="Load Database Deposits",
+            command=self.start_database_load,
+            bg="#3a4148",
+            fg=COLORS["text"],
+            activebackground="#46515c",
+            activeforeground=COLORS["text"],
+            disabledforeground="#777777",
+            relief="flat",
+            padx=8,
+            pady=2,
+            font=("Segoe UI", 9),
+        )
+        self.load_database_button.place(x=7, y=94, width=170, height=30)
+
+    def start_database_load(self):
+        if self.database_load_running:
+            return
+
+        if self.running or self.rhino_upload_running:
+            messagebox.showwarning(
+                APP_TITLE,
+                "Wait for the current scan or RhinoSpotter upload to finish.",
+                parent=self,
+            )
+            return
+
+        self.database_load_running = True
+        self.load_database_button.configure(state="disabled")
+        self.rhino_upload_button.configure(state="disabled")
+        self.scan_button.configure(state="disabled")
+        self.progress.start(12)
+        self.status_var.set("Loading database deposits...")
+
+        threading.Thread(
+            target=self._database_load_worker,
+            daemon=True,
+        ).start()
+
+    def _database_load_worker(self):
+        try:
+            headers, rows = community_deposits.fetch_all_deposits()
+            self.after(0, self._database_load_complete, headers, rows)
+        except Exception as exc:
+            self.after(0, self._database_load_failed, str(exc))
+
+    def _database_load_complete(self, headers, rows):
+        try:
+            self._autosize_next_populate.add(self.community_tree)
+        except AttributeError:
+            pass
+
+        self._set_community_results(headers, rows)
+        self.notebook.select(self.community_tab)
+        self._finish_database_load(f"Loaded {len(rows)} database deposits")
+
+    def _database_load_failed(self, message):
+        if hasattr(self, "_append_log_line"):
+            self._append_log_line("ERROR", f"Database load failed: {message}")
+        self._finish_database_load("Database load error")
+        messagebox.showerror(APP_TITLE, message, parent=self)
+
+    def _finish_database_load(self, status):
+        self.database_load_running = False
+        self.progress.stop()
+        self.load_database_button.configure(state="normal")
+        self.rhino_upload_button.configure(state="normal")
+        self.scan_button.configure(state="normal")
+        self.status_var.set(status)
 
     def _collect_config(self):
         config = super()._collect_config()
