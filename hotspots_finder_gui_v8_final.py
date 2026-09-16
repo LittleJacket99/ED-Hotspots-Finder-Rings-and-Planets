@@ -7,6 +7,7 @@ card and using the HTML mockup as the visual source of truth.
 """
 
 import tkinter as tk
+from tkinter import ttk
 
 from hotspots_finder_gui_v8_visual import FinderV8VisualApp, THEME
 
@@ -20,11 +21,51 @@ class FinderV8FinalApp(FinderV8VisualApp):
     # Results is y=92, height=650 in the default layout -> bottom edge y=742.
     SYSTEM_FILTERS_HEIGHT = 167
 
-    # Compact the controls upward so the first Faction/Power row sits closer
-    # to the SYSTEM FILTERS heading while the lower Power States row still
-    # finishes just inside the shared bottom border.
     SYSTEM_FILTERS_TOP_ROW_Y = 610
     SYSTEM_FILTERS_BOTTOM_ROW_Y = 670
+
+    def _configure_styles(self):
+        """Use flatter ttk widgets so the result tabs follow the HTML mockup."""
+
+        style = ttk.Style(self)
+        try:
+            if "clam" in style.theme_names():
+                style.theme_use("clam")
+        except tk.TclError:
+            pass
+
+        super()._configure_styles()
+
+        style = ttk.Style(self)
+        style.configure(
+            "TNotebook",
+            background=THEME["panel"],
+            borderwidth=0,
+            tabmargins=(0, 0, 0, 0),
+        )
+        style.configure(
+            "TNotebook.Tab",
+            background=THEME["panel2"],
+            foreground=THEME["text"],
+            padding=(12, 7),
+            borderwidth=0,
+            relief="flat",
+            lightcolor=THEME["panel2"],
+            darkcolor=THEME["panel2"],
+            focuscolor=THEME["panel2"],
+        )
+        style.map(
+            "TNotebook.Tab",
+            background=[
+                ("selected", THEME["field"]),
+                ("active", THEME["hover"]),
+            ],
+            foreground=[
+                ("selected", THEME["accent"]),
+                ("active", THEME["text"]),
+            ],
+            relief=[("selected", "flat"), ("active", "flat")],
+        )
 
     def _position_system_filter_controls(self):
         """Apply the compact final geometry for the System Filters controls."""
@@ -167,34 +208,24 @@ class FinderV8FinalApp(FinderV8VisualApp):
                 pass
 
     def _ensure_checkbox_images(self):
-        """Build compact indicators with an integrated text gap like the mockup."""
+        """Build compact on/off squares: green when on, dark when off."""
 
         if hasattr(self, "_checkbox_unchecked_image"):
             return
 
-        # The visible checkbox is 9x9. The image is wider so the transparent
-        # right side becomes a fixed 5 px gap before the label text.
+        # 9x9 visible square plus 5 px transparent spacing before the text.
         width = 15
         height = 11
         unchecked = tk.PhotoImage(master=self, width=width, height=height)
         checked = tk.PhotoImage(master=self, width=width, height=height)
 
+        # OFF: dark square with a subtle light outline.
         unchecked.put(THEME["line2"], to=(0, 1, 9, 10))
         unchecked.put(THEME["field"], to=(1, 2, 8, 9))
 
+        # ON: solid green square, deliberately no check mark.
         checked.put(THEME["accent"], to=(0, 1, 9, 10))
         checked.put(THEME["accent"], to=(1, 2, 8, 9))
-
-        check_color = "#101410"
-        for x, y in (
-            (2, 5), (2, 6),
-            (3, 6), (3, 7),
-            (4, 6), (4, 7),
-            (5, 5), (5, 6),
-            (6, 4), (6, 5),
-            (7, 3), (7, 4),
-        ):
-            checked.put(check_color, (x, y))
 
         self._checkbox_unchecked_image = unchecked
         self._checkbox_checked_image = checked
@@ -219,7 +250,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
                 pass
 
     def _style_mockup_button(self, button):
-        """Flat bordered button that brightens on hover, matching the HTML mockup."""
+        """Flat button with the mockup's lighter border and hover fill."""
 
         text = str(button.cget("text") or "").strip().upper()
 
@@ -228,16 +259,19 @@ class FinderV8FinalApp(FinderV8VisualApp):
             hover_bg = THEME["accent2"]
             fg = "#121512"
             active_fg = "#121512"
+            border = THEME["accent"]
         elif text == "STOP":
             base_bg = "#3b2d2d"
             hover_bg = "#503737"
             fg = "#d9bcbc"
             active_fg = "#f0d6d6"
+            border = THEME["line2"]
         else:
             base_bg = THEME["panel2"]
             hover_bg = THEME["hover"]
             fg = THEME["text"]
             active_fg = THEME["text"]
+            border = THEME["line2"]
 
         try:
             button.configure(
@@ -245,10 +279,12 @@ class FinderV8FinalApp(FinderV8VisualApp):
                 fg=fg,
                 activebackground=hover_bg,
                 activeforeground=active_fg,
-                relief="solid",
-                overrelief="solid",
-                bd=1,
-                highlightthickness=0,
+                relief="flat",
+                overrelief="flat",
+                bd=0,
+                highlightthickness=1,
+                highlightbackground=border,
+                highlightcolor=border,
                 cursor="hand2",
             )
         except tk.TclError:
@@ -259,6 +295,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
         button._edhf_mockup_bound = True
         button._edhf_base_bg = base_bg
         button._edhf_hover_bg = hover_bg
+        button._edhf_border = border
 
         def _enter(_event, w=button):
             try:
@@ -277,7 +314,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
         button.bind("<Leave>", _leave, add="+")
 
     def _style_mockup_checkbutton(self, checkbutton):
-        """Compact flat checkbox with a real gap before text and no button effect."""
+        """Compact flat checkbox with green/dark state and no pressed text effect."""
 
         try:
             bg = str(checkbutton.cget("bg") or THEME["panel"])
@@ -307,9 +344,6 @@ class FinderV8FinalApp(FinderV8VisualApp):
             return
         checkbutton._edhf_mockup_bound = True
 
-        # Stop Tk's classic Checkbutton class from drawing the whole text area
-        # as a pressed button. Toggle through invoke() instead, preserving the
-        # variable and any command callback while keeping the label perfectly flat.
         def _click(_event, w=checkbutton):
             try:
                 if str(w.cget("state")) != "disabled":
