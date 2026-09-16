@@ -122,9 +122,11 @@ class FinderV8VisualApp(FinderV8Layout2App):
             foreground=THEME["text"],
             fieldbackground=THEME["field"],
             rowheight=25,
-            bordercolor=THEME["line"],
-            lightcolor=THEME["line"],
-            darkcolor=THEME["line"],
+            bordercolor=THEME["line2"],
+            lightcolor=THEME["line2"],
+            darkcolor=THEME["line2"],
+            relief="flat",
+            borderwidth=1,
         )
         style.map(
             "Treeview",
