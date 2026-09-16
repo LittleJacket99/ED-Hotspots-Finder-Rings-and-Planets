@@ -3,7 +3,7 @@
 """Final visual patch for the v8 desktop interface.
 
 Keeps the tested visual layer intact while fixing the unified System Filters
-card and using a clean text-only header.
+card and using the HTML mockup as the visual source of truth.
 """
 
 import tkinter as tk
@@ -120,7 +120,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
         self._normalize_system_filters_colors()
 
     def _apply_visual_theme(self):
-        """Run the approved theme and then apply the final mockup-like controls."""
+        """Run the approved theme and then apply HTML-mockup-like controls."""
 
         super()._apply_visual_theme()
         self._normalize_system_filters_colors()
@@ -167,31 +167,32 @@ class FinderV8FinalApp(FinderV8VisualApp):
                 pass
 
     def _ensure_checkbox_images(self):
-        """Build small custom checkboxes matching the HTML mockup proportions."""
+        """Build compact indicators with an integrated text gap like the mockup."""
 
         if hasattr(self, "_checkbox_unchecked_image"):
             return
 
-        size = 11
-        unchecked = tk.PhotoImage(master=self, width=size, height=size)
-        checked = tk.PhotoImage(master=self, width=size, height=size)
+        # The visible checkbox is 9x9. The image is wider so the transparent
+        # right side becomes a fixed 5 px gap before the label text.
+        width = 15
+        height = 11
+        unchecked = tk.PhotoImage(master=self, width=width, height=height)
+        checked = tk.PhotoImage(master=self, width=width, height=height)
 
-        # Transparent 11 px canvas, 9 px visible square.
-        unchecked.put(THEME["line2"], to=(1, 1, 10, 10))
-        unchecked.put(THEME["field"], to=(2, 2, 9, 9))
+        unchecked.put(THEME["line2"], to=(0, 1, 9, 10))
+        unchecked.put(THEME["field"], to=(1, 2, 8, 9))
 
-        checked.put(THEME["accent"], to=(1, 1, 10, 10))
-        checked.put(THEME["accent"], to=(2, 2, 9, 9))
+        checked.put(THEME["accent"], to=(0, 1, 9, 10))
+        checked.put(THEME["accent"], to=(1, 2, 8, 9))
 
-        # Compact dark check mark, readable at native size without antialiasing.
         check_color = "#101410"
         for x, y in (
-            (3, 5), (3, 6),
+            (2, 5), (2, 6),
+            (3, 6), (3, 7),
             (4, 6), (4, 7),
-            (5, 6), (5, 7),
-            (6, 5), (6, 6),
-            (7, 4), (7, 5),
-            (8, 3), (8, 4),
+            (5, 5), (5, 6),
+            (6, 4), (6, 5),
+            (7, 3), (7, 4),
         ):
             checked.put(check_color, (x, y))
 
@@ -199,7 +200,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
         self._checkbox_checked_image = checked
 
     def _style_mockup_controls(self, parent):
-        """Give classic buttons/checks the mockup's raised + hover treatment."""
+        """Style classic buttons/checks to follow ui_mockup_v8.html."""
 
         self._ensure_checkbox_images()
 
@@ -218,7 +219,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
                 pass
 
     def _style_mockup_button(self, button):
-        """Raised dark button with brighter hover and pressed depth."""
+        """Flat bordered button that brightens on hover, matching the HTML mockup."""
 
         text = str(button.cget("text") or "").strip().upper()
 
@@ -229,7 +230,7 @@ class FinderV8FinalApp(FinderV8VisualApp):
             active_fg = "#121512"
         elif text == "STOP":
             base_bg = "#3b2d2d"
-            hover_bg = "#513838"
+            hover_bg = "#503737"
             fg = "#d9bcbc"
             active_fg = "#f0d6d6"
         else:
@@ -244,12 +245,10 @@ class FinderV8FinalApp(FinderV8VisualApp):
                 fg=fg,
                 activebackground=hover_bg,
                 activeforeground=active_fg,
-                relief="raised",
-                overrelief="raised",
+                relief="solid",
+                overrelief="solid",
                 bd=1,
-                highlightthickness=1,
-                highlightbackground=THEME["line"],
-                highlightcolor=THEME["line2"],
+                highlightthickness=0,
                 cursor="hand2",
             )
         except tk.TclError:
@@ -264,45 +263,21 @@ class FinderV8FinalApp(FinderV8VisualApp):
         def _enter(_event, w=button):
             try:
                 if str(w.cget("state")) != "disabled":
-                    w.configure(
-                        bg=w._edhf_hover_bg,
-                        highlightbackground=THEME["line2"],
-                        relief="raised",
-                    )
+                    w.configure(bg=w._edhf_hover_bg)
             except tk.TclError:
                 pass
 
         def _leave(_event, w=button):
             try:
-                w.configure(
-                    bg=w._edhf_base_bg,
-                    highlightbackground=THEME["line"],
-                    relief="raised",
-                )
-            except tk.TclError:
-                pass
-
-        def _press(_event, w=button):
-            try:
-                if str(w.cget("state")) != "disabled":
-                    w.configure(relief="sunken", bg=w._edhf_hover_bg)
-            except tk.TclError:
-                pass
-
-        def _release(_event, w=button):
-            try:
-                if str(w.cget("state")) != "disabled":
-                    w.configure(relief="raised", bg=w._edhf_hover_bg)
+                w.configure(bg=w._edhf_base_bg)
             except tk.TclError:
                 pass
 
         button.bind("<Enter>", _enter, add="+")
         button.bind("<Leave>", _leave, add="+")
-        button.bind("<ButtonPress-1>", _press, add="+")
-        button.bind("<ButtonRelease-1>", _release, add="+")
 
     def _style_mockup_checkbutton(self, checkbutton):
-        """Use a slightly smaller, cleaner green checkbox like the HTML mockup."""
+        """Compact flat checkbox with a real gap before text and no button effect."""
 
         try:
             bg = str(checkbutton.cget("bg") or THEME["panel"])
@@ -323,31 +298,27 @@ class FinderV8FinalApp(FinderV8VisualApp):
                 highlightthickness=0,
                 padx=0,
                 pady=0,
-                cursor="hand2",
+                cursor="arrow",
             )
         except tk.TclError:
             return
 
-        if getattr(checkbutton, "_edhf_hover_bound", False):
+        if getattr(checkbutton, "_edhf_mockup_bound", False):
             return
-        checkbutton._edhf_hover_bound = True
-        original_fg = THEME["text"]
+        checkbutton._edhf_mockup_bound = True
 
-        def _enter(_event, w=checkbutton):
+        # Stop Tk's classic Checkbutton class from drawing the whole text area
+        # as a pressed button. Toggle through invoke() instead, preserving the
+        # variable and any command callback while keeping the label perfectly flat.
+        def _click(_event, w=checkbutton):
             try:
                 if str(w.cget("state")) != "disabled":
-                    w.configure(fg="#ffffff")
+                    w.invoke()
             except tk.TclError:
                 pass
+            return "break"
 
-        def _leave(_event, w=checkbutton):
-            try:
-                w.configure(fg=original_fg)
-            except tk.TclError:
-                pass
-
-        checkbutton.bind("<Enter>", _enter, add="+")
-        checkbutton.bind("<Leave>", _leave, add="+")
+        checkbutton.bind("<Button-1>", _click)
 
     def _apply_brand_header(self):
         """Use a clean text-only header; the window icon can stay separate later."""
