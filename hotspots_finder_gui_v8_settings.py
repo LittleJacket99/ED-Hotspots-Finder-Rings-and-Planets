@@ -401,7 +401,7 @@ class FinderV8SettingsMixin:
         path_entry.bind("<FocusOut>", refresh_rhino_status, add="+")
         refresh_rhino_status()
 
-        application_panel = panel(430, 55, "APPLICATION")
+        application_panel = panel(430, 60, "APPLICATION")
         update_check = tk.Checkbutton(
             application_panel,
             text="Check for updates on startup (available after the v8 release)",
@@ -412,7 +412,7 @@ class FinderV8SettingsMixin:
             anchor="w",
             font=("Segoe UI", 9),
         )
-        update_check.place(x=12, y=28, width=480, height=20)
+        update_check.place(x=12, y=34, width=480, height=20)
 
         def reset_dialog_defaults():
             hotspot_var.set(True)
