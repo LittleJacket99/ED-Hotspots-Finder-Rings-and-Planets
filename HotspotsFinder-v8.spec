@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 a = Analysis(
-    ['hotspots_finder_gui_v8.py'],
+    ['hotspots_finder_gui_v8_layout2.py'],
     pathex=[],
     binaries=[],
     datas=[],
