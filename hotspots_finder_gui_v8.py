@@ -426,8 +426,8 @@ class FinderV8App(tk.Tk):
         tk.Label(
             parent,
             text=(
-                "If Faction or Power is set, Spansh will replace this list "
-                "for the current scan."
+                "Optional manual input. System Filters narrow this list; "
+                "scan results stay in Results."
             ),
             bg=COLORS["panel"],
             fg=COLORS["muted"],
@@ -618,13 +618,6 @@ class FinderV8App(tk.Tk):
             self.after(0, self._scan_failed, str(exc))
 
     def _scan_complete(self, result):
-        systems = result.get("systems", [])
-        if self.faction_var.get().strip() or self.power_var.get().strip():
-            self.systems_text.delete("1.0", "end")
-            if systems:
-                self.systems_text.insert("1.0", "\n".join(systems))
-            self._refresh_system_count()
-
         self._populate_tree(
             self.hotspot_tree,
             result.get("hotspot_headers", legacy_engine.HOTSPOT_HEADERS),
