@@ -6,7 +6,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('app.ico', '.'),
-        ('ED_Hotspots_Finder.png', '.'),
+        ('logo.png', '.'),
     ],
     hiddenimports=[],
     hookspath=[],
