@@ -104,6 +104,14 @@ class FinderV8FinalApp(_BaseFinalApp):
         finally:
             tk.Tk.__init__ = original_tk_init
 
+        # The splash is a separate temporary Tk root and is created first, so
+        # tkinter's implicit default root still points at the splash while this
+        # window is constructed. Make the real application root the default now;
+        # otherwise destroying the splash leaves font helpers such as nametofont
+        # without a root later when scan results are rendered.
+        if getattr(tk, "_support_default_root", True):
+            tk._default_root = self
+
         self._apply_app_icon(self)
 
         # Old remembered settings may still contain a Power that is no longer
@@ -420,6 +428,21 @@ class FinderV8FinalApp(_BaseFinalApp):
             combo.configure(values=("", *ALLOWED_POWERS))
         except tk.TclError:
             return
+
+    # ------------------------------------------------------------------
+    # Scan completion safety
+    # ------------------------------------------------------------------
+    def _scan_complete(self, result):
+        """Never leave the UI stuck in running state if result rendering fails."""
+
+        try:
+            return super()._scan_complete(result)
+        except Exception:
+            try:
+                self._finish_scan("Error")
+            except Exception:
+                pass
+            raise
 
 
 def main():
