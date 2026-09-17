@@ -6,6 +6,7 @@ Keeps the approved menu/filter visual layer intact while adding the last
 application-level settings before the consolidation pass.
 """
 
+import ctypes
 import sys
 import time
 import tkinter as tk
@@ -38,6 +39,34 @@ ALLOWED_POWERS = (
     "Yuri Grom",
     "Zemina Torval",
 )
+
+
+def _enable_windows_dpi_awareness():
+    """Render Tk at the monitor's native DPI instead of Windows bitmap scaling."""
+
+    if sys.platform != "win32":
+        return
+
+    # Prefer Per-Monitor V2 on Windows 10/11. It gives Tk/ttk crisp text and
+    # controls on scaled displays and when the window moves between monitors.
+    try:
+        if ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4)):
+            return
+    except (AttributeError, OSError, ValueError):
+        pass
+
+    # Windows 8.1 fallback.
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        return
+    except (AttributeError, OSError):
+        pass
+
+    # Vista/7 fallback.
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+    except (AttributeError, OSError):
+        pass
 
 
 class FinderV8FinalApp(_BaseFinalApp):
@@ -384,6 +413,9 @@ class FinderV8FinalApp(_BaseFinalApp):
 
 
 def main():
+    # Must run before the splash creates the first Tk window.
+    _enable_windows_dpi_awareness()
+
     from startup_splash import close_startup_splash, show_startup_splash
 
     splash = show_startup_splash()
