@@ -49,16 +49,20 @@ UI_SCALE_LABELS = {
 UI_SCALE_NAMES = {value: label for label, value in UI_SCALE_LABELS.items()}
 DEFAULT_UI_SCALE = 1.15
 
+PRIORITY_POWERS = (
+    "Edmund Mahon",
+    "Nakato Kaine",
+)
 ALLOWED_POWERS = (
+    "Edmund Mahon",
+    "Nakato Kaine",
     "Aisling Duval",
     "Archon Delaine",
     "Arissa Lavigny-Duval",
     "Denton Patreus",
-    "Edmund Mahon",
     "Felicia Winters",
     "Jerome Archer",
     "Li Yong-Rui",
-    "Nakato Kaine",
     "Pranav Antal",
     "Yuri Grom",
     "Zemina Torval",
@@ -1019,6 +1023,65 @@ class FinderV8FinalApp(_BaseFinalApp):
             except tk.TclError:
                 pass
 
+    def _select_power_from_menu(self, value):
+        self.power_var.set(value)
+        combo = getattr(self, "power_combo", None)
+        if combo is not None:
+            try:
+                combo.event_generate("<<ComboboxSelected>>")
+            except tk.TclError:
+                pass
+
+    def _show_power_menu(self, _event=None):
+        combo = getattr(self, "power_combo", None)
+        if combo is None:
+            return "break"
+        try:
+            if combo.instate(("disabled",)):
+                return "break"
+        except tk.TclError:
+            return "break"
+
+        other_powers = [
+            power for power in ALLOWED_POWERS if power not in PRIORITY_POWERS
+        ]
+        items = [
+            (
+                power,
+                lambda value=power: self._select_power_from_menu(value),
+                True,
+            )
+            for power in PRIORITY_POWERS
+        ]
+        items.append(None)
+        items.extend(
+            (
+                power,
+                lambda value=power: self._select_power_from_menu(value),
+                True,
+            )
+            for power in other_powers
+        )
+
+        if str(self.power_var.get() or "").strip():
+            items.extend(
+                [
+                    None,
+                    ("Clear selection", lambda: self._select_power_from_menu(""), True),
+                ]
+            )
+
+        try:
+            self._show_custom_popup(
+                items,
+                combo.winfo_rootx(),
+                combo.winfo_rooty() + combo.winfo_height(),
+                min_width=combo.winfo_width(),
+            )
+        except tk.TclError:
+            pass
+        return "break"
+
     def _configure_power_combobox_behavior(self):
         super()._configure_power_combobox_behavior()
         combo = getattr(self, "power_combo", None)
@@ -1026,6 +1089,11 @@ class FinderV8FinalApp(_BaseFinalApp):
             return
         try:
             combo.configure(values=("", *ALLOWED_POWERS))
+            combo.bind("<Button-1>", self._show_power_menu, add="+")
+            combo.bind("<Down>", self._show_power_menu, add="+")
+            combo.bind("<Alt-Down>", self._show_power_menu, add="+")
+            combo.bind("<Return>", self._show_power_menu, add="+")
+            combo.bind("<space>", self._show_power_menu, add="+")
         except tk.TclError:
             pass
 
