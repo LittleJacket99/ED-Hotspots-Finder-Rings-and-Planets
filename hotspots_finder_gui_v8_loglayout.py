@@ -2,6 +2,8 @@
 
 """v8 feature test: fixed compact log overlay aligned right in Results."""
 
+import ctypes
+import sys
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog
@@ -16,6 +18,11 @@ LOG_PANEL_HEIGHT = 400
 LOG_PANEL_WIDTH_RATIO = 0.50
 LOG_PANEL_MIN_WIDTH = 360
 LOG_PANEL_GAP = 6
+
+# DwmSetWindowAttribute: disable the native Windows transition/zoom animation
+# for a single top-level window. This is intentionally scoped to Settings.
+DWMWA_TRANSITIONS_FORCEDISABLED = 3
+GA_ROOT = 2
 
 
 class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
@@ -52,8 +59,42 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
                 add="+",
             )
 
+    @staticmethod
+    def _disable_native_window_transitions(window):
+        """Disable Windows/DWM open/close transitions for one Tk Toplevel."""
+
+        if sys.platform != "win32":
+            return
+
+        try:
+            # Realise the native HWND while the Tk window is still withdrawn.
+            window.update_idletasks()
+            child_hwnd = int(window.winfo_id())
+            if not child_hwnd:
+                return
+
+            user32 = ctypes.windll.user32
+            user32.GetAncestor.argtypes = (ctypes.c_void_p, ctypes.c_uint)
+            user32.GetAncestor.restype = ctypes.c_void_p
+            root_hwnd = user32.GetAncestor(
+                ctypes.c_void_p(child_hwnd),
+                GA_ROOT,
+            )
+            hwnd = int(root_hwnd or child_hwnd)
+
+            disabled = ctypes.c_int(1)
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                ctypes.c_void_p(hwnd),
+                ctypes.c_uint(DWMWA_TRANSITIONS_FORCEDISABLED),
+                ctypes.byref(disabled),
+                ctypes.sizeof(disabled),
+            )
+        except (AttributeError, OSError, TypeError, ValueError, tk.TclError):
+            # The fallback remains the hidden/alpha-zero construction path.
+            pass
+
     def _open_settings_dialog(self):
-        """Build Settings invisibly, then reveal the fully styled window once."""
+        """Build Settings invisibly, then show the completed window at once."""
 
         existing = getattr(self, "_settings_window", None)
         if existing is not None:
@@ -68,10 +109,11 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
         def hidden_toplevel(*args, **kwargs):
             window = original_toplevel(*args, **kwargs)
             try:
-                # Keep the native window transparent for its entire creation
-                # and initial Windows/DWM mapping animation.
+                # A new Tk Toplevel normally becomes visible on the next idle
+                # pass. Keep it withdrawn and transparent from the first moment.
                 window.withdraw()
                 window.attributes("-alpha", 0.0)
+                self._disable_native_window_transitions(window)
             except tk.TclError:
                 pass
             return window
@@ -101,8 +143,7 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
                 if not window.winfo_exists():
                     return
 
-                # Force deferred theme/mockup work to settle while the window
-                # is still fully transparent.
+                # Finish every deferred style/layout pass while invisible.
                 window.update_idletasks()
                 for method_name in (
                     "_style_mockup_controls",
@@ -116,31 +157,22 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
                             pass
                 window.update_idletasks()
 
-                # Important on Windows: mapping a withdrawn Toplevel can have a
-                # short DWM zoom/fade animation. Map it while alpha is still 0,
-                # let that native animation finish invisibly, and only then make
-                # the already-painted window opaque in one step.
-                window.attributes("-alpha", 0.0)
+                # Re-apply the DWM flag after final geometry creation in case
+                # Tk recreated the native wrapper HWND while it was withdrawn.
+                self._disable_native_window_transitions(window)
+
+                # With native transitions disabled, map the final opaque window
+                # once. No zoom/fade or intermediate geometry should be visible.
+                window.attributes("-alpha", 1.0)
                 window.deiconify()
-                window.update_idletasks()
-
-                def finish_reveal():
-                    try:
-                        if not window.winfo_exists():
-                            return
-                        window.attributes("-alpha", 1.0)
-                        window.lift()
-                        window.focus_force()
-                    except tk.TclError:
-                        pass
-
-                self.after(240, finish_reveal)
+                window.lift()
+                window.focus_force()
             except tk.TclError:
                 pass
 
-        # Final-layer styling is queued with after_idle. Give those jobs one
-        # event-loop turn, then start the invisible native mapping phase.
-        self.after_idle(lambda: self.after(90, reveal_settings))
+        # Final-layer styling is queued with after_idle. One short turn is enough
+        # now that the native DWM transition itself is disabled.
+        self.after_idle(lambda: self.after(60, reveal_settings))
         return result
 
     def _enhance_rhino_settings_window(self, window):
@@ -243,7 +275,11 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
 
         def refresh_rhino_status(_event=None):
             text = str(path_entry.get() or "").strip()
-            source = Path(text).expanduser() if text else app_settings.default_rhinospotter_data_path()
+            source = (
+                Path(text).expanduser()
+                if text
+                else app_settings.default_rhinospotter_data_path()
+            )
             try:
                 info = rhinospotter_sync_service.inspect_source(source)
             except Exception:
@@ -287,7 +323,10 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
 
         def use_auto_rhino():
             path_entry.delete(0, "end")
-            path_entry.insert(0, str(app_settings.default_rhinospotter_data_path()))
+            path_entry.insert(
+                0,
+                str(app_settings.default_rhinospotter_data_path()),
+            )
             refresh_rhino_status()
 
         try:
@@ -387,8 +426,6 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
 
             available_height = max(1, bottom_y - results_y - LOG_PANEL_GAP)
             panel_height = min(LOG_PANEL_HEIGHT, available_height)
-
-            # Keep the overlay flush with the right edge of Results.
             panel_x = results_x + results_width - panel_width
             panel_y = bottom_y - panel_height - LOG_PANEL_GAP
 
