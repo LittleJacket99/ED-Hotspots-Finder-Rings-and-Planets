@@ -22,26 +22,32 @@ This lets local discoveries made by individual commanders contribute to a larger
 
 ## Current synchronization workflow
 
-In the current ED Hotspots Finder release, the RhinoSpotter synchronization workflow reads compatible local JSON card records from the configured cards directory.
-
-The default path is:
+Current RhinoSpotter releases store bookmarks in a SQLite database:
 
 ```text
-%LOCALAPPDATA%\RhinoSpotter\cards
+%LOCALAPPDATA%\RhinoSpotter\db\rhinospotter.db
 ```
 
-A custom cards directory can be selected in ED Hotspots Finder Settings.
+ED Hotspots Finder automatically detects this database from the standard RhinoSpotter data folder:
 
-When synchronization is started, compatible records are validated and prepared before being sent to the Community Deposits service.
+```text
+%LOCALAPPDATA%\RhinoSpotter
+```
 
-The synchronization result reports how many records were added, matched with an existing deposit, updated or rejected because of an error.
+The database is opened read-only. Older RhinoSpotter installations that still use JSON cards are also supported as a fallback.
+
+A custom RhinoSpotter data folder can be selected in ED Hotspots Finder Settings.
+
+When synchronization is started, compatible bookmarks are validated and prepared before being sent to the Community Deposits service.
+
+The synchronization result reports the detected source, bookmark count, valid records, new deposits, matched reports, updated reports and errors.
 
 ## Using RhinoSpotter with ED Hotspots Finder
 
 1. Install and use RhinoSpotter normally with EDMC.
 2. Record planetary deposits while playing.
 3. Open ED Hotspots Finder.
-4. Configure the RhinoSpotter cards path in Settings if the default path is not being used.
+4. Configure the RhinoSpotter data folder in Settings if the standard location is not being used.
 5. Run the RhinoSpotter synchronization workflow.
 6. Use Community Deposits searches to retrieve shared reports alongside other system-search results.
 
