@@ -3,7 +3,6 @@
 """v8 feature test: fixed compact log overlay aligned right in Results."""
 
 import tkinter as tk
-from tkinter import ttk
 
 from hotspots_finder_gui_v8_expandresults import FinderV8ExpandResultsApp
 from hotspots_finder_gui_v8_settings import FinderV8SettingsMixin
@@ -21,10 +20,6 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
         self._load_v8_settings_state()
         super().__init__()
 
-        # The inherited log viewer still creates classic Tk scrollbars. Replace
-        # them with the same themed ttk scrollbars used by Results/System Input.
-        self.after_idle(self._replace_log_scrollbars)
-
         # Apply startup defaults only after all Tk variables in the complete
         # active GUI chain have been created.
         self._apply_startup_settings()
@@ -39,14 +34,12 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
 
         self.bind("<Configure>", self._schedule_log_reposition, add="+")
 
-        # In the active layout the System Filters controls are separate frames
-        # placed over the root stage. Reuse the title frame as one shared panel
-        # behind them so the whole filter area reads visually as a single box.
-        self.after_idle(self._refresh_unified_system_filters_panel)
+        # The final UI provides the shared System Filters panel. Keep this
+        # layer decoupled so intermediate classes do not need a legacy title frame.
+        refresh_filters = getattr(self, "_refresh_unified_system_filters_panel", None)
+        if callable(refresh_filters):
+            self.after_idle(refresh_filters)
 
-        # Layout2 restores its original pixel geometry after Restore Panels.
-        # Re-apply the shared System Filters background after the button command
-        # has completed.
         expand_button = getattr(self, "expand_results_button", None)
         if expand_button is not None:
             expand_button.bind(
@@ -55,106 +48,10 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
                 add="+",
             )
 
-    def _replace_log_scrollbars(self):
-        """Use the app's thin themed scrollbars inside the log viewer."""
-
-        text = getattr(self, "_log_text", None)
-        if text is None:
-            return
-
-        frame = text.master
-        vertical = getattr(self, "_log_vertical_scrollbar", None)
-        horizontal = getattr(self, "_log_horizontal_scrollbar", None)
-        if vertical is not None and horizontal is not None:
-            try:
-                if vertical.winfo_exists() and horizontal.winfo_exists():
-                    return
-            except tk.TclError:
-                pass
-
-        for child in list(frame.winfo_children()):
-            if not isinstance(child, tk.Scrollbar):
-                continue
-
-            try:
-                orient = str(child.cget("orient"))
-            except tk.TclError:
-                continue
-
-            try:
-                child.grid_forget()
-                child.destroy()
-            except tk.TclError:
-                pass
-
-            if orient == "vertical":
-                vertical = ttk.Scrollbar(
-                    frame,
-                    orient="vertical",
-                    command=text.yview,
-                    style="Vertical.TScrollbar",
-                )
-                vertical.grid(row=0, column=1, sticky="ns")
-                text.configure(yscrollcommand=vertical.set)
-                self._log_vertical_scrollbar = vertical
-
-            elif orient == "horizontal":
-                horizontal = ttk.Scrollbar(
-                    frame,
-                    orient="horizontal",
-                    command=text.xview,
-                    style="Horizontal.TScrollbar",
-                )
-                horizontal.grid(row=1, column=0, sticky="ew")
-                text.configure(xscrollcommand=horizontal.set)
-                frame.rowconfigure(1, weight=0, minsize=9)
-                self._log_horizontal_scrollbar = horizontal
-
     def _schedule_unified_system_filters_refresh(self, _event=None):
-        self.after_idle(self._refresh_unified_system_filters_panel)
-
-    def _refresh_unified_system_filters_panel(self):
-        if getattr(self, "_results_expanded", False):
-            return
-
-        title_box = getattr(self, "_system_filters_title_box", None)
-        if title_box is None:
-            return
-
-        boxes = [
-            getattr(self, name, None)
-            for name in (
-                "_system_filters_title_box",
-                "_faction_box",
-                "_power_box",
-                "_power_states_box",
-                "_reference_box",
-                "_distance_box",
-            )
-        ]
-        boxes = [box for box in boxes if box is not None]
-        if not boxes:
-            return
-
-        try:
-            left = min(box.winfo_x() for box in boxes)
-            top = min(box.winfo_y() for box in boxes)
-            right = max(box.winfo_x() + box.winfo_width() for box in boxes)
-            bottom = max(box.winfo_y() + box.winfo_height() for box in boxes)
-
-            title_box.place(
-                x=left,
-                y=top,
-                width=max(1, right - left),
-                height=max(1, bottom - top),
-            )
-            title_box.lower()
-
-            # Keep the actual controls above the shared background panel.
-            for box in boxes[1:]:
-                box.lift()
-        except tk.TclError:
-            return
+        refresh_filters = getattr(self, "_refresh_unified_system_filters_panel", None)
+        if callable(refresh_filters):
+            self.after_idle(refresh_filters)
 
     def _scan_complete(self, result):
         super()._scan_complete(result)
