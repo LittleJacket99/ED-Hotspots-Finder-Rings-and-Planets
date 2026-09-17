@@ -902,69 +902,45 @@ class FinderV8FinalApp(_BaseFinalApp):
         window.bind("<Destroy>", restore_if_cancelled, add="+")
         self.after_idle(lambda: self._style_classic_widget_tree(window))
 
-    @staticmethod
-    def _forget_widget_geometry(widget):
-        try:
-            manager = widget.winfo_manager()
-            if manager == "pack":
-                widget.pack_forget()
-            elif manager == "grid":
-                widget.grid_forget()
-            elif manager == "place":
-                widget.place_forget()
-        except tk.TclError:
-            pass
-
     def _reflow_systems_contents(self):
         panel = getattr(self, "_systems_panel", None)
         text = getattr(self, "systems_text", None)
         if panel is None or text is None:
             return
 
-        text_frame = text.master
         theme = visual_theme.THEME
-
-        for child in panel.winfo_children():
-            if isinstance(child, tk.Frame):
-                if child is text_frame:
-                    self._forget_widget_geometry(child)
-                    try:
-                        child.configure(bg=theme["panel"])
-                        child.place(x=9, y=52, width=207, height=300)
-                    except tk.TclError:
-                        pass
-                else:
-                    self._forget_widget_geometry(child)
-                continue
-
-            if isinstance(child, tk.Button):
-                self._forget_widget_geometry(child)
-                continue
-
-            if isinstance(child, tk.Label):
-                label_text = str(child.cget("text") or "")
-                if label_text.startswith("Optional manual input") or label_text.startswith(
-                    "Leave empty"
-                ):
-                    try:
-                        child.configure(
-                            text="Leave empty to find matches using System Filters.",
-                            bg=theme["panel"],
-                            fg=theme["muted"],
-                            wraplength=ui_scale_runtime.px(205),
-                            justify="left",
-                            anchor="nw",
-                            font=("Segoe UI", 8),
-                        )
-                        child.place_configure(x=9, y=361, width=207, height=38)
-                    except tk.TclError:
-                        pass
+        text_frame = text.master
+        helper_label = next(
+            (
+                child
+                for child in panel.winfo_children()
+                if isinstance(child, tk.Label)
+                and str(child.cget("text") or "").startswith("Leave empty")
+            ),
+            None,
+        )
 
         try:
+            text_frame.configure(bg=theme["panel"])
+            text_frame.place_configure(x=9, y=52, width=207, height=300)
             self._style_mockup_text(text)
             self._style_classic_widget_tree(text_frame)
         except (AttributeError, tk.TclError):
             pass
+
+        if helper_label is not None:
+            try:
+                helper_label.configure(
+                    bg=theme["panel"],
+                    fg=theme["muted"],
+                    wraplength=ui_scale_runtime.px(205),
+                    justify="left",
+                    anchor="nw",
+                    font=("Segoe UI", 8),
+                )
+                helper_label.place_configure(x=9, y=361, width=207, height=38)
+            except tk.TclError:
+                pass
 
     def _configure_power_combobox_behavior(self):
         super()._configure_power_combobox_behavior()
