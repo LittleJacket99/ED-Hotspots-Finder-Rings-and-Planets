@@ -2,6 +2,7 @@
 
 """Small transparent startup splash used while the v8 interface is built."""
 
+import ctypes
 import sys
 import tkinter as tk
 from pathlib import Path
@@ -13,8 +14,12 @@ SPLASH_IMAGE = "ED_Hotspots_Finder.png"
 TRANSPARENT_KEY = "#ff00ff"
 MAX_SPLASH_SIZE = 460
 ALPHA_CUTOFF = 176
-OFFSCREEN_POSITION = "-32000-32000"
 OFFSCREEN_PAINT_PASSES = 4
+
+# Windows DWM attributes used only during the first main-window reveal.
+DWMWA_TRANSITIONS_FORCEDISABLED = 3
+DWMWA_CLOAK = 13
+GA_ROOT = 2
 
 
 def resource_path(filename):
@@ -63,15 +68,73 @@ def _release_splash_as_default_root(splash):
         pass
 
 
-def _install_staged_main_deiconify():
-    """Paint the next Tk root offscreen before revealing it.
+def _top_level_hwnd(window):
+    """Return the native top-level HWND for a Tk root, when available."""
 
-    Windows can briefly show a newly mapped window's non-client border or paint
-    individual controls over several compositor frames. The splash has already
-    been mapped by the time this hook is installed, so the *next* ``Tk`` root to
-    be deiconified is the real application window. Map that window far offscreen,
-    let Tk and DWM complete a few paint passes, restore its requested geometry,
-    then immediately restore the original ``Tk.deiconify`` implementation.
+    if sys.platform != "win32":
+        return None
+
+    try:
+        window.update_idletasks()
+        hwnd = int(window.winfo_id())
+        user32 = ctypes.windll.user32
+        get_ancestor = user32.GetAncestor
+        get_ancestor.argtypes = [ctypes.c_void_p, ctypes.c_uint]
+        get_ancestor.restype = ctypes.c_void_p
+        root_hwnd = get_ancestor(ctypes.c_void_p(hwnd), GA_ROOT)
+        return int(root_hwnd) if root_hwnd else hwnd
+    except (AttributeError, OSError, TypeError, ValueError, tk.TclError):
+        return None
+
+
+def _set_dwm_bool_attribute(hwnd, attribute, enabled):
+    """Set one boolean DWM attribute and report whether Windows accepted it."""
+
+    if sys.platform != "win32" or not hwnd:
+        return False
+
+    try:
+        value = ctypes.c_int(1 if enabled else 0)
+        dwm_set = ctypes.windll.dwmapi.DwmSetWindowAttribute
+        dwm_set.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_uint,
+            ctypes.c_void_p,
+            ctypes.c_uint,
+        ]
+        dwm_set.restype = ctypes.c_long
+        result = dwm_set(
+            ctypes.c_void_p(hwnd),
+            attribute,
+            ctypes.byref(value),
+            ctypes.sizeof(value),
+        )
+        return result == 0
+    except (AttributeError, OSError, TypeError, ValueError):
+        return False
+
+
+def _flush_dwm():
+    if sys.platform != "win32":
+        return
+    try:
+        flush = ctypes.windll.dwmapi.DwmFlush
+        flush.argtypes = []
+        flush.restype = ctypes.c_long
+        flush()
+    except (AttributeError, OSError):
+        pass
+
+
+def _install_staged_main_deiconify():
+    """Complete the next Tk root's first paint while DWM keeps it hidden.
+
+    The previous staging approach physically moved the window offscreen and then
+    restored it to the centre. On some Windows/DWM timing paths that relocation
+    could itself leave one-frame diagonal/border artefacts. Instead, keep the
+    window in its final geometry, temporarily cloak the native HWND, disable its
+    DWM transitions, let Tk complete several paint passes, and only then reveal
+    the already-painted window.
 
     The hook is deliberately one-shot and cannot affect Settings or any later
     window operations.
@@ -91,15 +154,34 @@ def _install_staged_main_deiconify():
         except AttributeError:
             pass
 
-        target_geometry = None
+        hwnd = None
+        transitions_disabled = False
+        cloaked = False
+        fallback_alpha = None
         mapped = False
+
         try:
             window.update_idletasks()
-            target_geometry = window.geometry()
+            hwnd = _top_level_hwnd(window)
 
-            # Position-only geometry preserves the fully calculated window size
-            # while moving the first native paint far outside any real monitor.
-            window.geometry(OFFSCREEN_POSITION)
+            if hwnd:
+                transitions_disabled = _set_dwm_bool_attribute(
+                    hwnd,
+                    DWMWA_TRANSITIONS_FORCEDISABLED,
+                    True,
+                )
+                cloaked = _set_dwm_bool_attribute(hwnd, DWMWA_CLOAK, True)
+
+            # Very old/unusual Windows configurations may reject DWMWA_CLOAK.
+            # Keep a transparent fallback so the first client paint is still not
+            # exposed; transitions remain disabled when DWM accepted that flag.
+            if not cloaked:
+                try:
+                    fallback_alpha = float(window.attributes("-alpha"))
+                    window.attributes("-alpha", 0.0)
+                except (TypeError, ValueError, tk.TclError):
+                    fallback_alpha = None
+
             original_deiconify(window, *args, **kwargs)
             mapped = True
 
@@ -107,22 +189,40 @@ def _install_staged_main_deiconify():
                 window.update_idletasks()
                 window.update()
 
-            if target_geometry:
-                window.geometry(target_geometry)
-                window.update_idletasks()
+            _flush_dwm()
+
+            if cloaked:
+                _set_dwm_bool_attribute(hwnd, DWMWA_CLOAK, False)
+                cloaked = False
+            elif fallback_alpha is not None:
+                window.attributes("-alpha", fallback_alpha)
+                fallback_alpha = None
+
+            _flush_dwm()
+            window.update_idletasks()
         except tk.TclError:
-            # If mapping itself failed, fall back to the ordinary behaviour so
-            # startup can still continue instead of leaving the app withdrawn.
+            # If mapping itself failed, fall back to ordinary Tk behaviour so
+            # startup can continue instead of leaving the app withdrawn.
             if not mapped:
                 try:
                     original_deiconify(window, *args, **kwargs)
                 except tk.TclError:
                     pass
-            elif target_geometry:
+        finally:
+            if cloaked and hwnd:
+                _set_dwm_bool_attribute(hwnd, DWMWA_CLOAK, False)
+            if fallback_alpha is not None:
                 try:
-                    window.geometry(target_geometry)
+                    window.attributes("-alpha", fallback_alpha)
                 except tk.TclError:
                     pass
+            if transitions_disabled and hwnd:
+                _set_dwm_bool_attribute(
+                    hwnd,
+                    DWMWA_TRANSITIONS_FORCEDISABLED,
+                    False,
+                )
+            _flush_dwm()
 
     tk.Tk.deiconify = staged_deiconify
     tk.Tk._edhf_staged_deiconify = True
