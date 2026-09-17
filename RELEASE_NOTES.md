@@ -1,6 +1,6 @@
 # v1.0.0 — First public Windows release
 
-This is the **first public release** of ED Hotspots & Landables Finder.
+This is the **first public release** of **ED Hotspots Finder - Rings & Planets**.
 
 The project went through several internal development iterations before release; those internal version labels are not part of the public release history. Public versioning therefore starts at **v1.0.0**.
 
@@ -65,6 +65,7 @@ The Windows build uses:
 - icon: `app.ico`
 - splash: `ED_Hotspots_Finder.png`
 - public version metadata: `1.0.0.0`
+- executable name: `ED Hotspots Finder - Rings & Planets.exe`
 
 The public Windows executable is currently unsigned, so Windows SmartScreen may display an unknown-publisher warning.
 
