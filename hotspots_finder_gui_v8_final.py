@@ -24,7 +24,20 @@ THEME_LABELS = {
     "Green Warm": "green_warm",
 }
 THEME_NAMES = {value: label for label, value in THEME_LABELS.items()}
-ALLOWED_POWERS = ("Edmund Mahon", "Nakato Kaine")
+ALLOWED_POWERS = (
+    "Aisling Duval",
+    "Archon Delaine",
+    "Arissa Lavigny-Duval",
+    "Denton Patreus",
+    "Edmund Mahon",
+    "Felicia Winters",
+    "Jerome Archer",
+    "Li Yong-Rui",
+    "Nakato Kaine",
+    "Pranav Antal",
+    "Yuri Grom",
+    "Zemina Torval",
+)
 
 
 class FinderV8FinalApp(_BaseFinalApp):
