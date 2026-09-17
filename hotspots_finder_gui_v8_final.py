@@ -31,7 +31,24 @@ class FinderV8FinalApp(_BaseFinalApp):
     """Last v8 settings refinements on top of the approved visual layer."""
 
     def __init__(self):
-        super().__init__()
+        # The inherited v8 chain builds several visual layers and schedules
+        # after-idle geometry/style passes. Hide the root at the instant Tk
+        # creates it so none of those intermediate states can flash on screen.
+        original_tk_init = tk.Tk.__init__
+
+        def hidden_tk_init(instance, *args, **kwargs):
+            original_tk_init(instance, *args, **kwargs)
+            try:
+                instance.withdraw()
+            except tk.TclError:
+                pass
+
+        tk.Tk.__init__ = hidden_tk_init
+        try:
+            super().__init__()
+        finally:
+            tk.Tk.__init__ = original_tk_init
+
         self._apply_app_icon(self)
 
         # Old remembered settings may still contain a Power that is no longer
@@ -355,21 +372,37 @@ def main():
 
     splash = show_startup_splash()
 
-    # Temporary 1-second hold so we can verify the transparent splash visibly
-    # renders before the main interface is constructed. Once confirmed, this can
-    # be changed back to a true load-time-only splash.
+    # Keep the temporary one-second minimum while the splash is being tuned.
     if splash is not None:
         time.sleep(1.0)
 
     app = None
     try:
         app = FinderV8FinalApp()
+
+        # Let inherited after-idle/short-delay visual passes complete while the
+        # root is still withdrawn. This prevents panels, replacement tabs and
+        # geometry adjustments from flashing one after another on startup.
+        settle_until = time.perf_counter() + 0.35
+        while time.perf_counter() < settle_until:
+            app.update_idletasks()
+            app.update()
+            if splash is not None:
+                try:
+                    splash.update_idletasks()
+                    splash.update()
+                except tk.TclError:
+                    splash = None
+            time.sleep(0.01)
+
+        app.deiconify()
+        app.lift()
         app.update_idletasks()
+        app.update()
     finally:
         close_startup_splash(splash)
 
     if app is not None:
-        app.lift()
         app.mainloop()
 
 
