@@ -69,10 +69,6 @@ def sync_bookmarks(data_path=None):
         "errors": loaded["read_errors"],
     }
 
-    # Compatibility for the current v1.0.0 GUI summary. The presentation layer
-    # will be updated separately to use records_found/source_type directly.
-    summary["files_found"] = loaded["records_found"]
-
     if not deposits:
         return summary
 
