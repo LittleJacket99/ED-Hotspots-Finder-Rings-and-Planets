@@ -7,6 +7,7 @@ from datetime import datetime
 import sys
 import threading
 import tkinter as tk
+from tkinter import ttk
 
 from hotspots_finder_gui_v8_columnfilters import FinderV8ColumnFiltersApp
 from hotspots_finder_gui_v8 import COLORS
@@ -500,8 +501,18 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
             font=("Consolas", 9),
             state="disabled",
         )
-        log_y = tk.Scrollbar(log_frame, orient="vertical", command=self._log_text.yview)
-        log_x = tk.Scrollbar(log_frame, orient="horizontal", command=self._log_text.xview)
+        log_y = ttk.Scrollbar(
+            log_frame,
+            orient="vertical",
+            command=self._log_text.yview,
+            style="Vertical.TScrollbar",
+        )
+        log_x = ttk.Scrollbar(
+            log_frame,
+            orient="horizontal",
+            command=self._log_text.xview,
+            style="Horizontal.TScrollbar",
+        )
         self._log_text.configure(
             yscrollcommand=log_y.set,
             xscrollcommand=log_x.set,
@@ -510,6 +521,7 @@ class FinderV8ExpandResultsApp(FinderV8ColumnFiltersApp):
         log_y.grid(row=0, column=1, sticky="ns")
         log_x.grid(row=1, column=0, sticky="ew")
         log_frame.rowconfigure(0, weight=1)
+        log_frame.rowconfigure(1, weight=0, minsize=9)
         log_frame.columnconfigure(0, weight=1)
 
     def _capture_log_text(self, channel, text):
