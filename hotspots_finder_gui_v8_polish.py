@@ -255,11 +255,11 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
     def _build_hotspots_box(self, parent):
         self._section_label(parent, "HOTSPOTS")
         self._place_check(
-            parent, "Enable hotspots", self.hotspots_enabled,
+            parent, "Enable Hotspots", self.hotspots_enabled,
             x=7, y=24, width=112, height=18, font=("Segoe UI", 8)
         )
         self._place_check(
-            parent, "Only pristine", self.only_pristine,
+            parent, "Only Pristine", self.only_pristine,
             x=128, y=24, width=112, height=18, font=("Segoe UI", 8)
         )
 
@@ -290,11 +290,11 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
     def _build_planets_box(self, parent):
         self._section_label(parent, "PLANETS")
         self._place_check(
-            parent, "Enable planets", self.planets_enabled,
+            parent, "Enable Planets", self.planets_enabled,
             x=7, y=24, width=112, height=18
         )
         self._place_check(
-            parent, "Only landables", self.only_landables,
+            parent, "Only Landables", self.only_landables,
             x=128, y=24, width=112, height=18
         )
 
@@ -302,7 +302,7 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
 
         left = (
             ("metal rich", "Metal Rich"),
-            ("high metal content", "High Metal Content"),
+            ("high metal content", "HMC"),
             ("rocky", "Rocky"),
         )
         right = (
@@ -330,7 +330,7 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
         self._section_label(parent, "COMMUNITY DEPOSITS")
         self._place_check(
             parent,
-            "Show Community Deposits",
+            "Enable Community Deposits",
             self.community_deposits_enabled,
             x=7,
             y=27,
@@ -358,7 +358,7 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
     def _build_systems_box(self, parent):
         tk.Label(
             parent,
-            text="SYSTEMS",
+            text="SYSTEM INPUT",
             bg=PANEL,
             fg=COLORS["orange"],
             font=("Segoe UI", 10, "bold"),
@@ -373,7 +373,7 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
         ).place(x=9, y=29)
 
         text_frame = tk.Frame(parent, bg=PANEL)
-        text_frame.place(x=9, y=52, width=207, height=340)
+        text_frame.place(x=9, y=52, width=207, height=300)
 
         self.systems_text = tk.Text(
             text_frame,
@@ -416,43 +416,16 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
             lambda _e: self._refresh_system_count(),
         )
 
-        tk.Button(
-            parent,
-            text="Clear Systems",
-            command=self._clear_systems,
-            bg="#3a4148",
-            fg=COLORS["text"],
-            activebackground="#46515c",
-            activeforeground=COLORS["text"],
-            relief="flat",
-            font=("Segoe UI", 8),
-        ).place(x=9, y=401, width=91, height=25)
-
-        tk.Button(
-            parent,
-            text="Clear Filters",
-            command=self._clear_scan_filters,
-            bg="#3a4148",
-            fg=COLORS["text"],
-            activebackground="#46515c",
-            activeforeground=COLORS["text"],
-            relief="flat",
-            font=("Segoe UI", 8),
-        ).place(x=106, y=401, width=91, height=25)
-
         tk.Label(
             parent,
-            text=(
-                "Optional manual input. System Filters narrow this list; "
-                "scan results stay in Results."
-            ),
+            text="Leave empty to find matches using System Filters.",
             bg=PANEL,
             fg=COLORS["muted"],
             justify="left",
             anchor="nw",
             wraplength=205,
             font=("Segoe UI", 8),
-        ).place(x=9, y=435, width=207, height=45)
+        ).place(x=9, y=361, width=207, height=38)
 
     def _build_system_filter_boxes(self):
         tk.Label(
