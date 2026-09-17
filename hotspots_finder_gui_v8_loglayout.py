@@ -2,8 +2,6 @@
 
 """v8 feature test: fixed compact log overlay aligned right in Results."""
 
-import ctypes
-import sys
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog
@@ -18,11 +16,6 @@ LOG_PANEL_HEIGHT = 400
 LOG_PANEL_WIDTH_RATIO = 0.50
 LOG_PANEL_MIN_WIDTH = 360
 LOG_PANEL_GAP = 6
-
-# DwmSetWindowAttribute: disable the native Windows transition/zoom animation
-# for a single top-level window. This is intentionally scoped to Settings.
-DWMWA_TRANSITIONS_FORCEDISABLED = 3
-GA_ROOT = 2
 
 
 class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
@@ -59,42 +52,8 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
                 add="+",
             )
 
-    @staticmethod
-    def _disable_native_window_transitions(window):
-        """Disable Windows/DWM open/close transitions for one Tk Toplevel."""
-
-        if sys.platform != "win32":
-            return
-
-        try:
-            # Realise the native HWND while the Tk window is still withdrawn.
-            window.update_idletasks()
-            child_hwnd = int(window.winfo_id())
-            if not child_hwnd:
-                return
-
-            user32 = ctypes.windll.user32
-            user32.GetAncestor.argtypes = (ctypes.c_void_p, ctypes.c_uint)
-            user32.GetAncestor.restype = ctypes.c_void_p
-            root_hwnd = user32.GetAncestor(
-                ctypes.c_void_p(child_hwnd),
-                GA_ROOT,
-            )
-            hwnd = int(root_hwnd or child_hwnd)
-
-            disabled = ctypes.c_int(1)
-            ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                ctypes.c_void_p(hwnd),
-                ctypes.c_uint(DWMWA_TRANSITIONS_FORCEDISABLED),
-                ctypes.byref(disabled),
-                ctypes.sizeof(disabled),
-            )
-        except (AttributeError, OSError, TypeError, ValueError, tk.TclError):
-            # The fallback remains the hidden/alpha-zero construction path.
-            pass
-
     def _open_settings_dialog(self):
-        """Build Settings invisibly, then show the completed window at once."""
+        """Build Settings hidden, pre-render it off-screen, then move it on-screen."""
 
         existing = getattr(self, "_settings_window", None)
         if existing is not None:
@@ -109,18 +68,13 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
         def hidden_toplevel(*args, **kwargs):
             window = original_toplevel(*args, **kwargs)
             try:
-                # A new Tk Toplevel normally becomes visible on the next idle
-                # pass. Keep it withdrawn and transparent from the first moment.
                 window.withdraw()
-                window.attributes("-alpha", 0.0)
-                self._disable_native_window_transitions(window)
             except tk.TclError:
                 pass
             return window
 
-        # The base Settings layer creates and lays out the window synchronously.
-        # Keep that one Toplevel invisible while every later visual/theme layer
-        # finishes adding and restyling its controls.
+        # Keep the base Settings Toplevel withdrawn while the complete class
+        # chain adds the final controls and applies the active theme.
         tk.Toplevel = hidden_toplevel
         try:
             result = super()._open_settings_dialog()
@@ -138,12 +92,14 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
 
         self._enhance_rhino_settings_window(window)
 
-        def reveal_settings():
+        def pre_render_settings():
             try:
                 if not window.winfo_exists():
                     return
 
-                # Finish every deferred style/layout pass while invisible.
+                # By the time this timer runs the concrete final Settings layer
+                # has finished creating Theme/UI Scale controls and its idle
+                # centering/style callbacks have had a chance to settle.
                 window.update_idletasks()
                 for method_name in (
                     "_style_mockup_controls",
@@ -157,22 +113,39 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
                             pass
                 window.update_idletasks()
 
-                # Re-apply the DWM flag after final geometry creation in case
-                # Tk recreated the native wrapper HWND while it was withdrawn.
-                self._disable_native_window_transitions(window)
+                final_geometry = window.geometry()
+                size_part = final_geometry.split("+", 1)[0]
+                screen_width = window.winfo_screenwidth()
+                screen_height = window.winfo_screenheight()
 
-                # With native transitions disabled, map the final opaque window
-                # once. No zoom/fade or intermediate geometry should be visible.
-                window.attributes("-alpha", 1.0)
+                # Map the finished window beyond the visible desktop. This lets
+                # Windows/Tk paint native ttk controls (notably the APPLICATION
+                # comboboxes) without showing their first-paint sequence.
+                window.geometry(
+                    f"{size_part}+{screen_width + 200}+{screen_height + 200}"
+                )
                 window.deiconify()
-                window.lift()
-                window.focus_force()
+                window.update_idletasks()
+
+                def show_pre_rendered_settings():
+                    try:
+                        if not window.winfo_exists():
+                            return
+                        window.geometry(final_geometry)
+                        window.update_idletasks()
+                        window.lift()
+                        window.focus_force()
+                    except tk.TclError:
+                        pass
+
+                self.after(140, show_pre_rendered_settings)
             except tk.TclError:
                 pass
 
-        # Final-layer styling is queued with after_idle. One short turn is enough
-        # now that the native DWM transition itself is disabled.
-        self.after_idle(lambda: self.after(60, reveal_settings))
+        # Use a timer rather than after_idle: the concrete final Settings method
+        # calls update_idletasks while it is still constructing its own controls,
+        # which would otherwise execute an ancestor idle callback too early.
+        self.after(80, pre_render_settings)
         return result
 
     def _enhance_rhino_settings_window(self, window):
