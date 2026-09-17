@@ -913,7 +913,7 @@ class FinderV8FinalApp(_BaseFinalApp):
             fg=theme["muted"],
             font=("Segoe UI", 9),
             anchor="w",
-        ).place(x=12, y=68, width=55, height=24)
+        ).place(x=300, y=36, width=55, height=24)
 
         scale_combo = ttk.Combobox(
             application_panel,
@@ -922,7 +922,7 @@ class FinderV8FinalApp(_BaseFinalApp):
             state="readonly",
             width=18,
         )
-        scale_combo.place(x=72, y=66, width=150, height=27)
+        scale_combo.place(x=365, y=34, width=150, height=27)
 
         tk.Label(
             application_panel,
@@ -931,7 +931,7 @@ class FinderV8FinalApp(_BaseFinalApp):
             fg=theme["muted"],
             font=("Segoe UI", 8),
             anchor="w",
-        ).place(x=232, y=68, width=150, height=22)
+        ).place(x=365, y=66, width=150, height=22)
 
         def preview_theme(_event=None):
             key = THEME_LABELS.get(str(theme_var.get()), "deep_black")
