@@ -3,10 +3,12 @@ setlocal
 cd /d "%~dp0"
 
 set "VERSION=v1.0.1"
-set "EXE_NAME=ED Hotspots Finder - Rings & Planets.exe"
+set "BUILD_EXE_NAME=ED Hotspots Finder - Rings & Planets.exe"
+set "ASSET_EXE_NAME=ED-Hotspots-Finder-Rings-and-Planets.exe"
 set "ZIP_NAME=ED-Hotspots-Finder-Rings-and-Planets-%VERSION%-Windows.zip"
 set "RELEASE_DIR=%CD%\release\%VERSION%"
-set "RELEASE_EXE=%RELEASE_DIR%\%EXE_NAME%"
+set "DIST_EXE=%CD%\dist-v8\%BUILD_EXE_NAME%"
+set "RELEASE_EXE=%RELEASE_DIR%\%ASSET_EXE_NAME%"
 set "RELEASE_ZIP=%RELEASE_DIR%\%ZIP_NAME%"
 set "SHA_FILE=%RELEASE_DIR%\SHA256.txt"
 
@@ -46,7 +48,7 @@ echo Building executable...
 python -m PyInstaller --noconfirm --clean --workpath "build-v8" --distpath "dist-v8" "HotspotsFinder-v8.spec"
 if errorlevel 1 goto :fail
 
-if not exist "dist-v8\%EXE_NAME%" (
+if not exist "%DIST_EXE%" (
     echo ERROR: Expected executable was not created.
     goto :fail
 )
@@ -55,11 +57,13 @@ if exist "%RELEASE_DIR%" rmdir /s /q "%RELEASE_DIR%"
 mkdir "%RELEASE_DIR%"
 if errorlevel 1 goto :fail
 
-copy /y "dist-v8\%EXE_NAME%" "%RELEASE_EXE%" >nul
+copy /y "%DIST_EXE%" "%RELEASE_EXE%" >nul
 if errorlevel 1 goto :fail
 
 echo Creating release ZIP...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -LiteralPath $env:RELEASE_EXE -DestinationPath $env:RELEASE_ZIP -CompressionLevel Optimal -Force"
+rem The ZIP keeps the friendly executable name with spaces, while the direct
+rem GitHub asset uses a URL-safe hyphenated filename.
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -LiteralPath $env:DIST_EXE -DestinationPath $env:RELEASE_ZIP -CompressionLevel Optimal -Force"
 if errorlevel 1 goto :fail
 
 if not exist "%RELEASE_ZIP%" (
