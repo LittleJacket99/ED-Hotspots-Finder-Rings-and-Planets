@@ -58,6 +58,16 @@ ALLOWED_POWERS = (
 # grows both Tk font metrics and the fixed-pixel geometry by the same factor.
 TK_UI_SCALING = 96.0 / 72.0
 
+WM_SETREDRAW = 0x000B
+RDW_INVALIDATE = 0x0001
+RDW_ERASE = 0x0004
+RDW_ALLCHILDREN = 0x0080
+RDW_UPDATENOW = 0x0100
+RDW_FRAME = 0x0400
+RDW_LAYOUT_TRANSITION = (
+    RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW | RDW_FRAME
+)
+
 
 def _enable_windows_dpi_awareness():
     """Render Tk at native monitor DPI instead of Windows bitmap scaling."""
@@ -92,9 +102,8 @@ class FinderV8FinalApp(_BaseFinalApp):
         self._ui_scale = ui_scale_runtime.install(
             application.get("ui_scale", DEFAULT_UI_SCALE)
         )
+        self._results_transition_pending = False
 
-        # Build the complete Tk hierarchy invisibly. This prevents native ttk
-        # widgets and inherited geometry callbacks from flashing during startup.
         original_tk_init = tk.Tk.__init__
         scale = self._ui_scale
 
@@ -113,9 +122,6 @@ class FinderV8FinalApp(_BaseFinalApp):
         finally:
             tk.Tk.__init__ = original_tk_init
 
-        # The splash is a temporary first Tk root. Point Tk's implicit default
-        # root back at the real app so font helpers keep working after the splash
-        # is destroyed.
         if getattr(tk, "_support_default_root", True):
             tk._default_root = self
 
@@ -126,9 +132,6 @@ class FinderV8FinalApp(_BaseFinalApp):
         if current_power not in ALLOWED_POWERS:
             self.power_var.set("")
 
-    # ------------------------------------------------------------------
-    # UI scale
-    # ------------------------------------------------------------------
     @staticmethod
     def _normalise_ui_scale(value):
         return ui_scale_runtime.normalise_scale(value, DEFAULT_UI_SCALE)
@@ -141,8 +144,6 @@ class FinderV8FinalApp(_BaseFinalApp):
         )
 
     def _apply_scaled_root_geometry(self):
-        """Size the physical root to match the scaled logical layout."""
-
         width = ui_scale_runtime.px(layout_metrics.WINDOW_WIDTH)
         height = ui_scale_runtime.px(layout_metrics.WINDOW_HEIGHT)
         top = ui_scale_runtime.px(layout_metrics.WINDOW_TOP_MARGIN)
@@ -156,8 +157,6 @@ class FinderV8FinalApp(_BaseFinalApp):
             pass
 
     def _apply_scaled_ttk_metrics(self):
-        """Scale ttk pixel metrics that are not affected by tk scaling."""
-
         style = ttk.Style(self)
         try:
             style.configure("Treeview", rowheight=ui_scale_runtime.px(25))
@@ -184,8 +183,6 @@ class FinderV8FinalApp(_BaseFinalApp):
             pass
 
     def _apply_responsive_layout(self):
-        """Run responsive calculations in logical pixels, then scale placement."""
-
         self._responsive_layout_pending = False
 
         try:
@@ -265,9 +262,103 @@ class FinderV8FinalApp(_BaseFinalApp):
             height=results_height,
         )
 
-    def _reposition_log_panel(self):
-        """Position the log from physical winfo measurements without rescaling."""
+    def _suspend_layout_redraw(self):
+        if sys.platform != "win32":
+            return ()
 
+        try:
+            self.update_idletasks()
+            user32 = ctypes.windll.user32
+        except (AttributeError, OSError, tk.TclError):
+            return ()
+
+        handles = []
+        for widget in (self, getattr(self, "_stage", None)):
+            if widget is None:
+                continue
+            try:
+                hwnd = int(widget.winfo_id())
+            except (TypeError, ValueError, tk.TclError):
+                continue
+            if not hwnd or hwnd in handles:
+                continue
+            try:
+                user32.SendMessageW(ctypes.c_void_p(hwnd), WM_SETREDRAW, 0, 0)
+                handles.append(hwnd)
+            except (AttributeError, OSError, ValueError):
+                continue
+        return tuple(handles)
+
+    @staticmethod
+    def _resume_layout_redraw(handles):
+        if sys.platform != "win32" or not handles:
+            return
+
+        try:
+            user32 = ctypes.windll.user32
+        except (AttributeError, OSError):
+            return
+
+        for hwnd in reversed(tuple(handles)):
+            try:
+                user32.SendMessageW(ctypes.c_void_p(hwnd), WM_SETREDRAW, 1, 0)
+                user32.RedrawWindow(
+                    ctypes.c_void_p(hwnd),
+                    None,
+                    None,
+                    RDW_LAYOUT_TRANSITION,
+                )
+            except (AttributeError, OSError, ValueError):
+                pass
+
+    def _finish_results_transition(self, handles):
+        try:
+            if not self.winfo_exists():
+                return
+
+            self.update_idletasks()
+            self._apply_responsive_layout()
+
+            if not getattr(self, "_results_expanded", False):
+                self._reflow_systems_contents()
+                try:
+                    self._refresh_unified_system_filters_panel()
+                except (AttributeError, tk.TclError):
+                    pass
+
+            try:
+                self._sync_results_outline()
+            except (AttributeError, tk.TclError):
+                pass
+
+            if (
+                getattr(self, "_log_visible", False)
+                and not getattr(self, "_results_expanded", False)
+            ):
+                self._reposition_log_panel()
+
+            self.update_idletasks()
+        finally:
+            self._resume_layout_redraw(handles)
+            self._results_transition_pending = False
+
+    def _toggle_results_expansion(self):
+        if self._results_transition_pending:
+            return
+
+        self._results_transition_pending = True
+        handles = self._suspend_layout_redraw()
+
+        try:
+            super()._toggle_results_expansion()
+        except Exception:
+            self._resume_layout_redraw(handles)
+            self._results_transition_pending = False
+            raise
+
+        self.after(30, lambda h=handles: self._finish_results_transition(h))
+
+    def _reposition_log_panel(self):
         self._log_reposition_pending = False
         if not getattr(self, "_log_visible", False):
             return
@@ -312,13 +403,15 @@ class FinderV8FinalApp(_BaseFinalApp):
             return
 
     def _sync_regular_button_border(self, button):
-        """Keep one-pixel overlay borders aligned in physical coordinates."""
-
         lines = getattr(button, "_edhf_border_lines", None)
         if not lines or len(lines) != 4:
             return
 
         try:
+            border_color = visual_theme.THEME["line2"]
+            for line in lines:
+                line.configure(bg=border_color)
+
             if not button.winfo_exists() or not button.winfo_ismapped():
                 for line in lines:
                     line.place_forget()
@@ -348,8 +441,6 @@ class FinderV8FinalApp(_BaseFinalApp):
             pass
 
     def _sync_results_outline(self):
-        """Keep the Results mask/outline on physical notebook edges."""
-
         notebook = getattr(self, "notebook", None)
         masks = getattr(self, "_results_outline_masks", None)
         lines = getattr(self, "_results_outline_lines", None)
@@ -410,15 +501,38 @@ class FinderV8FinalApp(_BaseFinalApp):
             pass
 
     def _ensure_checkbox_images(self):
-        """Create the custom checkbox squares at the selected UI scale."""
-
-        if hasattr(self, "_checkbox_unchecked_image"):
-            return
-
         width = ui_scale_runtime.px(15)
         height = ui_scale_runtime.px(11)
-        unchecked = tk.PhotoImage(master=self, width=width, height=height)
-        checked = tk.PhotoImage(master=self, width=width, height=height)
+        theme_key = (
+            width,
+            height,
+            visual_theme.THEME["line2"],
+            visual_theme.THEME["field"],
+            visual_theme.THEME["accent"],
+        )
+        if getattr(self, "_checkbox_image_theme_key", None) == theme_key:
+            return
+
+        unchecked = getattr(self, "_checkbox_unchecked_image", None)
+        checked = getattr(self, "_checkbox_checked_image", None)
+
+        recreate = unchecked is None or checked is None
+        if not recreate:
+            try:
+                recreate = (
+                    int(unchecked.width()) != width
+                    or int(unchecked.height()) != height
+                    or int(checked.width()) != width
+                    or int(checked.height()) != height
+                )
+            except tk.TclError:
+                recreate = True
+
+        if recreate:
+            unchecked = tk.PhotoImage(master=self, width=width, height=height)
+            checked = tk.PhotoImage(master=self, width=width, height=height)
+            self._checkbox_unchecked_image = unchecked
+            self._checkbox_checked_image = checked
 
         outer = (
             0,
@@ -436,13 +550,8 @@ class FinderV8FinalApp(_BaseFinalApp):
         unchecked.put(visual_theme.THEME["field"], to=inner)
         checked.put(visual_theme.THEME["accent"], to=outer)
         checked.put(visual_theme.THEME["accent"], to=inner)
+        self._checkbox_image_theme_key = theme_key
 
-        self._checkbox_unchecked_image = unchecked
-        self._checkbox_checked_image = checked
-
-    # ------------------------------------------------------------------
-    # Application icon
-    # ------------------------------------------------------------------
     @staticmethod
     def _app_icon_path():
         base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
@@ -461,9 +570,6 @@ class FinderV8FinalApp(_BaseFinalApp):
             except (tk.TclError, OSError):
                 pass
 
-    # ------------------------------------------------------------------
-    # Theme handling
-    # ------------------------------------------------------------------
     @staticmethod
     def _normalise_theme_name(value):
         key = str(value or "deep_black").strip().lower()
@@ -475,8 +581,6 @@ class FinderV8FinalApp(_BaseFinalApp):
         return self._normalise_theme_name(application.get("theme", "deep_black"))
 
     def _set_theme_globals(self, theme_name):
-        """Keep the base visual module and consolidated UI on one theme."""
-
         theme_name = self._normalise_theme_name(theme_name)
         theme = visual_theme.THEMES[theme_name]
 
@@ -556,6 +660,9 @@ class FinderV8FinalApp(_BaseFinalApp):
         theme_name, theme = self._set_theme_globals(theme_name)
         self.v8_settings.setdefault("application", {})["theme"] = theme_name
 
+        self._checkbox_image_theme_key = None
+        self._ensure_checkbox_images()
+
         self._configure_styles()
         self._apply_visual_theme()
         self._style_export_controls(theme)
@@ -576,12 +683,7 @@ class FinderV8FinalApp(_BaseFinalApp):
         except (AttributeError, tk.TclError):
             pass
 
-    # ------------------------------------------------------------------
-    # Settings / theme / UI scale
-    # ------------------------------------------------------------------
     def _center_settings_window(self, window, width=600, height=620):
-        """Center a logical-size Settings window in physical screen pixels."""
-
         try:
             self.update_idletasks()
             physical_width = ui_scale_runtime.px(width)
@@ -741,8 +843,6 @@ class FinderV8FinalApp(_BaseFinalApp):
                 child.bind("<ButtonRelease-1>", reset_application, add="+")
                 break
 
-        # Theme preview is immediate; UI scale is deliberately restart-only.
-        # If the dialog closes without saving, restore the persisted values.
         def restore_if_cancelled(event):
             if event.widget is not window:
                 return
@@ -769,13 +869,8 @@ class FinderV8FinalApp(_BaseFinalApp):
         window.bind("<Destroy>", restore_if_cancelled, add="+")
         self.after_idle(lambda: self._style_classic_widget_tree(window))
 
-    # ------------------------------------------------------------------
-    # System Input restore
-    # ------------------------------------------------------------------
     @staticmethod
     def _forget_widget_geometry(widget):
-        """Hide a legacy child regardless of the geometry manager it currently uses."""
-
         try:
             manager = widget.winfo_manager()
             if manager == "pack":
@@ -788,8 +883,6 @@ class FinderV8FinalApp(_BaseFinalApp):
             pass
 
     def _reflow_systems_contents(self):
-        """Restore only the real System Input editor, never the legacy button frame."""
-
         panel = getattr(self, "_systems_panel", None)
         text = getattr(self, "systems_text", None)
         if panel is None or text is None:
@@ -840,9 +933,6 @@ class FinderV8FinalApp(_BaseFinalApp):
         except (AttributeError, tk.TclError):
             pass
 
-    # ------------------------------------------------------------------
-    # Power list
-    # ------------------------------------------------------------------
     def _configure_power_combobox_behavior(self):
         super()._configure_power_combobox_behavior()
         combo = getattr(self, "power_combo", None)
@@ -853,9 +943,6 @@ class FinderV8FinalApp(_BaseFinalApp):
         except tk.TclError:
             pass
 
-    # ------------------------------------------------------------------
-    # Scan completion safety
-    # ------------------------------------------------------------------
     def _scan_complete(self, result):
         try:
             return super()._scan_complete(result)
@@ -895,8 +982,6 @@ def main():
                     splash = None
             time.sleep(0.01)
 
-        # A few native/ttk elements finish their first real paint only after the
-        # root is mapped. Map it at alpha 0 so that paint is never visible.
         app.deiconify()
         app.lift()
         mapped_until = time.perf_counter() + 0.20
