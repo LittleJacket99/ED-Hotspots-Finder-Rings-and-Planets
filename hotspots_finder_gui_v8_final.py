@@ -1019,11 +1019,9 @@ def main():
     try:
         app = FinderV8FinalApp()
 
-        try:
-            app.attributes("-alpha", 0.0)
-        except tk.TclError:
-            pass
-
+        # Build and settle the complete UI while the main window remains truly
+        # withdrawn. This avoids mapping a transparent HWND whose non-client
+        # border can briefly flash as thin lines on Windows/DWM.
         settle_until = time.perf_counter() + 0.35
         while time.perf_counter() < settle_until:
             app.update_idletasks()
@@ -1036,29 +1034,19 @@ def main():
                     splash = None
             time.sleep(0.01)
 
-        app.deiconify()
-        app._apply_app_icon(app)
-        app.lift()
-        mapped_until = time.perf_counter() + 0.20
-        while time.perf_counter() < mapped_until:
-            app.update_idletasks()
-            app.update()
-            if splash is not None:
-                try:
-                    splash.update_idletasks()
-                    splash.update()
-                except tk.TclError:
-                    splash = None
-            time.sleep(0.01)
-
-        close_startup_splash(splash)
-        splash = None
-        time.sleep(0.03)
-
+        # Make the fully-built app opaque while it is still withdrawn, then
+        # remove the splash and map the main window only once.
         try:
             app.attributes("-alpha", 1.0)
         except tk.TclError:
             pass
+        app.update_idletasks()
+
+        close_startup_splash(splash)
+        splash = None
+
+        app.deiconify()
+        app._apply_app_icon(app)
         app.lift()
         app.update_idletasks()
         app.update()
