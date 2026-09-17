@@ -3,6 +3,7 @@
 """v8 feature test: fixed compact log overlay aligned right in Results."""
 
 import tkinter as tk
+from tkinter import ttk
 
 from hotspots_finder_gui_v8_expandresults import FinderV8ExpandResultsApp
 from hotspots_finder_gui_v8_settings import FinderV8SettingsMixin
@@ -19,6 +20,10 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
         self._log_reposition_pending = False
         self._load_v8_settings_state()
         super().__init__()
+
+        # The inherited log viewer still creates classic Tk scrollbars. Replace
+        # them with the same themed ttk scrollbars used by Results/System Input.
+        self.after_idle(self._replace_log_scrollbars)
 
         # Apply startup defaults only after all Tk variables in the complete
         # active GUI chain have been created.
@@ -49,6 +54,61 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
                 self._schedule_unified_system_filters_refresh,
                 add="+",
             )
+
+    def _replace_log_scrollbars(self):
+        """Use the app's thin themed scrollbars inside the log viewer."""
+
+        text = getattr(self, "_log_text", None)
+        if text is None:
+            return
+
+        frame = text.master
+        vertical = getattr(self, "_log_vertical_scrollbar", None)
+        horizontal = getattr(self, "_log_horizontal_scrollbar", None)
+        if vertical is not None and horizontal is not None:
+            try:
+                if vertical.winfo_exists() and horizontal.winfo_exists():
+                    return
+            except tk.TclError:
+                pass
+
+        for child in list(frame.winfo_children()):
+            if not isinstance(child, tk.Scrollbar):
+                continue
+
+            try:
+                orient = str(child.cget("orient"))
+            except tk.TclError:
+                continue
+
+            try:
+                child.grid_forget()
+                child.destroy()
+            except tk.TclError:
+                pass
+
+            if orient == "vertical":
+                vertical = ttk.Scrollbar(
+                    frame,
+                    orient="vertical",
+                    command=text.yview,
+                    style="Vertical.TScrollbar",
+                )
+                vertical.grid(row=0, column=1, sticky="ns")
+                text.configure(yscrollcommand=vertical.set)
+                self._log_vertical_scrollbar = vertical
+
+            elif orient == "horizontal":
+                horizontal = ttk.Scrollbar(
+                    frame,
+                    orient="horizontal",
+                    command=text.xview,
+                    style="Horizontal.TScrollbar",
+                )
+                horizontal.grid(row=1, column=0, sticky="ew")
+                text.configure(xscrollcommand=horizontal.set)
+                frame.rowconfigure(1, weight=0, minsize=9)
+                self._log_horizontal_scrollbar = horizontal
 
     def _schedule_unified_system_filters_refresh(self, _event=None):
         self.after_idle(self._refresh_unified_system_filters_panel)
