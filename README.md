@@ -2,9 +2,9 @@
 
 A standalone Windows companion for **Elite Dangerous** that searches multiple star systems for mining hotspots, landable bodies and related surface-mining information using **Spansh** and the **ED Alliance Community Deposits** database.
 
-The v8 interface is fully local: no Google Sheets connection and no Google OAuth are required.
+The current interface is fully local: no Google Sheets connection and no Google OAuth are required.
 
-[Download the latest Windows release](https://github.com/LittleJacket99/ED-Hotspots-Landables-Finder/releases/latest) · [v8.0.0 release notes](RELEASE_NOTES.md)
+[Download the latest Windows release](https://github.com/LittleJacket99/ED-Hotspots-Landables-Finder/releases/latest) · [v1.0.0 release notes](RELEASE_NOTES.md)
 
 ## Main features
 
@@ -26,7 +26,7 @@ Spansh and the Community Deposits service are community-data sources. Missing or
 ## Quick start
 
 1. Download the Windows executable or ZIP from **Releases**.
-2. Run **ED Hotspots & Landables Finder v8.exe**.
+2. Run the downloaded **ED Hotspots & Landables Finder** executable.
 3. Enter one or more systems in **System Input**, or leave it empty and configure **System Filters**.
 4. Enable **Hotspots**, **Planets** and/or **Community Deposits** as needed.
 5. Set the relevant filters.
@@ -77,7 +77,7 @@ Planet searches support body-type filters and **Only Landables**. Returned data 
 
 The **Community Deposits** option queries the ED Alliance Community Deposits service and displays known player-reported deposits alongside the normal search workflow.
 
-The current public API is maintained separately from the desktop executable. Network access is required to retrieve community records.
+The public API is maintained separately from the desktop executable. Network access is required to retrieve community records.
 
 ## RhinoSpotter integration
 
@@ -110,7 +110,7 @@ Application settings are stored locally in:
 
 Current settings include startup filter defaults, RhinoSpotter options, theme and UI scale.
 
-The app does not use Google authorization and does not create `token.json` in v8.
+The standalone release does not use Google authorization and does not create `token.json`.
 
 ## Troubleshooting
 
@@ -147,30 +147,26 @@ python -m pip install pyinstaller
 build_windows_v8.bat
 ```
 
-The v8 build uses `HotspotsFinder-v8.spec`, bundles `app.ico` and `ED_Hotspots_Finder.png`, and uses `hotspots_finder_gui_v8_final.py` as the entry point.
+The current internal build files still use **v8** in their filenames because that was the final development iteration before the first public release. The public release version starts at **v1.0.0**.
 
-The executable is created in:
-
-```text
-dist-v8\ED Hotspots & Landables Finder v8.exe
-```
+The build uses `HotspotsFinder-v8.spec`, bundles `app.ico` and `ED_Hotspots_Finder.png`, and uses `hotspots_finder_gui_v8_final.py` as the entry point.
 
 ## Project structure
 
 | Component | Role |
 | --- | --- |
-| `hotspots_finder_gui_v8_final.py` | Final v8 desktop entry point and application-level behaviour |
+| `hotspots_finder_gui_v8_final.py` | Final desktop entry point and application-level behaviour |
 | `hotspots_finder_gui_v8_*.py` | Modular GUI layers used by the final interface |
 | `finder_engine.py` | Shared scan/filter helpers |
-| `local_scan.py` | Local v8 scan orchestration |
+| `local_scan.py` | Local scan orchestration |
 | `system_filter_search.py` | Faction/Power/Reference System resolution and system-name canonicalization |
 | `community_deposits.py` | Community Deposits API client |
 | `rhinospotter_sync.py` | RhinoSpotter card normalization and upload logic |
 | `rhinospotter_sync_service.py` | GUI-friendly RhinoSpotter sync wrapper |
 | `results_export.py` | CSV/XLSX export helpers |
-| `app_settings.py` | Persistent local v8 settings |
+| `app_settings.py` | Persistent local settings |
 | `startup_splash.py` | Startup splash and first-window reveal handling |
-| `HotspotsFinder-v8.spec` | PyInstaller configuration for the Windows build |
+| `HotspotsFinder-v8.spec` | PyInstaller configuration used by the current Windows build |
 
 ## Privacy and network access
 
@@ -181,4 +177,4 @@ The application may make network requests to:
 
 Application settings remain local in `%APPDATA%\HotspotsFinder\config.json`.
 
-No Google Sheets access, Google OAuth token or Google account is required by v8.
+No Google Sheets access, Google OAuth token or Google account is required by the standalone release.

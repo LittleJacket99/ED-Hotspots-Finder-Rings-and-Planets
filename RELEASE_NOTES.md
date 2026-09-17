@@ -1,12 +1,14 @@
-# v8.0.0 — Windows release
+# v1.0.0 — First public Windows release
 
-Version 8 is a major standalone rewrite of **ED Hotspots & Landables Finder**.
+This is the **first public release** of ED Hotspots & Landables Finder.
 
-The previous Google Sheets/OAuth workflow has been removed from the runtime. Searches, filtering, results and exports now live directly in the Windows desktop application.
+The project went through several internal development iterations before release; those internal version labels are not part of the public release history. Public versioning therefore starts at **v1.0.0**.
+
+The application is now a standalone Windows tool: searches, filtering, results and exports all live directly in the desktop interface, with no Google Sheets or Google OAuth dependency.
 
 ## Highlights
 
-- New standalone local GUI for Windows.
+- Standalone local GUI for Windows.
 - Manual **System Input** with Spansh-backed system-name normalization before scanning.
 - **System Filters** for Faction, Powerplay power, Power States, Reference System and distance.
 - Hotspot searches with ring/mineral filters and **Only Pristine**.
@@ -18,18 +20,18 @@ The previous Google Sheets/OAuth workflow has been removed from the runtime. Sea
 - Expand/Restore results view and detailed activity log.
 - Themes: **Deep Black** and **Green Warm**.
 - UI Scale options: 100%, 110%, 115% and 125%, with 115% as the default.
-- New startup splash and first-window reveal handling to reduce visible initialization/flicker on Windows.
-- Application icon and Windows executable metadata updated for v8.
+- Startup splash and first-window reveal handling designed to avoid visible initialization flicker on Windows.
+- Application icon and Windows executable metadata prepared for the first public release.
 
 ## Local settings
 
-v8 stores its settings in:
+The application stores its settings in:
 
 ```text
 %APPDATA%\HotspotsFinder\config.json
 ```
 
-No Google account, Google Sheets connection, OAuth consent or `token.json` is required by v8.
+No Google account, Google Sheets connection, OAuth consent or `token.json` is required.
 
 ## Search behavior
 
@@ -52,13 +54,17 @@ Results can be exported locally without Google Sheets:
 
 ## Windows build
 
-The v8 release build uses:
+The first public release uses Windows version metadata **1.0.0.0**.
+
+The repository still contains internal source/build filenames using `v8` because that was the final development iteration before the public `v1.0.0` release. Those internal labels do not indicate previous public releases.
+
+The Windows build uses:
 
 - entry point: `hotspots_finder_gui_v8_final.py`
 - PyInstaller spec: `HotspotsFinder-v8.spec`
 - icon: `app.ico`
 - splash: `ED_Hotspots_Finder.png`
-- version metadata: `8.0.0.0`
+- public version metadata: `1.0.0.0`
 
 The public Windows executable is currently unsigned, so Windows SmartScreen may display an unknown-publisher warning.
 
@@ -66,4 +72,4 @@ The public Windows executable is currently unsigned, so Windows SmartScreen may 
 
 Spansh and Community Deposits are community-data sources. Missing or outdated source data can affect search results.
 
-The **Check for updates on startup** option remains disabled for the initial v8 release and can be enabled once the first public v8 GitHub Release is available for the application to query.
+The **Check for updates on startup** option remains disabled for the initial `v1.0.0` release and can be enabled after the first public GitHub Release is available for the application to query.
