@@ -2,8 +2,9 @@
 
 """Final v8 desktop entry point.
 
-Application-level settings, DPI handling, icon and startup splash live here.
-The approved visual/menu layer is consolidated in hotspots_finder_gui_v8_ui.py.
+Application-level settings, DPI handling, proportional UI scaling, icon and
+startup splash live here. The approved visual/menu layer is consolidated in
+hotspots_finder_gui_v8_ui.py.
 """
 
 import ctypes
@@ -14,8 +15,11 @@ from pathlib import Path
 from tkinter import ttk
 
 import app_settings
+import hotspots_finder_gui_v8_layout2 as layout_metrics
+import hotspots_finder_gui_v8_loglayout as log_layout_metrics
 import hotspots_finder_gui_v8_ui as ui_theme
 import hotspots_finder_gui_v8_visual as visual_theme
+import ui_scale_runtime
 from hotspots_finder_gui_v8_ui import FinderV8FinalUIApp as _BaseFinalApp
 
 
@@ -24,6 +28,15 @@ THEME_LABELS = {
     "Green Warm": "green_warm",
 }
 THEME_NAMES = {value: label for label, value in THEME_LABELS.items()}
+
+UI_SCALE_LABELS = {
+    "100%": 1.00,
+    "110%": 1.10,
+    "115%": 1.15,
+    "125%": 1.25,
+}
+UI_SCALE_NAMES = {value: label for label, value in UI_SCALE_LABELS.items()}
+DEFAULT_UI_SCALE = 1.15
 
 ALLOWED_POWERS = (
     "Aisling Duval",
@@ -41,8 +54,8 @@ ALLOWED_POWERS = (
 )
 
 # The approved v8 layout was authored against the traditional 96-DPI Tk
-# baseline. Windows still renders at native monitor DPI for sharp text, while
-# Tk keeps the original point-to-pixel conversion used by the fixed layout.
+# baseline. Windows renders at native monitor DPI for sharp text. UI Scale then
+# grows both Tk font metrics and the fixed-pixel geometry by the same factor.
 TK_UI_SCALING = 96.0 / 72.0
 
 
@@ -74,14 +87,21 @@ class FinderV8FinalApp(_BaseFinalApp):
     """Approved v8 UI plus application-level behaviour."""
 
     def __init__(self):
+        saved = app_settings.load_settings()
+        application = saved.get("application", {})
+        self._ui_scale = ui_scale_runtime.install(
+            application.get("ui_scale", DEFAULT_UI_SCALE)
+        )
+
         # Build the complete Tk hierarchy invisibly. This prevents native ttk
         # widgets and inherited geometry callbacks from flashing during startup.
         original_tk_init = tk.Tk.__init__
+        scale = self._ui_scale
 
         def hidden_tk_init(instance, *args, **kwargs):
             original_tk_init(instance, *args, **kwargs)
             try:
-                instance.tk.call("tk", "scaling", TK_UI_SCALING)
+                instance.tk.call("tk", "scaling", TK_UI_SCALING * scale)
                 instance.withdraw()
                 instance.attributes("-alpha", 0.0)
             except tk.TclError:
@@ -99,11 +119,326 @@ class FinderV8FinalApp(_BaseFinalApp):
         if getattr(tk, "_support_default_root", True):
             tk._default_root = self
 
+        self._apply_scaled_root_geometry()
         self._apply_app_icon(self)
 
         current_power = str(self.power_var.get() or "").strip()
         if current_power not in ALLOWED_POWERS:
             self.power_var.set("")
+
+    # ------------------------------------------------------------------
+    # UI scale
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _normalise_ui_scale(value):
+        return ui_scale_runtime.normalise_scale(value, DEFAULT_UI_SCALE)
+
+    def _selected_ui_scale(self):
+        settings = getattr(self, "v8_settings", {}) or {}
+        application = settings.get("application", {})
+        return self._normalise_ui_scale(
+            application.get("ui_scale", DEFAULT_UI_SCALE)
+        )
+
+    def _apply_scaled_root_geometry(self):
+        """Size the physical root to match the scaled logical layout."""
+
+        width = ui_scale_runtime.px(layout_metrics.WINDOW_WIDTH)
+        height = ui_scale_runtime.px(layout_metrics.WINDOW_HEIGHT)
+        top = ui_scale_runtime.px(layout_metrics.WINDOW_TOP_MARGIN)
+
+        try:
+            screen_width = self.winfo_screenwidth()
+            x = max(10, (screen_width - width) // 2)
+            self.geometry(f"{width}x{height}+{x}+{top}")
+            self.minsize(width, height)
+        except tk.TclError:
+            pass
+
+    def _apply_scaled_ttk_metrics(self):
+        """Scale ttk pixel metrics that are not affected by tk scaling."""
+
+        style = ttk.Style(self)
+        try:
+            style.configure("Treeview", rowheight=ui_scale_runtime.px(25))
+            style.configure(
+                "Vertical.TScrollbar",
+                width=ui_scale_runtime.px(9),
+                arrowsize=ui_scale_runtime.px(7),
+            )
+            style.configure(
+                "Horizontal.TScrollbar",
+                width=ui_scale_runtime.px(9),
+                arrowsize=ui_scale_runtime.px(7),
+            )
+            style.configure(
+                "TCombobox",
+                padding=(
+                    ui_scale_runtime.px(4),
+                    ui_scale_runtime.px(1),
+                    ui_scale_runtime.px(1),
+                    ui_scale_runtime.px(1),
+                ),
+            )
+        except tk.TclError:
+            pass
+
+    def _apply_responsive_layout(self):
+        """Run responsive calculations in logical pixels, then scale placement."""
+
+        self._responsive_layout_pending = False
+
+        try:
+            width = max(
+                layout_metrics.WINDOW_WIDTH,
+                ui_scale_runtime.logical_px(self.winfo_width()),
+            )
+            height = max(
+                layout_metrics.WINDOW_HEIGHT,
+                ui_scale_runtime.logical_px(self.winfo_height()),
+            )
+        except (TypeError, ValueError, tk.TclError):
+            return
+
+        try:
+            self._stage.place_configure(width=width, height=height)
+        except tk.TclError:
+            pass
+
+        header = getattr(self, "_header_frame", None)
+        if header is not None:
+            try:
+                header.place_configure(width=width)
+            except tk.TclError:
+                pass
+
+        settings_button = getattr(self, "settings_button", None)
+        if settings_button is not None:
+            try:
+                settings_button.place_configure(x=width - 114, y=20)
+            except tk.TclError:
+                pass
+
+        reference_button = getattr(self, "reference_tables_button", None)
+        if reference_button is not None:
+            try:
+                reference_button.place_configure(x=width - 294, y=20)
+            except tk.TclError:
+                pass
+
+        if getattr(self, "_results_expanded", False):
+            results_width = max(
+                1,
+                width
+                - layout_metrics.EXPANDED_LEFT_MARGIN
+                - layout_metrics.RESULTS_RIGHT_MARGIN,
+            )
+            results_height = max(
+                1,
+                height
+                - layout_metrics.LAYOUT["_results_panel"][1]
+                - layout_metrics.EXPANDED_BOTTOM_MARGIN,
+            )
+            self._results_panel.place(
+                x=layout_metrics.EXPANDED_LEFT_MARGIN,
+                y=layout_metrics.LAYOUT["_results_panel"][1],
+                width=results_width,
+                height=results_height,
+            )
+            return
+
+        results_x, results_y, base_width, base_height = layout_metrics.LAYOUT[
+            "_results_panel"
+        ]
+        results_width = max(
+            base_width,
+            width - results_x - layout_metrics.RESULTS_RIGHT_MARGIN,
+        )
+        results_height = max(
+            base_height,
+            height - results_y - layout_metrics.RESULTS_BOTTOM_MARGIN,
+        )
+        self._results_panel.place(
+            x=results_x,
+            y=results_y,
+            width=results_width,
+            height=results_height,
+        )
+
+    def _reposition_log_panel(self):
+        """Position the log from physical winfo measurements without rescaling."""
+
+        self._log_reposition_pending = False
+        if not getattr(self, "_log_visible", False):
+            return
+        if getattr(self, "_results_expanded", False):
+            return
+
+        try:
+            self.update_idletasks()
+            root_x = self.winfo_rootx()
+            root_y = self.winfo_rooty()
+
+            results_x = self._results_panel.winfo_rootx() - root_x
+            results_y = self._results_panel.winfo_rooty() - root_y
+            results_width = max(1, self._results_panel.winfo_width())
+            bottom_y = self._bottom_bar.winfo_rooty() - root_y
+
+            min_width = ui_scale_runtime.px(log_layout_metrics.LOG_PANEL_MIN_WIDTH)
+            gap = ui_scale_runtime.px(log_layout_metrics.LOG_PANEL_GAP)
+            max_height = ui_scale_runtime.px(log_layout_metrics.LOG_PANEL_HEIGHT)
+
+            panel_width = min(
+                results_width,
+                max(
+                    min_width,
+                    int(results_width * log_layout_metrics.LOG_PANEL_WIDTH_RATIO),
+                ),
+            )
+            available_height = max(1, bottom_y - results_y - gap)
+            panel_height = min(max_height, available_height)
+            panel_x = results_x + results_width - panel_width
+            panel_y = bottom_y - panel_height - gap
+
+            ui_scale_runtime.place_physical(
+                self._log_panel,
+                x=panel_x,
+                y=panel_y,
+                width=panel_width,
+                height=panel_height,
+            )
+            self._log_panel.lift()
+        except (AttributeError, tk.TclError):
+            return
+
+    def _sync_regular_button_border(self, button):
+        """Keep one-pixel overlay borders aligned in physical coordinates."""
+
+        lines = getattr(button, "_edhf_border_lines", None)
+        if not lines or len(lines) != 4:
+            return
+
+        try:
+            if not button.winfo_exists() or not button.winfo_ismapped():
+                for line in lines:
+                    line.place_forget()
+                return
+
+            x, y = button.winfo_x(), button.winfo_y()
+            width, height = button.winfo_width(), button.winfo_height()
+            if width < 2 or height < 2:
+                return
+
+            positions = (
+                (x, y, width, 1),
+                (x, y + height - 1, width, 1),
+                (x, y, 1, height),
+                (x + width - 1, y, 1, height),
+            )
+            for line, (lx, ly, lw, lh) in zip(lines, positions):
+                ui_scale_runtime.place_physical(
+                    line,
+                    x=lx,
+                    y=ly,
+                    width=lw,
+                    height=lh,
+                )
+                line.lift(button)
+        except tk.TclError:
+            pass
+
+    def _sync_results_outline(self):
+        """Keep the Results mask/outline on physical notebook edges."""
+
+        notebook = getattr(self, "notebook", None)
+        masks = getattr(self, "_results_outline_masks", None)
+        lines = getattr(self, "_results_outline_lines", None)
+        if (
+            notebook is None
+            or not masks
+            or len(masks) != 4
+            or not lines
+            or len(lines) != 4
+        ):
+            return
+
+        try:
+            if not notebook.winfo_exists() or not notebook.winfo_ismapped():
+                for widget in (*masks, *lines):
+                    widget.place_forget()
+                return
+
+            x, y = notebook.winfo_x(), notebook.winfo_y()
+            width, height = notebook.winfo_width(), notebook.winfo_height()
+            t = max(1, ui_scale_runtime.px(self.RESULTS_OUTLINE_THICKNESS))
+            m = max(t, ui_scale_runtime.px(self.RESULTS_NATIVE_MASK))
+            if width <= m * 2 or height <= m * 2:
+                return
+
+            mask_positions = (
+                (x, y, width, m),
+                (x, y + height - m, width, m),
+                (x, y, m, height),
+                (x + width - m, y, m, height),
+            )
+            for mask, (lx, ly, lw, lh) in zip(masks, mask_positions):
+                ui_scale_runtime.place_physical(
+                    mask,
+                    x=lx,
+                    y=ly,
+                    width=lw,
+                    height=lh,
+                )
+                mask.lift()
+
+            line_positions = (
+                (x, y, width, t),
+                (x, y + height - t, width, t),
+                (x, y, t, height),
+                (x + width - t, y, t, height),
+            )
+            for line, (lx, ly, lw, lh) in zip(lines, line_positions):
+                ui_scale_runtime.place_physical(
+                    line,
+                    x=lx,
+                    y=ly,
+                    width=lw,
+                    height=lh,
+                )
+                line.lift()
+        except tk.TclError:
+            pass
+
+    def _ensure_checkbox_images(self):
+        """Create the custom checkbox squares at the selected UI scale."""
+
+        if hasattr(self, "_checkbox_unchecked_image"):
+            return
+
+        width = ui_scale_runtime.px(15)
+        height = ui_scale_runtime.px(11)
+        unchecked = tk.PhotoImage(master=self, width=width, height=height)
+        checked = tk.PhotoImage(master=self, width=width, height=height)
+
+        outer = (
+            0,
+            ui_scale_runtime.px(1),
+            ui_scale_runtime.px(9),
+            ui_scale_runtime.px(10),
+        )
+        inner = (
+            ui_scale_runtime.px(1),
+            ui_scale_runtime.px(2),
+            ui_scale_runtime.px(8),
+            ui_scale_runtime.px(9),
+        )
+        unchecked.put(visual_theme.THEME["line2"], to=outer)
+        unchecked.put(visual_theme.THEME["field"], to=inner)
+        checked.put(visual_theme.THEME["accent"], to=outer)
+        checked.put(visual_theme.THEME["accent"], to=inner)
+
+        self._checkbox_unchecked_image = unchecked
+        self._checkbox_checked_image = checked
 
     # ------------------------------------------------------------------
     # Application icon
@@ -163,6 +498,7 @@ class FinderV8FinalApp(_BaseFinalApp):
     def _configure_styles(self):
         self._set_theme_globals(self._selected_theme_name())
         super()._configure_styles()
+        self._apply_scaled_ttk_metrics()
 
     def _style_export_controls(self, theme):
         panel = getattr(self, "_results_panel", None)
@@ -241,20 +577,24 @@ class FinderV8FinalApp(_BaseFinalApp):
             pass
 
     # ------------------------------------------------------------------
-    # Settings / theme selector
+    # Settings / theme / UI scale
     # ------------------------------------------------------------------
-    def _center_settings_window(self, window, width=600, height=585):
+    def _center_settings_window(self, window, width=600, height=620):
+        """Center a logical-size Settings window in physical screen pixels."""
+
         try:
             self.update_idletasks()
+            physical_width = ui_scale_runtime.px(width)
+            physical_height = ui_scale_runtime.px(height)
             screen_width = self.winfo_screenwidth()
             screen_height = self.winfo_screenheight()
 
-            x = self.winfo_rootx() + (self.winfo_width() - width) // 2
-            y = self.winfo_rooty() + (self.winfo_height() - height) // 2
-            x = min(max(0, x), max(0, screen_width - width))
-            y = min(max(0, y), max(0, screen_height - height))
+            x = self.winfo_rootx() + (self.winfo_width() - physical_width) // 2
+            y = self.winfo_rooty() + (self.winfo_height() - physical_height) // 2
+            x = min(max(0, x), max(0, screen_width - physical_width))
+            y = min(max(0, y), max(0, screen_height - physical_height))
 
-            geometry = f"{width}x{height}+{x}+{y}"
+            geometry = f"{physical_width}x{physical_height}+{x}+{y}"
             window.geometry(geometry)
             window.update_idletasks()
             window.geometry(geometry)
@@ -274,8 +614,15 @@ class FinderV8FinalApp(_BaseFinalApp):
         self._apply_app_icon(window)
 
         original_theme = self._selected_theme_name()
-        selected_label = THEME_NAMES.get(original_theme, "Deep Black")
-        theme_var = tk.StringVar(window, value=selected_label)
+        original_scale = self._selected_ui_scale()
+        theme_var = tk.StringVar(
+            window,
+            value=THEME_NAMES.get(original_theme, "Deep Black"),
+        )
+        scale_var = tk.StringVar(
+            window,
+            value=UI_SCALE_NAMES.get(original_scale, "115%"),
+        )
 
         application_panel = None
         update_check = None
@@ -305,17 +652,17 @@ class FinderV8FinalApp(_BaseFinalApp):
 
         try:
             width = 600
-            height = 585
+            height = 620
             self._center_settings_window(window, width, height)
-            application_panel.place_configure(height=100)
+            application_panel.place_configure(height=132)
             if update_check is not None:
-                update_check.place_configure(x=12, y=68, width=500, height=20)
+                update_check.place_configure(x=12, y=100, width=500, height=20)
 
             for child in window.winfo_children():
                 if isinstance(child, tk.Button):
                     text = str(child.cget("text") or "")
                     if text in {"Reset Defaults", "Cancel", "Save"}:
-                        child.place_configure(y=545)
+                        child.place_configure(y=580)
 
             self.after_idle(
                 lambda w=window: self._center_settings_window(w, width, height)
@@ -342,40 +689,82 @@ class FinderV8FinalApp(_BaseFinalApp):
         )
         theme_combo.place(x=72, y=34, width=150, height=27)
 
+        tk.Label(
+            application_panel,
+            text="UI Scale",
+            bg=theme["panel"],
+            fg=theme["muted"],
+            font=("Segoe UI", 9),
+            anchor="w",
+        ).place(x=12, y=68, width=55, height=24)
+
+        scale_combo = ttk.Combobox(
+            application_panel,
+            textvariable=scale_var,
+            values=tuple(UI_SCALE_LABELS.keys()),
+            state="readonly",
+            width=18,
+        )
+        scale_combo.place(x=72, y=66, width=150, height=27)
+
+        tk.Label(
+            application_panel,
+            text="Applied after restart",
+            bg=theme["panel"],
+            fg=theme["muted"],
+            font=("Segoe UI", 8),
+            anchor="w",
+        ).place(x=232, y=68, width=150, height=22)
+
         def preview_theme(_event=None):
             key = THEME_LABELS.get(str(theme_var.get()), "deep_black")
             self._apply_theme_choice(key)
 
+        def stage_scale(_event=None):
+            value = UI_SCALE_LABELS.get(str(scale_var.get()), DEFAULT_UI_SCALE)
+            self.v8_settings.setdefault("application", {})["ui_scale"] = value
+
         theme_combo.bind("<<ComboboxSelected>>", preview_theme, add="+")
+        scale_combo.bind("<<ComboboxSelected>>", stage_scale, add="+")
 
         for child in window.winfo_children():
             if (
                 isinstance(child, tk.Button)
                 and str(child.cget("text") or "") == "Reset Defaults"
             ):
-                child.bind(
-                    "<ButtonRelease-1>",
-                    lambda _event: (
-                        theme_var.set("Deep Black"),
-                        self._apply_theme_choice("deep_black"),
-                    ),
-                    add="+",
-                )
+                def reset_application(_event=None):
+                    theme_var.set("Deep Black")
+                    self._apply_theme_choice("deep_black")
+                    scale_var.set("115%")
+                    stage_scale()
+
+                child.bind("<ButtonRelease-1>", reset_application, add="+")
                 break
 
-        # Preview is immediate. If the dialog closes without saving, restore the
-        # persisted theme. A normal Save has already written application.theme.
+        # Theme preview is immediate; UI scale is deliberately restart-only.
+        # If the dialog closes without saving, restore the persisted values.
         def restore_if_cancelled(event):
             if event.widget is not window:
                 return
+
             saved = app_settings.load_settings()
+            saved_application = saved.get("application", {})
             saved_theme = self._normalise_theme_name(
-                saved.get("application", {}).get("theme", "deep_black")
+                saved_application.get("theme", "deep_black")
             )
-            chosen = THEME_LABELS.get(str(theme_var.get()), "deep_black")
-            if saved_theme != chosen:
+            saved_scale = self._normalise_ui_scale(
+                saved_application.get("ui_scale", DEFAULT_UI_SCALE)
+            )
+            chosen_theme = THEME_LABELS.get(
+                str(theme_var.get()),
+                "deep_black",
+            )
+
+            if saved_theme != chosen_theme:
                 self.v8_settings.setdefault("application", {})["theme"] = original_theme
                 self._apply_theme_choice(original_theme)
+
+            self.v8_settings.setdefault("application", {})["ui_scale"] = saved_scale
 
         window.bind("<Destroy>", restore_if_cancelled, add="+")
         self.after_idle(lambda: self._style_classic_widget_tree(window))
@@ -399,13 +788,7 @@ class FinderV8FinalApp(_BaseFinalApp):
             pass
 
     def _reflow_systems_contents(self):
-        """Restore only the real System Input editor, never the legacy button frame.
-
-        The old layout method treated every child Frame inside System Input as
-        the editor. After Expand Results -> Restore Panels this also placed the
-        obsolete buttons frame over the Text widget, producing the grey block.
-        Keep the actual Text parent explicitly and hide the legacy frame instead.
-        """
+        """Restore only the real System Input editor, never the legacy button frame."""
 
         panel = getattr(self, "_systems_panel", None)
         text = getattr(self, "systems_text", None)
@@ -442,7 +825,7 @@ class FinderV8FinalApp(_BaseFinalApp):
                             text="Leave empty to find matches using System Filters.",
                             bg=theme["panel"],
                             fg=theme["muted"],
-                            wraplength=205,
+                            wraplength=ui_scale_runtime.px(205),
                             justify="left",
                             anchor="nw",
                             font=("Segoe UI", 8),
@@ -451,8 +834,6 @@ class FinderV8FinalApp(_BaseFinalApp):
                     except tk.TclError:
                         pass
 
-        # Re-assert the active theme after remapping. This also keeps both
-        # scrollbars consistent if the user changed theme before expanding.
         try:
             self._style_mockup_text(text)
             self._style_classic_widget_tree(text_frame)
