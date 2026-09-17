@@ -38,6 +38,29 @@ def _prepare_chromakey_image(source):
     return source
 
 
+def _release_splash_as_default_root(splash):
+    """Keep the splash alive without letting it own Tkinter's implicit variables.
+
+    The splash is the first ``Tk()`` instance, so Tkinter normally registers it
+    as the process default root. Several older v8 layers still create
+    ``BooleanVar``/``StringVar`` objects without an explicit master. If the
+    splash remains the default root, those variables live in the splash Tcl
+    interpreter while the visible controls live in the main-window interpreter.
+    The UI can then appear to toggle while scan/settings code reads a different
+    value. Clearing only the implicit-root reference here lets the real app
+    ``Tk()`` become the default root when it is constructed a moment later.
+    """
+
+    try:
+        if (
+            getattr(tk, "_support_default_root", True)
+            and getattr(tk, "_default_root", None) is splash
+        ):
+            tk._default_root = None
+    except (AttributeError, tk.TclError):
+        pass
+
+
 def show_startup_splash():
     """Show only the transparent logo while the main Tk interface is built."""
 
@@ -101,6 +124,11 @@ def show_startup_splash():
     splash.update_idletasks()
     splash.update()
     splash.geometry(geometry)
+
+    # The splash must not remain Tkinter's implicit root while the actual app is
+    # built. It stays fully alive and visible; only implicit variable ownership
+    # is released so the main Tk root can own all app state.
+    _release_splash_as_default_root(splash)
     return splash
 
 
