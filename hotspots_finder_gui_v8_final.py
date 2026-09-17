@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-"""Final v8 UI entry point.
+"""Final v8 desktop entry point.
 
-Keeps the approved menu/filter visual layer intact while adding the last
-application-level settings before the consolidation pass.
+Application-level settings, DPI handling, icon and startup splash live here.
+The approved visual/menu layer is consolidated in hotspots_finder_gui_v8_ui.py.
 """
 
 import ctypes
@@ -14,10 +14,9 @@ from pathlib import Path
 from tkinter import ttk
 
 import app_settings
-import hotspots_finder_gui_v8_final_base as final_base_theme
-import hotspots_finder_gui_v8_final_menus as menu_theme
+import hotspots_finder_gui_v8_ui as ui_theme
 import hotspots_finder_gui_v8_visual as visual_theme
-from hotspots_finder_gui_v8_final_menus import FinderV8FinalMenusApp as _BaseFinalApp
+from hotspots_finder_gui_v8_ui import FinderV8FinalUIApp as _BaseFinalApp
 
 
 THEME_LABELS = {
@@ -25,6 +24,7 @@ THEME_LABELS = {
     "Green Warm": "green_warm",
 }
 THEME_NAMES = {value: label for label, value in THEME_LABELS.items()}
+
 ALLOWED_POWERS = (
     "Aisling Duval",
     "Archon Delaine",
@@ -40,35 +40,30 @@ ALLOWED_POWERS = (
     "Zemina Torval",
 )
 
-# The v8 visual layout was authored with pixel geometry around the traditional
-# Windows/Tk 96-DPI baseline. Per-monitor DPI awareness keeps rendering sharp,
-# while pinning Tk's point-to-pixel conversion to this baseline prevents fonts
-# from growing independently of those fixed pixel boxes.
+# The approved v8 layout was authored against the traditional 96-DPI Tk
+# baseline. Windows still renders at native monitor DPI for sharp text, while
+# Tk keeps the original point-to-pixel conversion used by the fixed layout.
 TK_UI_SCALING = 96.0 / 72.0
 
 
 def _enable_windows_dpi_awareness():
-    """Render Tk at the monitor's native DPI instead of Windows bitmap scaling."""
+    """Render Tk at native monitor DPI instead of Windows bitmap scaling."""
 
     if sys.platform != "win32":
         return
 
-    # Prefer Per-Monitor V2 on Windows 10/11. It gives Tk/ttk crisp text and
-    # controls on scaled displays and when the window moves between monitors.
     try:
         if ctypes.windll.user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4)):
             return
     except (AttributeError, OSError, ValueError):
         pass
 
-    # Windows 8.1 fallback.
     try:
         ctypes.windll.shcore.SetProcessDpiAwareness(2)
         return
     except (AttributeError, OSError):
         pass
 
-    # Vista/7 fallback.
     try:
         ctypes.windll.user32.SetProcessDPIAware()
     except (AttributeError, OSError):
@@ -76,24 +71,18 @@ def _enable_windows_dpi_awareness():
 
 
 class FinderV8FinalApp(_BaseFinalApp):
-    """Last v8 settings refinements on top of the approved visual layer."""
+    """Approved v8 UI plus application-level behaviour."""
 
     def __init__(self):
-        # The inherited v8 chain builds several visual layers and schedules
-        # after-idle geometry/style passes. Hide the root at the instant Tk
-        # creates it so none of those intermediate states can flash on screen.
+        # Build the complete Tk hierarchy invisibly. This prevents native ttk
+        # widgets and inherited geometry callbacks from flashing during startup.
         original_tk_init = tk.Tk.__init__
 
         def hidden_tk_init(instance, *args, **kwargs):
             original_tk_init(instance, *args, **kwargs)
             try:
-                # Keep native-DPI rasterisation for sharp text, but preserve the
-                # original v8 font metrics so the fixed pixel layout does not
-                # overflow when Windows display scaling is above 100%.
                 instance.tk.call("tk", "scaling", TK_UI_SCALING)
                 instance.withdraw()
-                # Even if an inherited layer maps the window during startup,
-                # keep it compositor-invisible until the final handoff.
                 instance.attributes("-alpha", 0.0)
             except tk.TclError:
                 pass
@@ -104,18 +93,14 @@ class FinderV8FinalApp(_BaseFinalApp):
         finally:
             tk.Tk.__init__ = original_tk_init
 
-        # The splash is a separate temporary Tk root and is created first, so
-        # tkinter's implicit default root still points at the splash while this
-        # window is constructed. Make the real application root the default now;
-        # otherwise destroying the splash leaves font helpers such as nametofont
-        # without a root later when scan results are rendered.
+        # The splash is a temporary first Tk root. Point Tk's implicit default
+        # root back at the real app so font helpers keep working after the splash
+        # is destroyed.
         if getattr(tk, "_support_default_root", True):
             tk._default_root = self
 
         self._apply_app_icon(self)
 
-        # Old remembered settings may still contain a Power that is no longer
-        # offered. Do not display or silently use an unsupported value.
         current_power = str(self.power_var.get() or "").strip()
         if current_power not in ALLOWED_POWERS:
             self.power_var.set("")
@@ -125,8 +110,6 @@ class FinderV8FinalApp(_BaseFinalApp):
     # ------------------------------------------------------------------
     @staticmethod
     def _app_icon_path():
-        """Return app.ico both from source and from a PyInstaller bundle."""
-
         base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
         return base / "app.ico"
 
@@ -136,8 +119,6 @@ class FinderV8FinalApp(_BaseFinalApp):
             return
 
         try:
-            # ``default`` also makes child Toplevel windows inherit the icon on
-            # Windows instead of falling back to Tk's feather icon.
             window.iconbitmap(default=str(icon_path))
         except (tk.TclError, OSError):
             try:
@@ -159,19 +140,15 @@ class FinderV8FinalApp(_BaseFinalApp):
         return self._normalise_theme_name(application.get("theme", "deep_black"))
 
     def _set_theme_globals(self, theme_name):
-        """Point every active visual layer at the same theme dictionary."""
+        """Keep the base visual module and consolidated UI on one theme."""
 
         theme_name = self._normalise_theme_name(theme_name)
         theme = visual_theme.THEMES[theme_name]
 
-        # These modules import THEME directly, so update their module globals as
-        # well as the source visual module. This is temporary until consolidation.
         visual_theme.THEME_NAME = theme_name
         visual_theme.THEME = theme
-        final_base_theme.THEME = theme
-        menu_theme.THEME = theme
+        ui_theme.THEME = theme
 
-        # Popup colours are instance attributes so they change immediately too.
         self.RESULTS_OUTLINE = theme["line2"]
         self.MENU_BG = theme["panel2"]
         self.MENU_HOVER = theme["hover"]
@@ -184,14 +161,10 @@ class FinderV8FinalApp(_BaseFinalApp):
         return theme_name, theme
 
     def _configure_styles(self):
-        # v8 settings are loaded before Tk constructs the controls, so the saved
-        # theme can be selected before the rest of the style chain runs.
         self._set_theme_globals(self._selected_theme_name())
         super()._configure_styles()
 
     def _style_export_controls(self, theme):
-        """Repaint the Results export strip during a live theme switch."""
-
         panel = getattr(self, "_results_panel", None)
         if panel is None:
             return
@@ -204,7 +177,6 @@ class FinderV8FinalApp(_BaseFinalApp):
         for frame in frames:
             if not isinstance(frame, tk.Frame):
                 continue
-
             try:
                 children = frame.winfo_children()
             except tk.TclError:
@@ -248,7 +220,6 @@ class FinderV8FinalApp(_BaseFinalApp):
         theme_name, theme = self._set_theme_globals(theme_name)
         self.v8_settings.setdefault("application", {})["theme"] = theme_name
 
-        # Reconfigure ttk styles and repaint the existing classic Tk widgets.
         self._configure_styles()
         self._apply_visual_theme()
         self._style_export_controls(theme)
@@ -270,11 +241,9 @@ class FinderV8FinalApp(_BaseFinalApp):
             pass
 
     # ------------------------------------------------------------------
-    # Settings: Application / Theme
+    # Settings / theme selector
     # ------------------------------------------------------------------
     def _center_settings_window(self, window, width=600, height=585):
-        """Center Settings over the app and re-assert geometry after mapping."""
-
         try:
             self.update_idletasks()
             screen_width = self.winfo_screenwidth()
@@ -300,6 +269,7 @@ class FinderV8FinalApp(_BaseFinalApp):
             return
         if getattr(window, "_edhf_theme_controls", False):
             return
+
         window._edhf_theme_controls = True
         self._apply_app_icon(window)
 
@@ -307,7 +277,6 @@ class FinderV8FinalApp(_BaseFinalApp):
         selected_label = THEME_NAMES.get(original_theme, "Deep Black")
         theme_var = tk.StringVar(window, value=selected_label)
 
-        # Find the existing APPLICATION card instead of duplicating it.
         application_panel = None
         update_check = None
         for child in window.winfo_children():
@@ -334,7 +303,6 @@ class FinderV8FinalApp(_BaseFinalApp):
                 update_check = sub
                 break
 
-        # Make room for Theme, then centre the enlarged window over the app.
         try:
             width = 600
             height = 585
@@ -349,8 +317,6 @@ class FinderV8FinalApp(_BaseFinalApp):
                     if text in {"Reset Defaults", "Cancel", "Save"}:
                         child.place_configure(y=545)
 
-            # Windows can briefly map a Toplevel at 0,0 before respecting the
-            # requested geometry, so re-assert the centred position once idle.
             self.after_idle(
                 lambda w=window: self._center_settings_window(w, width, height)
             )
@@ -382,7 +348,6 @@ class FinderV8FinalApp(_BaseFinalApp):
 
         theme_combo.bind("<<ComboboxSelected>>", preview_theme, add="+")
 
-        # Reset Defaults also resets the visual theme to Deep Black.
         for child in window.winfo_children():
             if (
                 isinstance(child, tk.Button)
@@ -398,9 +363,8 @@ class FinderV8FinalApp(_BaseFinalApp):
                 )
                 break
 
-        # Theme previews are immediate. If the user cancels the dialog, restore
-        # the theme that was active before opening it. If Save was used, the base
-        # dialog has already persisted the selected application.theme value.
+        # Preview is immediate. If the dialog closes without saving, restore the
+        # persisted theme. A normal Save has already written application.theme.
         def restore_if_cancelled(event):
             if event.widget is not window:
                 return
@@ -427,14 +391,12 @@ class FinderV8FinalApp(_BaseFinalApp):
         try:
             combo.configure(values=("", *ALLOWED_POWERS))
         except tk.TclError:
-            return
+            pass
 
     # ------------------------------------------------------------------
     # Scan completion safety
     # ------------------------------------------------------------------
     def _scan_complete(self, result):
-        """Never leave the UI stuck in running state if result rendering fails."""
-
         try:
             return super()._scan_complete(result)
         except Exception:
@@ -446,20 +408,16 @@ class FinderV8FinalApp(_BaseFinalApp):
 
 
 def main():
-    # Must run before the splash creates the first Tk window.
     _enable_windows_dpi_awareness()
 
     from startup_splash import close_startup_splash, show_startup_splash
 
     splash = show_startup_splash()
-
     app = None
+
     try:
         app = FinderV8FinalApp()
 
-        # Keep the root transparent while inherited after-idle/short-delay
-        # visual passes settle. This is stronger than withdraw alone because a
-        # legacy layer may map the root while it is still being restyled.
         try:
             app.attributes("-alpha", 0.0)
         except tk.TclError:
@@ -477,10 +435,8 @@ def main():
                     splash = None
             time.sleep(0.01)
 
-        # Map and paint the entire application while it is still fully
-        # transparent. Some ttk/native Windows elements only finish their first
-        # real paint after mapping; doing that invisibly prevents the brief white
-        # or partially-styled panels visible in the startup recording.
+        # A few native/ttk elements finish their first real paint only after the
+        # root is mapped. Map it at alpha 0 so that paint is never visible.
         app.deiconify()
         app.lift()
         mapped_until = time.perf_counter() + 0.20
@@ -495,9 +451,6 @@ def main():
                     splash = None
             time.sleep(0.01)
 
-        # Remove the splash first and flush that removal. Only afterwards make
-        # the already-painted application visible, so the logo cannot remain on
-        # top of the first visible frame of the app.
         close_startup_splash(splash)
         splash = None
         time.sleep(0.03)
