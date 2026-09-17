@@ -161,6 +161,10 @@ class FinderV8SettingsMixin:
             return
 
         window = tk.Toplevel(self)
+        # Keep the native window unmapped while the dialog is being built.
+        # The final GUI layer explicitly reveals it only after all inherited
+        # Settings extensions and theme controls are complete.
+        window.withdraw()
         self._settings_window = window
         window.title("Settings")
         window.configure(bg=COLORS["bg"])
@@ -512,6 +516,15 @@ class FinderV8SettingsMixin:
         ).place(x=490, y=500, width=92, height=28)
 
         window.protocol("WM_DELETE_WINDOW", close_dialog)
+
+        # Standalone/intermediate GUI classes can still use this mixin directly.
+        # The concrete final app sets _defer_settings_reveal while it adds its
+        # extra controls, so only that layer decides when the window is ready.
+        if not getattr(self, "_defer_settings_reveal", False):
+            window.update_idletasks()
+            window.deiconify()
+            window.lift()
+            window.focus_force()
 
     def start_rhino_upload(self):
         # Let the inherited method show its normal busy warning without also
