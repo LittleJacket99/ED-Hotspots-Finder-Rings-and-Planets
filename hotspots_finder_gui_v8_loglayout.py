@@ -68,9 +68,8 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
         def hidden_toplevel(*args, **kwargs):
             window = original_toplevel(*args, **kwargs)
             try:
-                # withdraw alone is not enough on Windows: later geometry/style
-                # work can still cause intermediate paints. Alpha 0 keeps the
-                # HWND completely invisible until the final reveal below.
+                # Keep the native window transparent for its entire creation
+                # and initial Windows/DWM mapping animation.
                 window.withdraw()
                 window.attributes("-alpha", 0.0)
             except tk.TclError:
@@ -102,9 +101,8 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
                 if not window.winfo_exists():
                     return
 
-                # Force any deferred theme/mockup work to settle while the
-                # window is still transparent. The concrete final app provides
-                # these helpers; intermediate test classes simply skip them.
+                # Force deferred theme/mockup work to settle while the window
+                # is still fully transparent.
                 window.update_idletasks()
                 for method_name in (
                     "_style_mockup_controls",
@@ -118,17 +116,30 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
                             pass
                 window.update_idletasks()
 
-                # Make it opaque before mapping it, so Windows never displays
-                # the default-grey / partially-themed construction frames.
-                window.attributes("-alpha", 1.0)
+                # Important on Windows: mapping a withdrawn Toplevel can have a
+                # short DWM zoom/fade animation. Map it while alpha is still 0,
+                # let that native animation finish invisibly, and only then make
+                # the already-painted window opaque in one step.
+                window.attributes("-alpha", 0.0)
                 window.deiconify()
-                window.lift()
-                window.focus_force()
+                window.update_idletasks()
+
+                def finish_reveal():
+                    try:
+                        if not window.winfo_exists():
+                            return
+                        window.attributes("-alpha", 1.0)
+                        window.lift()
+                        window.focus_force()
+                    except tk.TclError:
+                        pass
+
+                self.after(240, finish_reveal)
             except tk.TclError:
                 pass
 
-        # Some final-layer styling is queued with after_idle. Give those jobs
-        # one short event-loop turn, but keep the window alpha=0 throughout.
+        # Final-layer styling is queued with after_idle. Give those jobs one
+        # event-loop turn, then start the invisible native mapping phase.
         self.after_idle(lambda: self.after(90, reveal_settings))
         return result
 
