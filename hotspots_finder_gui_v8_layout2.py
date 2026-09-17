@@ -96,9 +96,6 @@ class FinderV8Layout2App(BasePolishApp):
             except tk.TclError:
                 continue
 
-        # The unused compatibility frame is never shown in this layout.
-        self._results_options_box.place_forget()
-
         for attr, (box_x, box_y, width, height) in LAYOUT.items():
             getattr(self, attr).place(x=box_x, y=box_y, width=width, height=height)
 
@@ -983,7 +980,6 @@ class FinderV8Layout2App(BasePolishApp):
             ):
                 getattr(self, attr).place_forget()
 
-            self._results_options_box.place_forget()
             self._hide_external_clear_buttons()
 
             if getattr(self, "_bottom_bar", None) is not None:
@@ -997,7 +993,6 @@ class FinderV8Layout2App(BasePolishApp):
         for attr, (box_x, box_y, width, height) in LAYOUT.items():
             getattr(self, attr).place(x=box_x, y=box_y, width=width, height=height)
 
-        self._results_options_box.place_forget()
         self._reflow_systems_contents()
         self._reflow_compact_reference_distance()
         self._show_external_clear_buttons()
