@@ -53,7 +53,7 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
             )
 
     def _open_settings_dialog(self):
-        """Build Settings off-screen, then reveal the completed window once."""
+        """Build Settings invisibly, then reveal the fully styled window once."""
 
         existing = getattr(self, "_settings_window", None)
         if existing is not None:
@@ -68,14 +68,18 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
         def hidden_toplevel(*args, **kwargs):
             window = original_toplevel(*args, **kwargs)
             try:
+                # withdraw alone is not enough on Windows: later geometry/style
+                # work can still cause intermediate paints. Alpha 0 keeps the
+                # HWND completely invisible until the final reveal below.
                 window.withdraw()
+                window.attributes("-alpha", 0.0)
             except tk.TclError:
                 pass
             return window
 
         # The base Settings layer creates and lays out the window synchronously.
-        # Keep that one Toplevel withdrawn so the later visual/theme layers can
-        # finish adding their controls without Windows painting intermediate states.
+        # Keep that one Toplevel invisible while every later visual/theme layer
+        # finishes adding and restyling its controls.
         tk.Toplevel = hidden_toplevel
         try:
             result = super()._open_settings_dialog()
@@ -97,16 +101,35 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
             try:
                 if not window.winfo_exists():
                     return
+
+                # Force any deferred theme/mockup work to settle while the
+                # window is still transparent. The concrete final app provides
+                # these helpers; intermediate test classes simply skip them.
                 window.update_idletasks()
+                for method_name in (
+                    "_style_mockup_controls",
+                    "_style_classic_widget_tree",
+                ):
+                    method = getattr(self, method_name, None)
+                    if callable(method):
+                        try:
+                            method(window)
+                        except (AttributeError, tk.TclError):
+                            pass
+                window.update_idletasks()
+
+                # Make it opaque before mapping it, so Windows never displays
+                # the default-grey / partially-themed construction frames.
+                window.attributes("-alpha", 1.0)
                 window.deiconify()
                 window.lift()
                 window.focus_force()
             except tk.TclError:
                 pass
 
-        # FinalApp and the visual layer both add Settings controls after this
-        # method returns. Let their idle callbacks finish first, then map once.
-        self.after_idle(lambda: self.after(15, reveal_settings))
+        # Some final-layer styling is queued with after_idle. Give those jobs
+        # one short event-loop turn, but keep the window alpha=0 throughout.
+        self.after_idle(lambda: self.after(90, reveal_settings))
         return result
 
     def _enhance_rhino_settings_window(self, window):
