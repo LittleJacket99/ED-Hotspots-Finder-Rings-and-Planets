@@ -872,7 +872,7 @@ class FinderV8FinalApp(_BaseFinalApp):
         repo_link.bind(
             "<Button-1>",
             lambda _event: ui_theme.webbrowser.open_new_tab(
-                "https://github.com/LittleJacket99/ED-Hotspots-Landables-Finder"
+                "https://github.com/LittleJacket99/ED-Hotspots-Finder-Rings-and-Planets"
             ),
         )
         repo_link.bind(
