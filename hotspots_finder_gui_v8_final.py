@@ -381,6 +381,85 @@ class FinderV8FinalApp(_BaseFinalApp):
         self.after_idle(lambda: self._style_classic_widget_tree(window))
 
     # ------------------------------------------------------------------
+    # System Input restore
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _forget_widget_geometry(widget):
+        """Hide a legacy child regardless of the geometry manager it currently uses."""
+
+        try:
+            manager = widget.winfo_manager()
+            if manager == "pack":
+                widget.pack_forget()
+            elif manager == "grid":
+                widget.grid_forget()
+            elif manager == "place":
+                widget.place_forget()
+        except tk.TclError:
+            pass
+
+    def _reflow_systems_contents(self):
+        """Restore only the real System Input editor, never the legacy button frame.
+
+        The old layout method treated every child Frame inside System Input as
+        the editor. After Expand Results -> Restore Panels this also placed the
+        obsolete buttons frame over the Text widget, producing the grey block.
+        Keep the actual Text parent explicitly and hide the legacy frame instead.
+        """
+
+        panel = getattr(self, "_systems_panel", None)
+        text = getattr(self, "systems_text", None)
+        if panel is None or text is None:
+            return
+
+        text_frame = text.master
+        theme = visual_theme.THEME
+
+        for child in panel.winfo_children():
+            if isinstance(child, tk.Frame):
+                if child is text_frame:
+                    self._forget_widget_geometry(child)
+                    try:
+                        child.configure(bg=theme["panel"])
+                        child.place(x=9, y=52, width=207, height=300)
+                    except tk.TclError:
+                        pass
+                else:
+                    self._forget_widget_geometry(child)
+                continue
+
+            if isinstance(child, tk.Button):
+                self._forget_widget_geometry(child)
+                continue
+
+            if isinstance(child, tk.Label):
+                label_text = str(child.cget("text") or "")
+                if label_text.startswith("Optional manual input") or label_text.startswith(
+                    "Leave empty"
+                ):
+                    try:
+                        child.configure(
+                            text="Leave empty to find matches using System Filters.",
+                            bg=theme["panel"],
+                            fg=theme["muted"],
+                            wraplength=205,
+                            justify="left",
+                            anchor="nw",
+                            font=("Segoe UI", 8),
+                        )
+                        child.place_configure(x=9, y=361, width=207, height=38)
+                    except tk.TclError:
+                        pass
+
+        # Re-assert the active theme after remapping. This also keeps both
+        # scrollbars consistent if the user changed theme before expanding.
+        try:
+            self._style_mockup_text(text)
+            self._style_classic_widget_tree(text_frame)
+        except (AttributeError, tk.TclError):
+            pass
+
+    # ------------------------------------------------------------------
     # Power list
     # ------------------------------------------------------------------
     def _configure_power_combobox_behavior(self):
