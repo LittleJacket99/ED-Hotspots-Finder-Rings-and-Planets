@@ -29,6 +29,7 @@ from hotspots_finder_gui_v8_ui import FinderV8FinalUIApp as _BaseFinalApp
 
 
 PUBLIC_APP_TITLE = "ED Hotspots Finder - Rings & Planets"
+PUBLIC_APP_VERSION = "v1.0.0"
 base_gui.APP_TITLE = PUBLIC_APP_TITLE
 settings_gui.APP_TITLE = PUBLIC_APP_TITLE
 visual_theme.APP_WINDOW_TITLE = PUBLIC_APP_TITLE
@@ -107,7 +108,7 @@ class FinderV8FinalApp(_BaseFinalApp):
     """Approved v8 UI plus application-level behaviour."""
 
     def _apply_brand_header(self):
-        """Render the public release branding without internal version labels."""
+        """Render public branding with the public release version as a badge."""
 
         header = getattr(self, "_header_frame", None)
         if header is None:
@@ -136,14 +137,37 @@ class FinderV8FinalApp(_BaseFinalApp):
                 anchor="w",
             ).pack(anchor="w")
 
-            tk.Label(
+            subtitle_row = tk.Frame(
                 title_block,
+                bg=theme["header"],
+                bd=0,
+                highlightthickness=0,
+            )
+            subtitle_row.pack(anchor="w", fill="x", pady=(2, 0))
+            tk.Label(
+                subtitle_row,
                 text="Rings & Planets",
                 bg=theme["header"],
                 fg=theme["text"],
                 font=("Segoe UI", 10, "bold"),
                 anchor="w",
-            ).pack(anchor="w", pady=(2, 0))
+            ).pack(side="left")
+            tk.Label(
+                subtitle_row,
+                text="•",
+                bg=theme["header"],
+                fg=theme["muted"],
+                font=("Segoe UI", 8, "bold"),
+                anchor="center",
+            ).pack(side="left", padx=(7, 6), pady=(1, 0))
+            tk.Label(
+                subtitle_row,
+                text=PUBLIC_APP_VERSION,
+                bg=theme["header"],
+                fg=theme["muted"],
+                font=("Segoe UI", 8),
+                anchor="w",
+            ).pack(side="left", pady=(1, 0))
         except tk.TclError:
             return
 
