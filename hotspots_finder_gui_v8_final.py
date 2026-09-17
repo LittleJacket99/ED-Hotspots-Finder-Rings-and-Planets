@@ -1079,7 +1079,69 @@ class FinderV8FinalApp(_BaseFinalApp):
             )
         return rows
 
-    def _show_power_menu(self, _event=None, *, offset=0, toggle=True):
+    def _power_menu_items(self, rows, offset):
+        visible = rows[offset : offset + POWER_MENU_VISIBLE_ROWS]
+        items = []
+        clear_index = len(ALLOWED_POWERS)
+        for local_index, row in enumerate(visible):
+            absolute_index = offset + local_index
+            if absolute_index == len(PRIORITY_POWERS):
+                items.append(None)
+            if absolute_index == clear_index:
+                items.append(None)
+            items.append(row)
+        return items
+
+    def _populate_power_popup(self, inner, items):
+        for child in inner.winfo_children():
+            try:
+                child.destroy()
+            except tk.TclError:
+                pass
+
+        for item in items:
+            if item is None:
+                tk.Frame(
+                    inner,
+                    bg=self.MENU_SEPARATOR,
+                    bd=0,
+                    highlightthickness=0,
+                    height=1,
+                ).pack(fill="x", padx=7, pady=4)
+                continue
+
+            label_text, command, enabled = item
+            entry = tk.Label(
+                inner,
+                text=label_text,
+                bg=self.MENU_BG,
+                fg=self.MENU_TEXT if enabled else self.MENU_MUTED,
+                anchor="w",
+                justify="left",
+                padx=10,
+                pady=5,
+                bd=0,
+                relief="flat",
+                highlightthickness=0,
+                font=("Segoe UI", 9),
+                cursor="hand2" if enabled else "",
+            )
+            entry.pack(fill="x")
+            if enabled:
+                entry.bind(
+                    "<Enter>",
+                    lambda _e, w=entry: w.configure(bg=self.MENU_HOVER),
+                )
+                entry.bind(
+                    "<Leave>",
+                    lambda _e, w=entry: w.configure(bg=self.MENU_BG),
+                )
+                entry.bind(
+                    "<ButtonRelease-1>",
+                    lambda _e, cb=command: self._run_custom_popup_command(cb),
+                )
+
+    def _show_power_menu(self, _event=None):
         combo = getattr(self, "power_combo", None)
         if combo is None:
             return "break"
@@ -1090,7 +1152,7 @@ class FinderV8FinalApp(_BaseFinalApp):
             return "break"
 
         current_popup = getattr(self, "_custom_popup", None)
-        if toggle and current_popup is not None:
+        if current_popup is not None:
             try:
                 if current_popup.winfo_exists():
                     self._dismiss_custom_popup()
@@ -1100,18 +1162,8 @@ class FinderV8FinalApp(_BaseFinalApp):
 
         rows = self._power_menu_rows()
         max_offset = max(0, len(rows) - POWER_MENU_VISIBLE_ROWS)
-        offset = max(0, min(int(offset), max_offset))
-        visible = rows[offset : offset + POWER_MENU_VISIBLE_ROWS]
-
-        items = []
-        clear_index = len(ALLOWED_POWERS)
-        for local_index, row in enumerate(visible):
-            absolute_index = offset + local_index
-            if absolute_index == len(PRIORITY_POWERS):
-                items.append(None)
-            if absolute_index == clear_index:
-                items.append(None)
-            items.append(row)
+        offset = 0
+        items = self._power_menu_items(rows, offset)
 
         try:
             popup = self._show_custom_popup(
@@ -1126,6 +1178,14 @@ class FinderV8FinalApp(_BaseFinalApp):
         if popup is None:
             return "break"
 
+        try:
+            outer = popup.winfo_children()[0]
+            inner = outer.winfo_children()[0]
+        except (IndexError, tk.TclError):
+            return "break"
+
+        popup._edhf_power_offset = offset
+
         def on_mousewheel(event):
             try:
                 delta = int(event.delta)
@@ -1134,15 +1194,21 @@ class FinderV8FinalApp(_BaseFinalApp):
             if not delta:
                 return "break"
 
+            current_offset = int(getattr(popup, "_edhf_power_offset", 0))
             step = -1 if delta > 0 else 1
-            new_offset = max(0, min(offset + step, max_offset))
-            if new_offset != offset:
-                self.after_idle(
-                    lambda value=new_offset: self._show_power_menu(
-                        offset=value,
-                        toggle=False,
-                    )
-                )
+            new_offset = max(0, min(current_offset + step, max_offset))
+            if new_offset == current_offset:
+                return "break"
+
+            popup._edhf_power_offset = new_offset
+            self._populate_power_popup(
+                inner,
+                self._power_menu_items(rows, new_offset),
+            )
+            try:
+                popup.update_idletasks()
+            except tk.TclError:
+                pass
             return "break"
 
         popup.bind("<MouseWheel>", on_mousewheel, add="+")
