@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""Persistent settings for Hotspots & Landables Finder v8.
+"""Persistent settings for ED Hotspots Finder - Rings & Planets.
 
 The v8 settings live under a dedicated key inside the existing
 %APPDATA%\HotspotsFinder\config.json file so older configuration values are
@@ -26,8 +26,8 @@ DEFAULT_SETTINGS = {
         "remember_last_filters": False,
     },
     "rhinospotter": {
-        # Empty means use the standard %LOCALAPPDATA%\RhinoSpotter\cards path.
-        "cards_dir": "",
+        # Empty means use the standard %LOCALAPPDATA%\RhinoSpotter data root.
+        "data_path": "",
         "ask_before_sync": True,
     },
     "application": {
@@ -79,17 +79,47 @@ def save_settings(settings):
     temp_path.replace(CONFIG_PATH)
 
 
-def default_rhinospotter_cards_dir():
+def default_rhinospotter_data_path():
+    """Return RhinoSpotter's standard local-data root."""
+
     local_app_data = os.environ.get("LOCALAPPDATA")
     if local_app_data:
-        return Path(local_app_data) / "RhinoSpotter" / "cards"
-    return Path.home() / "AppData" / "Local" / "RhinoSpotter" / "cards"
+        return Path(local_app_data) / "RhinoSpotter"
+    return Path.home() / "AppData" / "Local" / "RhinoSpotter"
+
+
+def default_rhinospotter_cards_dir():
+    """Backward-compatible alias used by the current settings UI.
+
+    The GUI historically asked for RhinoSpotter's ``cards`` directory. Current
+    RhinoSpotter releases store bookmarks in ``db\rhinospotter.db``, so the
+    automatic location now points at the RhinoSpotter data root instead. The
+    sync layer still accepts an actual legacy cards directory when one is
+    explicitly configured.
+    """
+
+    return default_rhinospotter_data_path()
+
+
+def resolve_rhinospotter_data_path(settings):
+    """Resolve the configured RhinoSpotter source while preserving old configs."""
+
+    rhino = (settings or {}).get("rhinospotter", {})
+
+    custom = str(rhino.get("data_path", "") or "").strip()
+    if custom:
+        return Path(custom).expanduser()
+
+    # v1.0.0 stored the same setting as ``cards_dir``. Keep accepting it so an
+    # existing user's configuration continues to work without migration steps.
+    legacy = str(rhino.get("cards_dir", "") or "").strip()
+    if legacy:
+        return Path(legacy).expanduser()
+
+    return default_rhinospotter_data_path()
 
 
 def resolve_rhinospotter_cards_dir(settings):
-    custom = str(
-        (settings or {}).get("rhinospotter", {}).get("cards_dir", "") or ""
-    ).strip()
-    if custom:
-        return Path(custom).expanduser()
-    return default_rhinospotter_cards_dir()
+    """Backward-compatible alias for the current GUI call sites."""
+
+    return resolve_rhinospotter_data_path(settings)
