@@ -2,6 +2,10 @@
 
 """GUI-friendly wrapper around the RhinoSpotter synchronization logic."""
 
+import sqlite3
+from contextlib import closing
+from pathlib import Path
+
 from rhinospotter_sync import (
     MAX_BATCH_SIZE,
     chunks,
@@ -16,12 +20,29 @@ class RhinoSpotterSyncError(RuntimeError):
 
 
 def inspect_source(data_path=None):
-    """Return the detected RhinoSpotter source without reading its records."""
+    """Return the detected RhinoSpotter source and a lightweight record count."""
 
     source_type, source_path = resolve_source(data_path)
+
+    if source_type == "sqlite":
+        try:
+            uri = Path(source_path).resolve().as_uri() + "?mode=ro"
+            connection = sqlite3.connect(uri, uri=True, timeout=5.0)
+            with closing(connection) as conn:
+                records_found = conn.execute(
+                    "SELECT COUNT(*) FROM bookmarks"
+                ).fetchone()[0]
+        except sqlite3.Error as exc:
+            raise RhinoSpotterSyncError(
+                f"Could not inspect RhinoSpotter database {source_path}: {exc}"
+            ) from exc
+    else:
+        records_found = sum(1 for _ in Path(source_path).rglob("*.json"))
+
     return {
         "source_type": source_type,
         "source_path": str(source_path),
+        "records_found": int(records_found or 0),
     }
 
 
