@@ -1,24 +1,22 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_submodules
-
-hiddenimports = []
-hiddenimports += collect_submodules('googleapiclient')
-hiddenimports += collect_submodules('google.auth')
-hiddenimports += collect_submodules('google_auth_oauthlib')
 
 a = Analysis(
-    ['hotspots_finder_gui.py'],
+    ['hotspots_finder_gui_v8_final.py'],
     pathex=[],
     binaries=[],
     datas=[
-        ('logo.png', '.'),
-        ('credentials.json', '.'),
+        ('app.ico', '.'),
+        ('ED_Hotspots_Finder.png', '.'),
     ],
-    hiddenimports=hiddenimports,
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=[
+        'google',
+        'googleapiclient',
+        'google_auth_oauthlib',
+    ],
     noarchive=False,
     optimize=0,
 )
@@ -30,7 +28,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='ED Hotspots & Landables Finder',
+    name='ED Hotspots Finder - Rings & Planets',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -44,5 +42,5 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=['app.ico'],
-    version='version_info.txt',
+    version='version_info_v8.txt',
 )
