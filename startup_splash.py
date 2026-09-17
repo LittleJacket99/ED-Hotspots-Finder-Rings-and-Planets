@@ -12,6 +12,7 @@ from PIL import Image, ImageTk
 SPLASH_IMAGE = "ED_Hotspots_Finder.png"
 TRANSPARENT_KEY = "#ff00ff"
 MAX_SPLASH_SIZE = 460
+ALPHA_CUTOFF = 176
 
 
 def resource_path(filename):
@@ -19,6 +20,22 @@ def resource_path(filename):
 
     base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
     return base / filename
+
+
+def _prepare_chromakey_image(source):
+    """Remove semi-transparent edge pixels that would blend with the key colour.
+
+    Tk's ``-transparentcolor`` only removes pixels that exactly match the key.
+    Normal PNG antialiasing contains partially transparent edge pixels; Tk blends
+    those pixels with the magenta label background first, leaving a visible
+    fuchsia fringe. Converting the resized alpha channel to binary transparency
+    keeps the splash background fully keyed without contaminating the logo edge.
+    """
+
+    alpha = source.getchannel("A")
+    alpha = alpha.point(lambda value: 255 if value >= ALPHA_CUTOFF else 0)
+    source.putalpha(alpha)
+    return source
 
 
 def show_startup_splash():
@@ -54,6 +71,7 @@ def show_startup_splash():
             max(280, int(min(screen_width, screen_height) * 0.43)),
         )
         source.thumbnail((target, target), Image.Resampling.LANCZOS)
+        source = _prepare_chromakey_image(source)
         photo = ImageTk.PhotoImage(source, master=splash)
     except Exception:
         splash.destroy()
