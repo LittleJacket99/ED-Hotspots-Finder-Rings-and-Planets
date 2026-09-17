@@ -213,6 +213,15 @@ class FinderV8FinalApp(_BaseFinalApp):
         if current_power not in ALLOWED_POWERS:
             self.power_var.set("")
 
+        # Build Settings once while the main application is still hidden behind
+        # the startup splash. Later openings only reveal this already-realised
+        # native window, so Windows never performs a fresh Toplevel map animation.
+        self._prebuilding_settings_window = True
+        try:
+            self._open_settings_dialog()
+        finally:
+            self._prebuilding_settings_window = False
+
     @staticmethod
     def _normalise_ui_scale(value):
         return ui_scale_runtime.normalise_scale(value, DEFAULT_UI_SCALE)
@@ -787,13 +796,68 @@ class FinderV8FinalApp(_BaseFinalApp):
         except tk.TclError:
             return None
 
+    def _hide_persistent_settings_window(self, window=None):
+        window = window or getattr(self, "_settings_window", None)
+        if window is None:
+            return
+        try:
+            if not window.winfo_exists():
+                return
+            try:
+                window.grab_release()
+            except tk.TclError:
+                pass
+            window.attributes("-alpha", 0.0)
+            width = max(1, window.winfo_width())
+            height = max(1, window.winfo_height())
+            window.geometry(
+                f"{width}x{height}+{window.winfo_screenwidth() + 200}+"
+                f"{window.winfo_screenheight() + 200}"
+            )
+            window.update_idletasks()
+        except tk.TclError:
+            pass
+
+    def _show_persistent_settings_window(self, window):
+        try:
+            if not window.winfo_exists():
+                return
+            # Move the already-mapped transparent window into its final position,
+            # settle geometry, then make it visible without a native map event.
+            window.attributes("-alpha", 0.0)
+            self._center_settings_window(window, 600, 620)
+            window.update_idletasks()
+            window.attributes("-alpha", 1.0)
+            try:
+                window.grab_set()
+            except tk.TclError:
+                pass
+            window.lift()
+            window.focus_force()
+        except tk.TclError:
+            pass
+
     def _open_settings_dialog(self):
         existing = getattr(self, "_settings_window", None)
         if existing is not None:
             try:
                 if existing.winfo_exists():
-                    existing.lift()
-                    existing.focus_force()
+                    if not getattr(self, "_prebuilding_settings_window", False):
+                        restore = getattr(
+                            existing,
+                            "_edhf_restore_settings_values",
+                            None,
+                        )
+                        if callable(restore):
+                            restore()
+                        restore_app = getattr(
+                            existing,
+                            "_edhf_restore_application_values",
+                            None,
+                        )
+                        if callable(restore_app):
+                            restore_app()
+                        self._show_persistent_settings_window(existing)
                     return
             except tk.TclError:
                 pass
@@ -974,10 +1038,7 @@ class FinderV8FinalApp(_BaseFinalApp):
                 child.bind("<ButtonRelease-1>", reset_application, add="+")
                 break
 
-        def restore_if_cancelled(event):
-            if event.widget is not window:
-                return
-
+        def restore_application_values():
             saved = app_settings.load_settings()
             saved_application = saved.get("application", {})
             saved_theme = self._normalise_theme_name(
@@ -986,22 +1047,20 @@ class FinderV8FinalApp(_BaseFinalApp):
             saved_scale = self._normalise_ui_scale(
                 saved_application.get("ui_scale", DEFAULT_UI_SCALE)
             )
-            chosen_theme = THEME_LABELS.get(
-                str(theme_var.get()),
-                "deep_black",
-            )
 
-            if saved_theme != chosen_theme:
-                self.v8_settings.setdefault("application", {})["theme"] = original_theme
-                self._apply_theme_choice(original_theme)
+            theme_var.set(THEME_NAMES.get(saved_theme, "Deep Black"))
+            scale_var.set(UI_SCALE_NAMES.get(saved_scale, "115%"))
+
+            current_theme = self._selected_theme_name()
+            if current_theme != saved_theme:
+                self.v8_settings.setdefault("application", {})["theme"] = saved_theme
+                self._apply_theme_choice(saved_theme)
 
             self.v8_settings.setdefault("application", {})["ui_scale"] = saved_scale
 
-        window.bind("<Destroy>", restore_if_cancelled, add="+")
+        window._edhf_restore_application_values = restore_application_values
 
         try:
-            # Run the same style passes that lower layers queue with after_idle,
-            # then flush all idle geometry while the Toplevel is still withdrawn.
             self._style_mockup_controls(window)
             self._style_classic_widget_tree(window)
             self._center_settings_window(window, 600, 620)
@@ -1009,10 +1068,24 @@ class FinderV8FinalApp(_BaseFinalApp):
             self._center_settings_window(window, 600, 620)
             window.update_idletasks()
 
-            # First and only visible mapping of the Settings window.
-            window.deiconify()
-            window.lift()
-            window.focus_force()
+            if getattr(self, "_prebuilding_settings_window", False):
+                # Realise the HWND exactly once, invisibly and off-screen, during
+                # application startup. It stays mapped for the lifetime of the app.
+                window.attributes("-alpha", 0.0)
+                width = max(1, window.winfo_width())
+                height = max(1, window.winfo_height())
+                window.geometry(
+                    f"{width}x{height}+{window.winfo_screenwidth() + 200}+"
+                    f"{window.winfo_screenheight() + 200}"
+                )
+                window.deiconify()
+                window.update_idletasks()
+                try:
+                    window.grab_release()
+                except tk.TclError:
+                    pass
+            else:
+                self._show_persistent_settings_window(window)
         except tk.TclError:
             pass
 
