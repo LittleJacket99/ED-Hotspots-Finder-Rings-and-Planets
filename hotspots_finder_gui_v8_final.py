@@ -1024,6 +1024,33 @@ class FinderV8FinalApp(_BaseFinalApp):
             except tk.TclError:
                 pass
 
+    def _clear_input_focus(self, clicked_widget=None):
+        """Ignore internal Tcl-only widgets that Tkinter cannot resolve."""
+
+        if clicked_widget is not None and not hasattr(clicked_widget, "winfo_toplevel"):
+            clicked_widget = None
+        return super()._clear_input_focus(clicked_widget)
+
+    def _clear_power_combobox_selection(self, _event=None):
+        """Clear combobox text selection without touching a native popdown."""
+
+        combo = getattr(self, "power_combo", None)
+        if combo is None:
+            return
+
+        try:
+            focused = self.focus_get()
+        except (tk.TclError, KeyError):
+            focused = None
+
+        try:
+            if focused is combo:
+                self.focus_set()
+            combo.selection_clear()
+            combo.icursor("end")
+        except tk.TclError:
+            pass
+
     def _select_power_from_menu(self, value):
         self.power_var.set(value)
         combo = getattr(self, "power_combo", None)
@@ -1033,7 +1060,26 @@ class FinderV8FinalApp(_BaseFinalApp):
             except tk.TclError:
                 pass
 
-    def _show_power_menu(self, _event=None):
+    def _power_menu_rows(self):
+        other_powers = sorted(
+            (power for power in ALLOWED_POWERS if power not in PRIORITY_POWERS),
+            key=str.casefold,
+        )
+        rows = [
+            (
+                power,
+                lambda value=power: self._select_power_from_menu(value),
+                True,
+            )
+            for power in (*PRIORITY_POWERS, *other_powers)
+        ]
+        if str(self.power_var.get() or "").strip():
+            rows.append(
+                ("Clear selection", lambda: self._select_power_from_menu(""), True)
+            )
+        return rows
+
+    def _show_power_menu(self, _event=None, *, offset=0, toggle=True):
         combo = getattr(self, "power_combo", None)
         if combo is None:
             return "break"
@@ -1043,176 +1089,63 @@ class FinderV8FinalApp(_BaseFinalApp):
         except tk.TclError:
             return "break"
 
-        other_powers = sorted(
-            (power for power in ALLOWED_POWERS if power not in PRIORITY_POWERS),
-            key=str.casefold,
-        )
-        items = [
-            (
-                power,
-                lambda value=power: self._select_power_from_menu(value),
-                True,
-            )
-            for power in PRIORITY_POWERS
-        ]
-        items.append(None)
-        items.extend(
-            (
-                power,
-                lambda value=power: self._select_power_from_menu(value),
-                True,
-            )
-            for power in other_powers
-        )
-
-        if str(self.power_var.get() or "").strip():
-            items.extend(
-                [
-                    None,
-                    ("Clear selection", lambda: self._select_power_from_menu(""), True),
-                ]
-            )
-
-        self._dismiss_custom_popup()
-        popup = tk.Toplevel(self)
-        self._custom_popup = popup
-        popup.withdraw()
-        popup.overrideredirect(True)
-        popup.configure(bg=self.MENU_BORDER)
-
-        outer = tk.Frame(popup, bg=self.MENU_BORDER, bd=0, highlightthickness=0)
-        outer.pack(fill="both", expand=True)
-        inner = tk.Frame(outer, bg=self.MENU_BG, bd=0, highlightthickness=0)
-        inner.pack(fill="both", expand=True, padx=1, pady=1)
-
-        canvas = tk.Canvas(
-            inner,
-            bg=self.MENU_BG,
-            bd=0,
-            highlightthickness=0,
-            relief="flat",
-        )
-        canvas.pack(fill="both", expand=True)
-        list_frame = tk.Frame(canvas, bg=self.MENU_BG, bd=0, highlightthickness=0)
-        window_id = canvas.create_window((0, 0), window=list_frame, anchor="nw")
-        ordered_widgets = []
-        row_widgets = []
-
-        for item in items:
-            if item is None:
-                separator = tk.Frame(
-                    list_frame,
-                    bg=self.MENU_SEPARATOR,
-                    bd=0,
-                    highlightthickness=0,
-                    height=1,
-                )
-                separator.pack(fill="x", padx=7, pady=4)
-                ordered_widgets.append(("separator", separator))
-                continue
-
-            label_text, command, enabled = item
-            entry = tk.Label(
-                list_frame,
-                text=label_text,
-                bg=self.MENU_BG,
-                fg=self.MENU_TEXT if enabled else self.MENU_MUTED,
-                anchor="w",
-                justify="left",
-                padx=10,
-                pady=5,
-                bd=0,
-                relief="flat",
-                highlightthickness=0,
-                font=("Segoe UI", 9),
-                cursor="hand2" if enabled else "",
-            )
-            entry.pack(fill="x")
-            ordered_widgets.append(("row", entry))
-            row_widgets.append(entry)
-            if enabled:
-                entry.bind(
-                    "<Enter>",
-                    lambda _e, w=entry: w.configure(bg=self.MENU_HOVER),
-                    add="+",
-                )
-                entry.bind(
-                    "<Leave>",
-                    lambda _e, w=entry: w.configure(bg=self.MENU_BG),
-                    add="+",
-                )
-                entry.bind(
-                    "<ButtonRelease-1>",
-                    lambda _e, cb=command: self._run_custom_popup_command(cb),
-                    add="+",
-                )
-
-        popup.update_idletasks()
-        visible_height = 0
-        visible_rows = 0
-        for kind, widget in ordered_widgets:
-            visible_height += max(1, widget.winfo_reqheight())
-            if kind == "row":
-                visible_rows += 1
-                if visible_rows >= POWER_MENU_VISIBLE_ROWS:
-                    break
-
-        content_width = max(combo.winfo_width(), list_frame.winfo_reqwidth())
-        canvas.configure(
-            width=content_width,
-            height=visible_height,
-            scrollregion=canvas.bbox("all"),
-            yscrollincrement=(
-                max(1, row_widgets[0].winfo_reqheight()) if row_widgets else 1
-            ),
-        )
-
-        def sync_scroll_region(_event=None):
+        current_popup = getattr(self, "_custom_popup", None)
+        if toggle and current_popup is not None:
             try:
-                canvas.configure(scrollregion=canvas.bbox("all"))
+                if current_popup.winfo_exists():
+                    self._dismiss_custom_popup()
+                    return "break"
             except tk.TclError:
                 pass
 
-        def sync_list_width(event):
-            try:
-                canvas.itemconfigure(window_id, width=event.width)
-            except tk.TclError:
-                pass
+        rows = self._power_menu_rows()
+        max_offset = max(0, len(rows) - POWER_MENU_VISIBLE_ROWS)
+        offset = max(0, min(int(offset), max_offset))
+        visible = rows[offset : offset + POWER_MENU_VISIBLE_ROWS]
+
+        items = []
+        clear_index = len(ALLOWED_POWERS)
+        for local_index, row in enumerate(visible):
+            absolute_index = offset + local_index
+            if absolute_index == len(PRIORITY_POWERS):
+                items.append(None)
+            if absolute_index == clear_index:
+                items.append(None)
+            items.append(row)
+
+        try:
+            popup = self._show_custom_popup(
+                items,
+                combo.winfo_rootx(),
+                combo.winfo_rooty() + combo.winfo_height(),
+                min_width=combo.winfo_width(),
+            )
+        except tk.TclError:
+            return "break"
+
+        if popup is None:
+            return "break"
 
         def on_mousewheel(event):
             try:
                 delta = int(event.delta)
             except (TypeError, ValueError):
                 delta = 0
-            if delta:
-                steps = -1 if delta > 0 else 1
-                canvas.yview_scroll(steps, "units")
+            if not delta:
+                return "break"
+
+            step = -1 if delta > 0 else 1
+            new_offset = max(0, min(offset + step, max_offset))
+            if new_offset != offset:
+                self.after_idle(
+                    lambda value=new_offset: self._show_power_menu(
+                        offset=value,
+                        toggle=False,
+                    )
+                )
             return "break"
 
-        list_frame.bind("<Configure>", sync_scroll_region, add="+")
-        canvas.bind("<Configure>", sync_list_width, add="+")
         popup.bind("<MouseWheel>", on_mousewheel, add="+")
-
-        popup.update_idletasks()
-        width = max(combo.winfo_width(), popup.winfo_reqwidth())
-        height = popup.winfo_reqheight()
-        self._place_custom_popup(
-            popup,
-            combo.winfo_rootx(),
-            combo.winfo_rooty() + combo.winfo_height(),
-            width,
-            height,
-        )
-        popup.bind("<Escape>", self._dismiss_custom_popup, add="+")
-        popup.bind(
-            "<FocusOut>",
-            lambda _e: self.after_idle(self._dismiss_custom_popup),
-            add="+",
-        )
-        try:
-            popup.focus_force()
-        except tk.TclError:
-            pass
         return "break"
 
     def _configure_power_combobox_behavior(self):
@@ -1220,13 +1153,28 @@ class FinderV8FinalApp(_BaseFinalApp):
         combo = getattr(self, "power_combo", None)
         if combo is None:
             return
+
         try:
             combo.configure(values=("", *ALLOWED_POWERS))
-            combo.bind("<Button-1>", self._show_power_menu, add="+")
-            combo.bind("<Down>", self._show_power_menu, add="+")
-            combo.bind("<Alt-Down>", self._show_power_menu, add="+")
-            combo.bind("<Return>", self._show_power_menu, add="+")
-            combo.bind("<space>", self._show_power_menu, add="+")
+
+            # The Power field keeps the combobox appearance, but its native
+            # TCombobox class bindings are removed so Tk can never create the
+            # internal popdown/listbox. All choices come from our custom popup.
+            combo.unbind("<FocusOut>")
+            combo.bindtags(
+                tuple(
+                    tag
+                    for tag in combo.bindtags()
+                    if str(tag) != str(combo.winfo_class())
+                )
+            )
+
+            combo.bind("<Button-1>", self._show_power_menu)
+            combo.bind("<MouseWheel>", self._block_power_mousewheel)
+            combo.bind("<Down>", self._show_power_menu)
+            combo.bind("<Alt-Down>", self._show_power_menu)
+            combo.bind("<Return>", self._show_power_menu)
+            combo.bind("<space>", self._show_power_menu)
         except tk.TclError:
             pass
 
