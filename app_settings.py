@@ -32,6 +32,7 @@ DEFAULT_SETTINGS = {
     },
     "application": {
         "theme": "deep_black",
+        "ui_scale": 1.15,
     },
     "last_filters": {},
 }
