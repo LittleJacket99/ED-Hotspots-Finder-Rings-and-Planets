@@ -428,7 +428,50 @@ class FinderV8SettingsMixin:
             ask_sync_var.set(True)
             refresh_rhino_status()
 
+        def restore_dialog_values():
+            current_startup = self.v8_settings.get("startup", {})
+            current_rhino = self.v8_settings.get("rhinospotter", {})
+
+            hotspot_var.set(bool(current_startup.get("hotspots_enabled", True)))
+            planets_var.set(bool(current_startup.get("planets_enabled", True)))
+            community_var.set(
+                bool(current_startup.get("community_deposits_enabled", True))
+            )
+            remember_var.set(
+                bool(current_startup.get("remember_last_filters", False))
+            )
+            max_distance_var.set(
+                self._format_distance(current_startup.get("max_distance_ly", 50.0))
+            )
+
+            current_path = str(
+                app_settings.resolve_rhinospotter_data_path(self.v8_settings)
+            )
+            rhino_path_var.set(current_path)
+            ask_sync_var.set(bool(current_rhino.get("ask_before_sync", True)))
+            refresh_rhino_status()
+
+        window._edhf_restore_settings_values = restore_dialog_values
+
         def close_dialog():
+            # Persistent final Settings windows are hidden rather than destroyed.
+            # Restore every staged value first so Cancel/X still behaves normally.
+            for callback_name in (
+                "_edhf_restore_settings_values",
+                "_edhf_restore_application_values",
+            ):
+                callback = getattr(window, callback_name, None)
+                if callable(callback):
+                    try:
+                        callback()
+                    except (AttributeError, tk.TclError):
+                        pass
+
+            hide = getattr(self, "_hide_persistent_settings_window", None)
+            if callable(hide):
+                hide(window)
+                return
+
             self._settings_window = None
             window.destroy()
 
