@@ -304,13 +304,6 @@ class FinderV8FinalBaseApp(FinderV8VisualApp):
         )
         self._system_filters_backplate.lower()
 
-        old_title_box = getattr(self, "_system_filters_title_box", None)
-        if old_title_box is not None:
-            try:
-                old_title_box.place_forget()
-            except tk.TclError:
-                pass
-
         self._system_filters_caption = tk.Label(
             self._system_filters_backplate,
             text="SYSTEM FILTERS",
@@ -325,13 +318,6 @@ class FinderV8FinalBaseApp(FinderV8VisualApp):
         self._position_system_filter_controls()
 
     def _refresh_unified_system_filters_panel(self):
-        old_title_box = getattr(self, "_system_filters_title_box", None)
-        if old_title_box is not None:
-            try:
-                old_title_box.place_forget()
-            except tk.TclError:
-                pass
-
         backplate = getattr(self, "_system_filters_backplate", None)
         if backplate is None or getattr(self, "_results_expanded", False):
             return
