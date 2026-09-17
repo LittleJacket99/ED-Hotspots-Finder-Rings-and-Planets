@@ -301,7 +301,6 @@ class FinderV8VisualApp(FinderV8Layout2App):
         self._build_system_filters_backplate()
         self._apply_brand_header()
         self._right_align_export_controls()
-        self.after_idle(self._replace_system_input_horizontal_scrollbar)
         self.after_idle(self._apply_visual_theme)
 
     def _build_system_filters_backplate(self):
@@ -361,23 +360,6 @@ class FinderV8VisualApp(FinderV8Layout2App):
         except tk.TclError:
             return
 
-    def _rename_filter_labels(self):
-        super()._rename_filter_labels()
-
-        replacements = {
-            "Enable hotspots": "Enable Hotspots",
-            "Only pristine": "Only Pristine",
-            "Enable planets": "Enable Planets",
-            "Only landables": "Only Landables",
-        }
-        for box in (self._hotspots_box, self._planets_box):
-            for child in box.winfo_children():
-                if not isinstance(child, tk.Checkbutton):
-                    continue
-                text = str(child.cget("text") or "")
-                if text in replacements:
-                    child.configure(text=replacements[text])
-
     def _reflow_systems_contents(self):
         super()._reflow_systems_contents()
 
@@ -394,41 +376,6 @@ class FinderV8VisualApp(FinderV8Layout2App):
                     font=("Segoe UI", 8),
                 )
                 child.place_configure(x=9, y=361, width=207, height=38)
-
-    def _replace_system_input_horizontal_scrollbar(self):
-        """Replace the legacy white classic x-scrollbar with the themed ttk one."""
-
-        text = getattr(self, "systems_text", None)
-        if text is None:
-            return
-
-        frame = text.master
-        for child in list(frame.winfo_children()):
-            if not isinstance(child, tk.Scrollbar):
-                continue
-            try:
-                if str(child.cget("orient")) != "horizontal":
-                    continue
-            except tk.TclError:
-                continue
-
-            try:
-                child.grid_forget()
-                child.destroy()
-            except tk.TclError:
-                pass
-
-            xbar = ttk.Scrollbar(
-                frame,
-                orient="horizontal",
-                command=text.xview,
-                style="Horizontal.TScrollbar",
-            )
-            xbar.grid(row=1, column=0, sticky="ew")
-            text.configure(xscrollcommand=xbar.set)
-            frame.rowconfigure(1, weight=0, minsize=9)
-            self._systems_horizontal_scrollbar = xbar
-            return
 
     def _make_tree(self, parent):
         """Create result tables with one flat #59616b outline around everything."""
@@ -550,7 +497,6 @@ class FinderV8VisualApp(FinderV8Layout2App):
                 pass
 
         for name in (
-            "_system_filters_title_box",
             "_faction_box",
             "_power_box",
             "_power_states_box",
