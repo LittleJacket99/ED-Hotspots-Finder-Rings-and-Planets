@@ -265,10 +265,11 @@ def _load_database(database_path):
         )
 
     try:
-        connection = sqlite3.connect(str(database_path), timeout=5.0)
+        # Open the RhinoSpotter database in SQLite read-only mode. This lets us
+        # read the live WAL-backed database without ever mutating plugin data.
+        uri = database_path.resolve().as_uri() + "?mode=ro"
+        connection = sqlite3.connect(uri, uri=True, timeout=5.0)
         with closing(connection) as conn:
-            # We only read RhinoSpotter's database. query_only also protects
-            # against accidental writes if this module changes later.
             conn.execute("PRAGMA query_only = ON")
             rows = conn.execute(
                 "SELECT id, data FROM bookmarks ORDER BY id"
