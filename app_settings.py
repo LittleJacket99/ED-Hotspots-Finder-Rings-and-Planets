@@ -89,7 +89,7 @@ def default_rhinospotter_data_path():
 
 
 def default_rhinospotter_cards_dir():
-    """Backward-compatible alias used by the current settings UI.
+    """Backward-compatible alias retained for older callers.
 
     The GUI historically asked for RhinoSpotter's ``cards`` directory. Current
     RhinoSpotter releases store bookmarks in ``db\rhinospotter.db``, so the
@@ -120,6 +120,6 @@ def resolve_rhinospotter_data_path(settings):
 
 
 def resolve_rhinospotter_cards_dir(settings):
-    """Backward-compatible alias for the current GUI call sites."""
+    """Backward-compatible alias retained for older callers."""
 
     return resolve_rhinospotter_data_path(settings)
