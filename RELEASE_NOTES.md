@@ -4,17 +4,18 @@ This is the **first public release** of **ED Hotspots Finder - Rings & Planets**
 
 The project went through several internal development iterations before release; those internal version labels are not part of the public release history. Public versioning therefore starts at **v1.0.0**.
 
-The application is now a standalone Windows tool: searches, filtering, results and exports all live directly in the desktop interface, with no Google Sheets or Google OAuth dependency.
+ED Hotspots Finder is built around **multi-system search and filtering**, with a particular focus on finding systems that satisfy the strategic and physical requirements of **Powerplay-oriented research**.
 
 ## Highlights
 
-- Standalone local GUI for Windows.
+- Standalone Windows interface.
 - Manual **System Input** with Spansh-backed system-name normalization before scanning.
 - **System Filters** for Faction, Powerplay power, Power States, Reference System and distance.
+- Search large candidate groups for the ring, hotspot and planetary characteristics required by a task.
 - Hotspot searches with ring/mineral filters and **Only Pristine**.
 - Planet searches with body-type filters, **Only Landables**, volcanism and arrival-distance data where available.
 - Integrated **Community Deposits** results from the ED Alliance Community Deposits service.
-- Optional RhinoSpotter card synchronization with the community database.
+- Optional RhinoSpotter synchronization for contributing compatible local discoveries to the shared database.
 - Local result tables with sorting/filtering.
 - Export of the current result tab to **CSV** and **XLSX**.
 - Expand/Restore results view and detailed activity log.
@@ -22,6 +23,26 @@ The application is now a standalone Windows tool: searches, filtering, results a
 - UI Scale options: 100%, 110%, 115% and 125%, with 115% as the default.
 - Startup splash and first-window reveal handling designed to avoid visible initialization flicker on Windows.
 - Application icon and Windows executable metadata prepared for the first public release.
+
+## Search behavior
+
+Manual system names are canonicalized through the same Spansh lookup used by Reference System. For example, differently cased inputs such as `mehit`, `wuRANgo` or `SEEDI` are resolved to the canonical names before the scan proceeds.
+
+Duplicates are removed after canonicalization.
+
+The same workflow can also begin from System Filters, allowing commanders to define a Powerplay, faction or distance-based search area before checking the resulting systems for the required hotspot, ring and planetary characteristics.
+
+## Community Deposits and RhinoSpotter
+
+The desktop app can query the **ED Alliance Community Deposits** service and display known player-reported surface deposits.
+
+The long-term goal is to build a useful shared database of planetary deposits from discoveries contributed by the community.
+
+The current release includes optional synchronization of compatible local RhinoSpotter records with Community Deposits. RhinoSpotter is an independent EDMC project developed by **Fumlop**:
+
+https://github.com/Fumlop/EDRhinoSpotter
+
+See the repository documentation for more information about Community Deposits and the current RhinoSpotter workflow.
 
 ## Local settings
 
@@ -31,23 +52,9 @@ The application stores its settings in:
 %APPDATA%\HotspotsFinder\config.json
 ```
 
-No Google account, Google Sheets connection, OAuth consent or `token.json` is required.
-
-## Search behavior
-
-Manual system names are canonicalized through the same Spansh lookup used by Reference System. For example, differently cased inputs such as `mehit`, `wuRANgo` or `SEEDI` are resolved to the canonical names before the scan proceeds.
-
-Duplicates are removed after canonicalization.
-
-## Community Deposits and RhinoSpotter
-
-The desktop app can query the ED Alliance Community Deposits API and display known community-reported surface deposits.
-
-RhinoSpotter users can synchronize valid local JSON cards with the same database through the integrated sync workflow. The default cards path is `%LOCALAPPDATA%\RhinoSpotter\cards`, with support for a custom directory in Settings.
-
 ## Export
 
-Results can be exported locally without Google Sheets:
+Results can be exported locally:
 
 - CSV: UTF-8 with BOM and semicolon delimiter.
 - XLSX: locally generated workbook with frozen headers and autofilter.
