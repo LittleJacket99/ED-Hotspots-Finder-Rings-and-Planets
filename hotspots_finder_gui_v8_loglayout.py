@@ -53,34 +53,9 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
             )
 
     def _open_settings_dialog(self):
-        """Build Settings hidden, pre-render it off-screen, then move it on-screen."""
+        """Extend the base Settings dialog with RhinoSpotter source details."""
 
-        existing = getattr(self, "_settings_window", None)
-        if existing is not None:
-            try:
-                if existing.winfo_exists():
-                    return super()._open_settings_dialog()
-            except tk.TclError:
-                pass
-
-        original_toplevel = tk.Toplevel
-
-        def hidden_toplevel(*args, **kwargs):
-            window = original_toplevel(*args, **kwargs)
-            try:
-                window.withdraw()
-            except tk.TclError:
-                pass
-            return window
-
-        # Keep the base Settings Toplevel withdrawn while the complete class
-        # chain adds the final controls and applies the active theme.
-        tk.Toplevel = hidden_toplevel
-        try:
-            result = super()._open_settings_dialog()
-        finally:
-            tk.Toplevel = original_toplevel
-
+        result = super()._open_settings_dialog()
         window = getattr(self, "_settings_window", None)
         if window is None:
             return result
@@ -91,61 +66,6 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
             return result
 
         self._enhance_rhino_settings_window(window)
-
-        def pre_render_settings():
-            try:
-                if not window.winfo_exists():
-                    return
-
-                # By the time this timer runs the concrete final Settings layer
-                # has finished creating Theme/UI Scale controls and its idle
-                # centering/style callbacks have had a chance to settle.
-                window.update_idletasks()
-                for method_name in (
-                    "_style_mockup_controls",
-                    "_style_classic_widget_tree",
-                ):
-                    method = getattr(self, method_name, None)
-                    if callable(method):
-                        try:
-                            method(window)
-                        except (AttributeError, tk.TclError):
-                            pass
-                window.update_idletasks()
-
-                final_geometry = window.geometry()
-                size_part = final_geometry.split("+", 1)[0]
-                screen_width = window.winfo_screenwidth()
-                screen_height = window.winfo_screenheight()
-
-                # Map the finished window beyond the visible desktop. This lets
-                # Windows/Tk paint native ttk controls (notably the APPLICATION
-                # comboboxes) without showing their first-paint sequence.
-                window.geometry(
-                    f"{size_part}+{screen_width + 200}+{screen_height + 200}"
-                )
-                window.deiconify()
-                window.update_idletasks()
-
-                def show_pre_rendered_settings():
-                    try:
-                        if not window.winfo_exists():
-                            return
-                        window.geometry(final_geometry)
-                        window.update_idletasks()
-                        window.lift()
-                        window.focus_force()
-                    except tk.TclError:
-                        pass
-
-                self.after(140, show_pre_rendered_settings)
-            except tk.TclError:
-                pass
-
-        # Use a timer rather than after_idle: the concrete final Settings method
-        # calls update_idletasks while it is still constructing its own controls,
-        # which would otherwise execute an ancestor idle callback too early.
-        self.after(80, pre_render_settings)
         return result
 
     def _enhance_rhino_settings_window(self, window):
