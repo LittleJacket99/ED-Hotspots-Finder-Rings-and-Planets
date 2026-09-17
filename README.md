@@ -151,6 +151,16 @@ The current internal build files still use **v8** in their filenames because tha
 
 The build uses `HotspotsFinder-v8.spec`, bundles `app.ico` and `ED_Hotspots_Finder.png`, and uses `hotspots_finder_gui_v8_final.py` as the entry point. The public executable is named **ED Hotspots Finder - Rings & Planets.exe**.
 
+A successful release build creates:
+
+```text
+release\v1.0.0\ED Hotspots Finder - Rings & Planets.exe
+release\v1.0.0\ED-Hotspots-Finder-Rings-and-Planets-v1.0.0-Windows.zip
+release\v1.0.0\SHA256.txt
+```
+
+`build-v8` and `dist-v8` remain internal intermediate build directories and are not release artifacts.
+
 ## Project structure
 
 | Component | Role |
