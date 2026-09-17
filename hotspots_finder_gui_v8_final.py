@@ -40,6 +40,12 @@ ALLOWED_POWERS = (
     "Zemina Torval",
 )
 
+# The v8 visual layout was authored with pixel geometry around the traditional
+# Windows/Tk 96-DPI baseline. Per-monitor DPI awareness keeps rendering sharp,
+# while pinning Tk's point-to-pixel conversion to this baseline prevents fonts
+# from growing independently of those fixed pixel boxes.
+TK_UI_SCALING = 96.0 / 72.0
+
 
 def _enable_windows_dpi_awareness():
     """Render Tk at the monitor's native DPI instead of Windows bitmap scaling."""
@@ -81,6 +87,10 @@ class FinderV8FinalApp(_BaseFinalApp):
         def hidden_tk_init(instance, *args, **kwargs):
             original_tk_init(instance, *args, **kwargs)
             try:
+                # Keep native-DPI rasterisation for sharp text, but preserve the
+                # original v8 font metrics so the fixed pixel layout does not
+                # overflow when Windows display scaling is above 100%.
+                instance.tk.call("tk", "scaling", TK_UI_SCALING)
                 instance.withdraw()
                 # Even if an inherited layer maps the window during startup,
                 # keep it compositor-invisible until the final handoff.
