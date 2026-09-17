@@ -4,7 +4,7 @@ A standalone Windows companion for **Elite Dangerous** that searches multiple st
 
 The current interface is fully local: no Google Sheets connection and no Google OAuth are required.
 
-[Download the latest Windows release](https://github.com/LittleJacket99/ED-Hotspots-Landables-Finder/releases/latest) · [v1.0.0 release notes](RELEASE_NOTES.md)
+[Download the latest Windows release](https://github.com/LittleJacket99/ED-Hotspots-Finder-Rings-and-Planets/releases/latest) · [v1.0.0 release notes](RELEASE_NOTES.md)
 
 ## Main features
 
