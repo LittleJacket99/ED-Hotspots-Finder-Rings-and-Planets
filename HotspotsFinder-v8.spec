@@ -28,7 +28,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='ED Hotspots & Landables Finder v8',
+    name='ED Hotspots Finder - Rings & Planets',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
