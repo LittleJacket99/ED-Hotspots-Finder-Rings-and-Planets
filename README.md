@@ -173,7 +173,7 @@ Current settings include startup filter defaults, RhinoSpotter options, theme an
 | A system name is rejected | Check the spelling and whether Spansh can resolve the system. |
 | A scan returns unexpected or incomplete data | Open **Log Details**, verify the active filters and retry with a small system list. |
 | Community Deposits cannot be loaded | Check the Internet connection and retry later; the community API may be temporarily unavailable. |
-| RhinoSpotter sync finds no cards | Verify the configured cards directory and that it contains compatible records. |
+| RhinoSpotter sync finds no bookmarks | Open Settings and verify that the RhinoSpotter data source is detected. Current RhinoSpotter releases use `%LOCALAPPDATA%\\RhinoSpotter\\db\\rhinospotter.db`; legacy JSON cards remain supported. |
 | The interface is too large or too small | Open **Settings**, change UI Scale, save and restart the app. |
 | Windows SmartScreen appears | The executable is currently unsigned. Confirm that it was downloaded from this repository's Releases page. |
 
@@ -201,7 +201,7 @@ python -m pip install pyinstaller
 build_windows_v8.bat
 ```
 
-The current internal build files still use **v8** in their filenames because that was the final development iteration before the first public release. The public release version starts at **v1.0.0**.
+The current internal build files still use **v8** in their filenames because that was the final development iteration before the first public release. Public versioning started at **v1.0.0**; the current release line is **v1.0.1**.
 
 The build uses `HotspotsFinder-v8.spec`, bundles `app.ico` and `ED_Hotspots_Finder.png`, and uses `hotspots_finder_gui_v8_final.py` as the entry point. The public executable is named **ED Hotspots Finder - Rings & Planets.exe**.
 
