@@ -15,7 +15,7 @@ to take away your freedom to share and change the works.  By contrast,
 the GNU General Public License is intended to guarantee your freedom to
 share and change all versions of a program--to make sure it remains free
 software for all its users.  We, the Free Software Foundation, use the
-GNU GPL for most of our software; it applies also to
+GNU General Public License for most of our software; it applies also to
 any other work released this way by its authors.  You can apply it to
 your programs, too.
 
@@ -167,8 +167,8 @@ in force.  You may convey covered works to others for the sole purpose
 of having them make modifications exclusively for you, or provide you
 with facilities for running those works, provided that you comply with
 the terms of this License in conveying all material for which you do
-not control copyright.  Those thus making or running those works for you
-must do so exclusively on your behalf, under your direction
+not control copyright.  Those thus making or running the covered works
+for you must do so exclusively on your behalf, under your direction
 and control, on terms that prohibit them from making any copies of
 your copyrighted material outside their relationship with you.
 
@@ -286,9 +286,9 @@ in one of these ways:
     available for as long as needed to satisfy these requirements.
 
     e) Convey the object code using peer-to-peer transmission, provided
-    you inform other peers where the object and Corresponding Source
-    of the work are being offered to the general public at no
-    charge under subsection 6d.
+you inform other peers where the object code and Corresponding Source
+of the work are being offered to the general public at no charge under
+subsection 6d.
 
   A separable portion of the object code, whose source code is excluded
 from the Corresponding Source as a System Library, need not be
@@ -374,7 +374,7 @@ that material) supplement the terms of this License with terms:
     reasonable ways as different from the original version; or
 
     d) Limiting the use for publicity purposes of names of licensors or
-authors of the material; or
+    authors of the material; or
 
     e) Declining to grant rights under trademark law for use of some
     trade names, trademarks, or service marks; or
