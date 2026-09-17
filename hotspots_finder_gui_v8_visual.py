@@ -360,23 +360,6 @@ class FinderV8VisualApp(FinderV8Layout2App):
         except tk.TclError:
             return
 
-    def _reflow_systems_contents(self):
-        super()._reflow_systems_contents()
-
-        for child in self._systems_panel.winfo_children():
-            if not isinstance(child, tk.Label):
-                continue
-            text = str(child.cget("text") or "")
-            if text.startswith("Optional manual input") or text.startswith("Leave empty"):
-                child.configure(
-                    text="Leave empty to find matches using System Filters.",
-                    wraplength=205,
-                    justify="left",
-                    anchor="nw",
-                    font=("Segoe UI", 8),
-                )
-                child.place_configure(x=9, y=361, width=207, height=38)
-
     def _make_tree(self, parent):
         """Create result tables with one flat #59616b outline around everything."""
 
