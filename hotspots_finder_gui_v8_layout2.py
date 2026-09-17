@@ -19,7 +19,6 @@ LAYOUT = {
     "_planets_box": (18, 232, 250, 130),
     "_community_box": (18, 372, 250, 195),
     "_systems_panel": (285, 92, 225, 420),
-    "_system_filters_title_box": (18, 577, 160, 35),
     "_faction_box": (18, 620, 237, 55),
     "_power_box": (285, 620, 225, 55),
     "_power_states_box": (285, 680, 225, 70),
@@ -99,7 +98,6 @@ class FinderV8Layout2App(BasePolishApp):
         for attr, (box_x, box_y, width, height) in LAYOUT.items():
             getattr(self, attr).place(x=box_x, y=box_y, width=width, height=height)
 
-        self._rename_filter_labels()
         self._reflow_systems_contents()
         self._reflow_compact_reference_distance()
         self._configure_power_combobox_behavior()
@@ -765,23 +763,6 @@ class FinderV8Layout2App(BasePolishApp):
         self.status_var.set("Unable to open system link")
         messagebox.showerror(APP_TITLE, message, parent=self)
 
-    def _rename_filter_labels(self):
-        # Keep internal filter values unchanged; only change visible labels.
-        for child in self._planets_box.winfo_children():
-            if isinstance(child, tk.Checkbutton):
-                if str(child.cget("text") or "") == "High Metal Content":
-                    child.configure(text="HMC")
-
-        for child in self._community_box.winfo_children():
-            if isinstance(child, tk.Checkbutton):
-                if str(child.cget("text") or "") == "Show Community Deposits":
-                    child.configure(text="Enable Community Deposits")
-
-        for child in self._systems_panel.winfo_children():
-            if isinstance(child, tk.Label):
-                if str(child.cget("text") or "") == "SYSTEMS":
-                    child.configure(text="SYSTEM INPUT")
-
     def start_scan(self):
         """Start the unified SCAN flow with the new system-resolution rules."""
         if self.running:
@@ -971,7 +952,6 @@ class FinderV8Layout2App(BasePolishApp):
                 "_planets_box",
                 "_community_box",
                 "_systems_panel",
-                "_system_filters_title_box",
                 "_faction_box",
                 "_power_box",
                 "_power_states_box",
