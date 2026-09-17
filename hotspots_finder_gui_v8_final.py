@@ -146,7 +146,7 @@ class FinderV8FinalApp(_BaseFinalApp):
     def _apply_scaled_root_geometry(self):
         width = ui_scale_runtime.px(layout_metrics.WINDOW_WIDTH)
         height = ui_scale_runtime.px(layout_metrics.WINDOW_HEIGHT)
-        top = ui_scale_runtime.px(layout_metrics.WINDOW_TOP_MARGIN)
+        top = ui_scale_runtime.px(35)
 
         try:
             screen_width = self.winfo_screenwidth()
@@ -758,7 +758,8 @@ class FinderV8FinalApp(_BaseFinalApp):
             self._center_settings_window(window, width, height)
             application_panel.place_configure(height=132)
             if update_check is not None:
-                update_check.place_configure(x=12, y=100, width=500, height=20)
+                update_check.configure(text="Check for updates on startup")
+                update_check.place_configure(x=12, y=100, width=320, height=20)
 
             for child in window.winfo_children():
                 if isinstance(child, tk.Button):
@@ -773,6 +774,37 @@ class FinderV8FinalApp(_BaseFinalApp):
             pass
 
         theme = visual_theme.THEME
+        repo_link = tk.Label(
+            application_panel,
+            text="GitHub Repository  ↗",
+            bg=theme["panel"],
+            fg=theme["accent"],
+            font=("Segoe UI", 9),
+            anchor="w",
+            cursor="hand2",
+            bd=0,
+            highlightthickness=0,
+        )
+        repo_link.place(x=372, y=99, width=172, height=22)
+        repo_link.bind(
+            "<Button-1>",
+            lambda _event: ui_theme.webbrowser.open_new_tab(
+                "https://github.com/LittleJacket99/ED-Hotspots-Landables-Finder"
+            ),
+        )
+        repo_link.bind(
+            "<Enter>",
+            lambda _event, widget=repo_link: widget.configure(
+                fg=visual_theme.THEME["accent2"]
+            ),
+        )
+        repo_link.bind(
+            "<Leave>",
+            lambda _event, widget=repo_link: widget.configure(
+                fg=visual_theme.THEME["accent"]
+            ),
+        )
+
         tk.Label(
             application_panel,
             text="Theme",
