@@ -407,14 +407,17 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
 
         tk.Label(
             parent,
-            text="Leave empty to find matches using System Filters.",
+            text=(
+                "Set input and filters to find matches.\n"
+                "Leave empty to find matches using System Filters."
+            ),
             bg=PANEL,
             fg=COLORS["muted"],
             justify="left",
             anchor="nw",
             wraplength=205,
             font=("Segoe UI", 8),
-        ).place(x=9, y=361, width=207, height=38)
+        ).place(x=9, y=361, width=207, height=55)
 
     def _build_system_filter_boxes(self):
         self._build_labeled_entry(
