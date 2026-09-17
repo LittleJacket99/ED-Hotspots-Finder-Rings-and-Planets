@@ -3,7 +3,11 @@
 """v8 feature test: fixed compact log overlay aligned right in Results."""
 
 import tkinter as tk
+from pathlib import Path
+from tkinter import filedialog
 
+import app_settings
+import rhinospotter_sync_service
 from hotspots_finder_gui_v8_expandresults import FinderV8ExpandResultsApp
 from hotspots_finder_gui_v8_settings import FinderV8SettingsMixin
 
@@ -47,6 +51,222 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
                 self._schedule_unified_system_filters_refresh,
                 add="+",
             )
+
+    def _open_settings_dialog(self):
+        """Build Settings off-screen, then reveal the completed window once."""
+
+        existing = getattr(self, "_settings_window", None)
+        if existing is not None:
+            try:
+                if existing.winfo_exists():
+                    return super()._open_settings_dialog()
+            except tk.TclError:
+                pass
+
+        original_toplevel = tk.Toplevel
+
+        def hidden_toplevel(*args, **kwargs):
+            window = original_toplevel(*args, **kwargs)
+            try:
+                window.withdraw()
+            except tk.TclError:
+                pass
+            return window
+
+        # The base Settings layer creates and lays out the window synchronously.
+        # Keep that one Toplevel withdrawn so the later visual/theme layers can
+        # finish adding their controls without Windows painting intermediate states.
+        tk.Toplevel = hidden_toplevel
+        try:
+            result = super()._open_settings_dialog()
+        finally:
+            tk.Toplevel = original_toplevel
+
+        window = getattr(self, "_settings_window", None)
+        if window is None:
+            return result
+        try:
+            if not window.winfo_exists():
+                return result
+        except tk.TclError:
+            return result
+
+        self._enhance_rhino_settings_window(window)
+
+        def reveal_settings():
+            try:
+                if not window.winfo_exists():
+                    return
+                window.update_idletasks()
+                window.deiconify()
+                window.lift()
+                window.focus_force()
+            except tk.TclError:
+                pass
+
+        # FinalApp and the visual layer both add Settings controls after this
+        # method returns. Let their idle callbacks finish first, then map once.
+        self.after_idle(lambda: self.after(15, reveal_settings))
+        return result
+
+    def _enhance_rhino_settings_window(self, window):
+        """Update the RhinoSpotter panel for the current SQLite data layout."""
+
+        rhino_panel = None
+        for child in window.winfo_children():
+            if not isinstance(child, tk.Frame):
+                continue
+            try:
+                labels = [
+                    widget
+                    for widget in child.winfo_children()
+                    if isinstance(widget, tk.Label)
+                ]
+            except tk.TclError:
+                continue
+            if any(
+                str(label.cget("text") or "")
+                == "RHINOSPOTTER / COMMUNITY DEPOSITS"
+                for label in labels
+            ):
+                rhino_panel = child
+                break
+
+        if rhino_panel is None:
+            return
+
+        try:
+            children = rhino_panel.winfo_children()
+        except tk.TclError:
+            return
+
+        path_entry = next(
+            (widget for widget in children if isinstance(widget, tk.Entry)),
+            None,
+        )
+        browse_button = next(
+            (
+                widget
+                for widget in children
+                if isinstance(widget, tk.Button)
+                and str(widget.cget("text") or "") == "Browse..."
+            ),
+            None,
+        )
+        auto_button = next(
+            (
+                widget
+                for widget in children
+                if isinstance(widget, tk.Button)
+                and str(widget.cget("text") or "") == "Auto"
+            ),
+            None,
+        )
+        status_label = next(
+            (
+                widget
+                for widget in children
+                if isinstance(widget, tk.Label)
+                and str(widget.cget("textvariable") or "")
+            ),
+            None,
+        )
+        helper_label = next(
+            (
+                widget
+                for widget in children
+                if isinstance(widget, tk.Label)
+                and str(widget.cget("text") or "").startswith("Auto restores")
+            ),
+            None,
+        )
+
+        if path_entry is None or status_label is None:
+            return
+
+        if helper_label is not None:
+            try:
+                helper_label.configure(
+                    text=(
+                        "Auto uses %LOCALAPPDATA%\\RhinoSpotter and detects "
+                        "db\\rhinospotter.db automatically. Legacy JSON cards "
+                        "are still supported."
+                    )
+                )
+            except tk.TclError:
+                pass
+
+        def set_status(text, color):
+            try:
+                variable_name = str(status_label.cget("textvariable") or "")
+                if variable_name:
+                    window.setvar(variable_name, text)
+                else:
+                    status_label.configure(text=text)
+                status_label.configure(fg=color)
+            except tk.TclError:
+                pass
+
+        def refresh_rhino_status(_event=None):
+            text = str(path_entry.get() or "").strip()
+            source = Path(text).expanduser() if text else app_settings.default_rhinospotter_data_path()
+            try:
+                info = rhinospotter_sync_service.inspect_source(source)
+            except Exception:
+                set_status("RhinoSpotter data source not detected", "#ff5f56")
+                return
+
+            source_label = (
+                "SQLite database"
+                if info.get("source_type") == "sqlite"
+                else "Legacy JSON cards"
+            )
+            count = int(info.get("records_found", 0) or 0)
+            set_status(
+                f"{source_label} detected · {count} bookmarks",
+                "#5acd57",
+            )
+
+        def browse_rhino():
+            current_text = str(path_entry.get() or "").strip()
+            current = (
+                Path(current_text).expanduser()
+                if current_text
+                else app_settings.default_rhinospotter_data_path()
+            )
+            if current.is_dir():
+                initial = current
+            elif current.parent.is_dir():
+                initial = current.parent
+            else:
+                initial = app_settings.default_rhinospotter_data_path().parent
+
+            selected = filedialog.askdirectory(
+                parent=window,
+                title="Select RhinoSpotter data folder",
+                initialdir=str(initial),
+            )
+            if selected:
+                path_entry.delete(0, "end")
+                path_entry.insert(0, selected)
+                refresh_rhino_status()
+
+        def use_auto_rhino():
+            path_entry.delete(0, "end")
+            path_entry.insert(0, str(app_settings.default_rhinospotter_data_path()))
+            refresh_rhino_status()
+
+        try:
+            path_entry.bind("<KeyRelease>", refresh_rhino_status)
+            path_entry.bind("<FocusOut>", refresh_rhino_status)
+            if browse_button is not None:
+                browse_button.configure(command=browse_rhino)
+            if auto_button is not None:
+                auto_button.configure(command=use_auto_rhino)
+        except tk.TclError:
+            pass
+
+        refresh_rhino_status()
 
     def _schedule_unified_system_filters_refresh(self, _event=None):
         refresh_filters = getattr(self, "_refresh_unified_system_filters_panel", None)
