@@ -14,12 +14,12 @@ VSVersionInfo(
       StringTable(
         u'040904B0',
         [
-          StringStruct(u'CompanyName', u'Hotspots & Landables Finder'),
-          StringStruct(u'FileDescription', u'ED Hotspots & Landables Finder'),
+          StringStruct(u'CompanyName', u'LittleJacket99'),
+          StringStruct(u'FileDescription', u'ED Hotspots Finder - Rings & Planets'),
           StringStruct(u'FileVersion', u'1.0.0.0'),
-          StringStruct(u'InternalName', u'HotspotsFinder'),
-          StringStruct(u'OriginalFilename', u'ED Hotspots & Landables Finder.exe'),
-          StringStruct(u'ProductName', u'ED Hotspots & Landables Finder'),
+          StringStruct(u'InternalName', u'EDHotspotsFinder'),
+          StringStruct(u'OriginalFilename', u'ED Hotspots Finder - Rings & Planets.exe'),
+          StringStruct(u'ProductName', u'ED Hotspots Finder - Rings & Planets'),
           StringStruct(u'ProductVersion', u'1.0.0.0')
         ]
       )
