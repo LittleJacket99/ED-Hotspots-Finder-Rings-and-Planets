@@ -40,6 +40,9 @@ class FinderV8FinalApp(_BaseFinalApp):
             original_tk_init(instance, *args, **kwargs)
             try:
                 instance.withdraw()
+                # Even if an inherited layer maps the window during startup,
+                # keep it compositor-invisible until the final handoff.
+                instance.attributes("-alpha", 0.0)
             except tk.TclError:
                 pass
 
@@ -380,9 +383,14 @@ def main():
     try:
         app = FinderV8FinalApp()
 
-        # Let inherited after-idle/short-delay visual passes complete while the
-        # root is still withdrawn. This prevents panels, replacement tabs and
-        # geometry adjustments from flashing one after another on startup.
+        # Keep the root transparent while inherited after-idle/short-delay
+        # visual passes settle. This is stronger than withdraw alone because a
+        # legacy layer may map the root while it is still being restyled.
+        try:
+            app.attributes("-alpha", 0.0)
+        except tk.TclError:
+            pass
+
         settle_until = time.perf_counter() + 0.35
         while time.perf_counter() < settle_until:
             app.update_idletasks()
@@ -395,7 +403,35 @@ def main():
                     splash = None
             time.sleep(0.01)
 
+        # Map and paint the entire application while it is still fully
+        # transparent. Some ttk/native Windows elements only finish their first
+        # real paint after mapping; doing that invisibly prevents the brief white
+        # or partially-styled panels visible in the startup recording.
         app.deiconify()
+        app.lift()
+        mapped_until = time.perf_counter() + 0.20
+        while time.perf_counter() < mapped_until:
+            app.update_idletasks()
+            app.update()
+            if splash is not None:
+                try:
+                    splash.update_idletasks()
+                    splash.update()
+                except tk.TclError:
+                    splash = None
+            time.sleep(0.01)
+
+        # Remove the splash first and flush that removal. Only afterwards make
+        # the already-painted application visible, so the logo cannot remain on
+        # top of the first visible frame of the app.
+        close_startup_splash(splash)
+        splash = None
+        time.sleep(0.03)
+
+        try:
+            app.attributes("-alpha", 1.0)
+        except tk.TclError:
+            pass
         app.lift()
         app.update_idletasks()
         app.update()
