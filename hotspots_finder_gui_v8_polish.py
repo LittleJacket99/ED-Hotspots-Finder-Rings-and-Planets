@@ -383,14 +383,11 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
             orient="vertical",
             command=self.systems_text.yview,
         )
-        # Use a classic Tk scrollbar for the horizontal axis. The customized
-        # ttk scrollbar geometry used by the polished theme can render the
-        # thumb correctly while failing to deliver drag/page-click actions on
-        # Windows. The classic widget remains fully interactive.
-        scroll_x = tk.Scrollbar(
+        scroll_x = ttk.Scrollbar(
             text_frame,
             orient="horizontal",
             command=self.systems_text.xview,
+            style="Horizontal.TScrollbar",
         )
         self.systems_text.configure(
             yscrollcommand=scroll_y.set,
@@ -400,6 +397,7 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
         scroll_y.grid(row=0, column=1, sticky="ns")
         scroll_x.grid(row=1, column=0, sticky="ew")
         text_frame.rowconfigure(0, weight=1)
+        text_frame.rowconfigure(1, weight=0, minsize=9)
         text_frame.columnconfigure(0, weight=1)
 
         self.systems_text.bind(
