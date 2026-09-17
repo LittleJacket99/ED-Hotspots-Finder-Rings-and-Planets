@@ -4,6 +4,8 @@ config.json
 *.zip
 build/
 dist/
+build-v8/
+dist-v8/
 release/
 __pycache__/
 *.py[cod]

@@ -1,134 +1,184 @@
 # ED Hotspots & Landables Finder
 
-A Windows companion for **Elite Dangerous** that searches multiple star systems for mining hotspots and planets, using **Spansh** for data and **Google Sheets** for inputs and results.
+A standalone Windows companion for **Elite Dangerous** that searches multiple star systems for mining hotspots, landable bodies and related surface-mining information using **Spansh** and the **ED Alliance Community Deposits** database.
 
-Search a manual list of systems, find systems through a **Faction**, or select a **Powerplay** power and Power States. Filter ring types, minerals and planet types; show landability, volcanism and arrival distance; use **Only positive results** to keep matching hotspot and planet results.
+The v8 interface is fully local: no Google Sheets connection and no Google OAuth are required.
 
-[Download Windows release](https://github.com/LittleJacket99/ED-Hotspots-Landables-Finder/releases/latest) · [v7.11 release notes](RELEASE_NOTES.md)
+[Download the latest Windows release](https://github.com/LittleJacket99/ED-Hotspots-Landables-Finder/releases/latest) · [v8.0.0 release notes](RELEASE_NOTES.md)
 
-## Quick Start
+## Main features
 
-1. Download the Windows `.exe` or `ED-Hotspots-Landables-Finder-v7.11-Windows.zip` from **Releases**. Extract the ZIP if you choose it.
-2. Run **ED Hotspots & Landables Finder.exe**.
-3. Authorize Google when prompted on your first spreadsheet connection. In v7.11 this prompt appears when you connect a sheet in the next step, rather than immediately on launch.
-4. Use **Open Template** to make a copy, then **Connect / Change Sheet** to paste its link. You can also connect your own spreadsheet directly.
-5. In Google Sheets, enter systems in the Systems column, or use **Faction name** / **Power** and the Power State checkboxes to obtain systems automatically.
-6. Enable Hotspots and/or Planets and set the filters in the sheet.
-7. Click **SCAN** in the desktop app.
-8. View, sort, filter and edit the results in Google Sheets.
+- Search a manual list of systems in **System Input**.
+- Automatically normalize manual system names through Spansh before scanning.
+- Find systems with **System Filters** using Faction, Powerplay power, Power States, Reference System and maximum distance.
+- Search for mining hotspots with ring-type and mineral filters, including **Only Pristine**.
+- Search planets with body-type filters, **Only Landables**, volcanism and arrival-distance data where available.
+- Display **Community Deposits** stored in the shared ED Alliance Community Deposits database.
+- Optional RhinoSpotter integration for synchronizing local deposit cards with the community database.
+- Sort and filter result tables directly in the desktop app.
+- Export the current result tab to **CSV** or **XLSX**.
+- Expand/restore the results area and open the detailed activity log.
+- Choose between **Deep Black** and **Green Warm** themes.
+- UI scaling options: 100%, 110%, 115% and 125%.
 
-## Installation
+Spansh and the Community Deposits service are community-data sources. Missing or outdated data can affect results; no match is not proof that a system or body contains no relevant feature.
 
-The normal installation is **GitHub Releases → download → run the EXE**. You need Windows, an Internet connection and a Google account with edit access to the spreadsheet. The v7.11 app has been tested on Windows 11.
+## Quick start
 
-**Python, PyInstaller and a personal Google OAuth client are not required to run the public Windows build.** The application client and required resources are embedded in the EXE. `SHA256.txt` provides checksums for the Windows downloads.
+1. Download the Windows executable or ZIP from **Releases**.
+2. Run **ED Hotspots & Landables Finder v8.exe**.
+3. Enter one or more systems in **System Input**, or leave it empty and configure **System Filters**.
+4. Enable **Hotspots**, **Planets** and/or **Community Deposits** as needed.
+5. Set the relevant filters.
+6. Click **SCAN**.
+7. Review the result tabs, use column filters if needed, and export the current tab to CSV or XLSX.
 
-Choose the Windows assets, not GitHub's automatically generated **Source code** archives. A release without an `.exe` asset is not yet a ready-to-use Windows release.
+Python is not required for the public Windows build.
 
-GitHub may simplify the standalone download's filename. The ZIP keeps the application name **ED Hotspots & Landables Finder.exe**.
+## System Input and normalization
 
-The EXE is currently unsigned, so Windows SmartScreen may show an unknown-publisher warning. Check that your download came from this repository's Releases page before deciding whether to run it.
+Enter one system per line. Before the scan starts, each manual system name is resolved against Spansh and converted to its canonical capitalization.
 
-## Search options
+For example:
 
-- **Hotspots:** choose ring types and minerals, with an optional Only pristine filter.
-- **Planets:** choose planet types and/or Only landables; results include landability and volcanism when supplied by Spansh.
-- **Systems:** enter a manual list, or supply a Faction name and/or a Powerplay power to search systems automatically.
-- **Power States:** refine a selected Power; these checkboxes are ignored when Power is empty.
-- **Only positive results:** keep `HOTSPOT_FOUND` and `PLANET_FOUND` rows in their respective tables.
+```text
+mehit   -> Mehit
+wuRANgo -> Wurango
+SEEDI   -> Seedi
+```
 
-Spansh is a community-data source. Missing or outdated records can affect results; no match is not proof that a system has no such body or hotspot.
+Duplicate systems are removed after normalization. If a name cannot be resolved, the scan reports the error instead of silently querying an invalid system.
 
-## Why Google Sheets?
+## System Filters
 
-Google Sheets is an intentional part of the tool, not just an export destination. After scanning, you can use normal Sheets features: custom filters, sorting, formulas, formatting, new columns and tabs, copies of results, and your own analyses. This lets you add useful workflows without changing the desktop program.
+When **System Input** is empty, the app can resolve systems from filters instead.
 
-Keep the functional input cells and output columns in their expected positions. A new scan rewrites the generated result tables; use separate tabs or copies for calculations and edits you want to retain independently of later scans.
+Available controls include:
 
-## Official template and spreadsheet connection
+- **Faction**
+- **Power**
+- **Power States**
+- **Reference System**
+- **Distance**
 
-The official **ED Hotspots & Landables Finder** template supplies the input controls, output layout and reference tables.
+The Reference System is normalized through the same Spansh system-name lookup used for manual input.
 
-| Button | Purpose |
-| --- | --- |
-| **Open Template** | Opens Google's copy page for the official spreadsheet. Make your own copy, then connect it in the app. |
-| **Connect / Change Sheet** | Connects a spreadsheet by its link and remembers it. Your own Google Spreadsheet is also supported. |
-| **Open My Sheet** | Opens the currently connected spreadsheet in your browser. |
+## Hotspots
 
-When connecting, the app copies a missing **Hotspots Finder** tab from the official template, with a local setup fallback if that copy fails. Missing **Minerals Table** and **Volcanism Table** tabs are also copied. Existing tabs are not replaced wholesale, and existing reference tables are left untouched. The main tab's functional structure can still be repaired by the app.
+Hotspot searches can be filtered by ring type and mineral/material. **Only Pristine** limits results to pristine systems where the available source data supports that classification.
 
-### Customization and maintenance
+Results are shown locally in the app rather than written to a spreadsheet.
 
-| Button | Purpose |
-| --- | --- |
-| **Repair Sheet** | Repairs the functional layout and restores formatting, reapplying your saved style when present. |
-| **Restore Official Style** | Removes the saved personal style and restores the official appearance. |
-| **Save Current Style** | Saves the supported formatting areas as your personal style profile in the spreadsheet. |
+## Planets
 
-These controls let you personalize the sheet while keeping recovery tools available. Column widths and row heights remain managed by the app and are not part of the saved style profile.
+Planet searches support body-type filters and **Only Landables**. Returned data can include landability, volcanism and arrival distance where supplied by Spansh.
 
-**Minerals Table** and **Volcanism Table** are informational reference tabs you can consult and edit freely. The maintenance buttons do not repair or overwrite these tables.
+## Community Deposits
 
-## Scan controls
+The **Community Deposits** option queries the ED Alliance Community Deposits service and displays known player-reported deposits alongside the normal search workflow.
 
-- **SCAN** starts a search with the current spreadsheet settings.
-- **STOP** requests a clean cancellation. The current request may need to finish first; a cancelled scan does **not publish a partial results table**. STOP is disabled once final results writing begins.
-- The **progress bar and percentage** track query batches, not estimated time remaining.
-- **Show details** opens the activity log, useful for progress and errors.
-- **Compact / Expand** switches between the full window and the small scan panel. Scan controls remain available in compact mode.
+The current public API is maintained separately from the desktop executable. Network access is required to retrieve community records.
 
-## Google authorization and privacy
+## RhinoSpotter integration
 
-The first spreadsheet connection opens your browser for Google sign-in and consent. Each user authorizes their own Google account; the public Windows build already includes the application's Desktop OAuth client.
+The app can read RhinoSpotter JSON cards from the configured cards folder and synchronize valid deposit reports with the Community Deposits database.
 
-v7.11 requests exactly this scope:
+By default the app looks in:
 
-`https://www.googleapis.com/auth/spreadsheets`
+```text
+%LOCALAPPDATA%\RhinoSpotter\cards
+```
 
-Google describes it as permission to view, edit, create and delete your Google Sheets spreadsheets. **This authorization is broader than just the spreadsheet you connect**, even though the app uses the selected spreadsheet and official template for its workflow. It does not request the full Google Drive scope. See [Google's scope documentation](https://developers.google.com/workspace/sheets/api/scopes).
+A custom cards directory can be configured in Settings. The sync reuses the same validation and normalization logic as the standalone RhinoSpotter sync helper.
 
-The app stores these plain JSON files locally, separately from the EXE:
+## Export
 
-- `%APPDATA%\HotspotsFinder\token.json` — Google authorization tokens.
-- `%APPDATA%\HotspotsFinder\config.json` — the selected spreadsheet configuration.
+The current result tab can be exported to:
 
-Updating or moving the EXE does not delete these files. Keep them private and never post them in issues or commit them to GitHub. System searches go to Spansh; spreadsheet operations go to Google. You can revoke the app's authorization in your Google account settings.
+- **CSV** — UTF-8 with BOM and semicolon delimiters for convenient opening in European Excel installations.
+- **XLSX** — generated locally by the application, with a frozen header row and autofilter.
+
+No spreadsheet account or external office suite integration is required.
+
+## Settings
+
+Application settings are stored locally in:
+
+```text
+%APPDATA%\HotspotsFinder\config.json
+```
+
+Current settings include startup filter defaults, RhinoSpotter options, theme and UI scale.
+
+The app does not use Google authorization and does not create `token.json` in v8.
 
 ## Troubleshooting
 
 | Problem | What to check |
 | --- | --- |
-| Google sign-in or consent fails | Use the intended Google account and complete the browser flow. If Google blocks the application's audience or verification status, report it to the maintainer; you do not need to create an OAuth client. |
-| Expired or revoked authorization | Close the app, remove only `%APPDATA%\HotspotsFinder\token.json`, then reconnect to authorize again. Keep `config.json` to retain the sheet selection. |
-| Spreadsheet cannot be connected | Check the link and your Google account's edit access. Use **Connect / Change Sheet** again. |
-| Main sheet structure is damaged | Use **Repair Sheet**. To reset the appearance as well, use **Restore Official Style**. |
-| A reference tab is missing | Reconnect the spreadsheet to copy the missing reference tab from the template. |
-| Scan fails or finds unexpected results | Open **Show details**, check filters and system names, and retry a small scan. Include the error text when reporting an issue, without tokens or personal configuration. |
-| SmartScreen warning | An unsigned executable may show an unknown publisher. Confirm the download source and compare the checksum. |
+| A system name is rejected | Check the spelling and whether Spansh can resolve the system. |
+| A scan returns unexpected or incomplete data | Open **Log Details**, verify the active filters and retry with a small system list. |
+| Community Deposits cannot be loaded | Check the Internet connection and retry later; the community API may be temporarily unavailable. |
+| RhinoSpotter sync finds no cards | Verify the configured cards directory and that it contains valid `.json` cards. |
+| The interface is too large or too small | Open **Settings**, change UI Scale, save and restart the app. |
+| Windows SmartScreen appears | The executable is currently unsigned. Confirm that it was downloaded from this repository's Releases page. |
 
-## Build from source / Development
+## Build from source
 
-These steps are for developers and release maintainers, not normal Windows users.
+These steps are for developers and release maintainers.
 
-1. Install **Python 3.10** on Windows with the `py` launcher.
-2. Clone or download the repository.
-3. Place a genuine Google **Desktop app** OAuth client JSON beside `build_windows.bat`, named `credentials.json`. Enable the Google Sheets API for that project.
-4. Run **build_windows.bat**. It validates build inputs, installs requirements and PyInstaller, builds the one-file EXE, verifies its embedded resources, then packages the release.
-5. Find the executable in `dist\ED Hotspots & Landables Finder.exe` and the Windows ZIP/checksums in `release\`.
+1. Install Python on Windows.
+2. Clone or download this repository.
+3. Install runtime requirements:
 
-For a public build, use the application's **distribution** client. Its Google OAuth audience, publishing status and any required verification must permit the intended users. The JSON is embedded during compilation and must not be committed or uploaded separately. Desktop application client data is recoverable from an EXE; each user's authorization tokens remain local. See [Google's installed-app OAuth guidance](https://developers.google.com/identity/protocols/oauth2/native-app).
+```powershell
+python -m pip install -r requirements.txt
+```
 
-Maintainers can use the **Build and publish Windows release** workflow with the repository secret `GOOGLE_DESKTOP_OAUTH_JSON`. See [Windows release setup](docs/WINDOWS_RELEASE.md). The workflow stops if the secret is absent; it never substitutes example credentials.
+4. Install PyInstaller:
 
-### How it works
+```powershell
+python -m pip install pyinstaller
+```
+
+5. Run:
+
+```text
+build_windows_v8.bat
+```
+
+The v8 build uses `HotspotsFinder-v8.spec`, bundles `app.ico` and `ED_Hotspots_Finder.png`, and uses `hotspots_finder_gui_v8_final.py` as the entry point.
+
+The executable is created in:
+
+```text
+dist-v8\ED Hotspots & Landables Finder v8.exe
+```
+
+## Project structure
 
 | Component | Role |
 | --- | --- |
-| `hotspots_finder_gui.py` | Desktop GUI, scan controls and activity log |
-| `hotspots_engine.py` | Filters, queries, spreadsheet connection and result processing |
-| Spansh APIs | System and body data |
-| Google Sheets API | Spreadsheet inputs, results, formatting and template copying |
-| `HotspotsFinder.spec` / PyInstaller | One-file Windows build with application resources |
-| `package_release.ps1` | Windows release ZIP and SHA-256 checksums |
+| `hotspots_finder_gui_v8_final.py` | Final v8 desktop entry point and application-level behaviour |
+| `hotspots_finder_gui_v8_*.py` | Modular GUI layers used by the final interface |
+| `finder_engine.py` | Shared scan/filter helpers |
+| `local_scan.py` | Local v8 scan orchestration |
+| `system_filter_search.py` | Faction/Power/Reference System resolution and system-name canonicalization |
+| `community_deposits.py` | Community Deposits API client |
+| `rhinospotter_sync.py` | RhinoSpotter card normalization and upload logic |
+| `rhinospotter_sync_service.py` | GUI-friendly RhinoSpotter sync wrapper |
+| `results_export.py` | CSV/XLSX export helpers |
+| `app_settings.py` | Persistent local v8 settings |
+| `startup_splash.py` | Startup splash and first-window reveal handling |
+| `HotspotsFinder-v8.spec` | PyInstaller configuration for the Windows build |
 
-The template's Apps Script reference is in `docs/HotspotsFinder_Template_AppsScript_v9.gs`; it is not bundled into the EXE. Version-specific changes and test results are recorded in [RELEASE_NOTES.md](RELEASE_NOTES.md).
+## Privacy and network access
+
+The application may make network requests to:
+
+- **Spansh** for Elite Dangerous system/body data and system-name resolution.
+- **ED Alliance Community Deposits** for community deposit retrieval and RhinoSpotter report synchronization.
+
+Application settings remain local in `%APPDATA%\HotspotsFinder\config.json`.
+
+No Google Sheets access, Google OAuth token or Google account is required by v8.
