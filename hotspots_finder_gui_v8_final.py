@@ -146,12 +146,13 @@ class FinderV8FinalApp(_BaseFinalApp):
     def _apply_scaled_root_geometry(self):
         width = ui_scale_runtime.px(layout_metrics.WINDOW_WIDTH)
         height = ui_scale_runtime.px(layout_metrics.WINDOW_HEIGHT)
-        top = ui_scale_runtime.px(135)
 
         try:
             screen_width = self.winfo_screenwidth()
-            x = max(10, (screen_width - width) // 2)
-            self.geometry(f"{width}x{height}+{x}+{top}")
+            screen_height = self.winfo_screenheight()
+            x = max(0, (screen_width - width) // 2)
+            y = max(0, (screen_height - height) // 2)
+            self.geometry(f"{width}x{height}+{x}+{y}")
             self.minsize(width, height)
         except tk.TclError:
             pass
