@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
-"""v8 feature test: fixed compact log overlay aligned right in Results."""
+"""Responsive log overlay and result-table layout support for the v8 UI."""
 
 import tkinter as tk
-
 from hotspots_finder_gui_v8_expandresults import FinderV8ExpandResultsApp
 from hotspots_finder_gui_v8_settings import FinderV8SettingsMixin
 
@@ -133,8 +132,6 @@ class FinderV8LogLayoutApp(FinderV8SettingsMixin, FinderV8ExpandResultsApp):
 
             available_height = max(1, bottom_y - results_y - LOG_PANEL_GAP)
             panel_height = min(LOG_PANEL_HEIGHT, available_height)
-
-            # Keep the overlay flush with the right edge of Results.
             panel_x = results_x + results_width - panel_width
             panel_y = bottom_y - panel_height - LOG_PANEL_GAP
 

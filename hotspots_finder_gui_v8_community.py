@@ -409,7 +409,7 @@ class FinderV8CommunityApp(FinderV8App):
 
     def _rhino_upload_worker(self, systems, refresh_after_upload):
         try:
-            summary = rhinospotter_sync_service.sync_cards()
+            summary = rhinospotter_sync_service.sync_bookmarks()
 
             community_headers = []
             community_rows = []
@@ -437,11 +437,17 @@ class FinderV8CommunityApp(FinderV8App):
 
         self._finish_rhino_upload("RhinoSpotter upload completed")
 
+        source_label = (
+            "SQLite database"
+            if summary.get("source_type") == "sqlite"
+            else "Legacy JSON cards"
+        )
         messagebox.showinfo(
             APP_TITLE,
             (
                 "RhinoSpotter synchronization completed.\n\n"
-                f"JSON files found: {summary.get('files_found', 0)}\n"
+                f"Source: {source_label}\n"
+                f"Bookmarks found: {summary.get('records_found', 0)}\n"
                 f"Valid records: {summary.get('records_valid', 0)}\n"
                 f"New deposits: {summary.get('inserted', 0)}\n"
                 "Reports matched to existing deposits: "

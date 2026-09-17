@@ -1,3 +1,22 @@
+# v1.0.1 — RhinoSpotter compatibility update
+
+This maintenance release updates the RhinoSpotter integration for the storage format used by current RhinoSpotter releases.
+
+## Changes
+
+- Added automatic detection of the RhinoSpotter SQLite bookmark database at `%LOCALAPPDATA%\RhinoSpotter\db\rhinospotter.db`.
+- Reads the RhinoSpotter database in SQLite read-only mode.
+- Preserves support for legacy JSON card folders as a fallback.
+- Preserves stable report IDs so previously synchronized bookmarks are updated rather than duplicated.
+- Updated Settings to show the detected RhinoSpotter source and bookmark count.
+- Updated the upload confirmation and completion summary to use bookmark/database terminology.
+- Improved Settings window initialization so it opens already rendered instead of exposing intermediate layout states.
+- Updated RhinoSpotter and Community Deposits documentation for the current workflow.
+
+The integration was tested with newly created RhinoSpotter 4.4.3 bookmarks as well as previously migrated records.
+
+---
+
 # v1.0.0 — First public Windows release
 
 This is the **first public release** of **ED Hotspots Finder - Rings & Planets**.

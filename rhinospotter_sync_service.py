@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 
-"""GUI-friendly wrapper around the already-tested RhinoSpotter sync logic."""
+"""GUI-friendly wrapper around the RhinoSpotter synchronization logic."""
 
-import json
-import sys
+import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 from rhinospotter_sync import (
-    CARDS_DIR,
     MAX_BATCH_SIZE,
     chunks,
-    normalize_record,
+    load_rhinospotter_records,
+    resolve_source,
     send_batch,
-    validate_record,
 )
 
 
@@ -20,46 +19,54 @@ class RhinoSpotterSyncError(RuntimeError):
     pass
 
 
-def _load_cards(cards_dir=None):
-    """Load RhinoSpotter cards from the configured folder or default folder."""
+def inspect_source(data_path=None):
+    """Return the detected RhinoSpotter source and a lightweight record count."""
 
-    root = Path(cards_dir).expanduser() if cards_dir else CARDS_DIR
-    if not root.exists():
-        raise FileNotFoundError(f"RhinoSpotter folder not found: {root}")
+    source_type, source_path = resolve_source(data_path)
 
-    files = sorted(root.rglob("*.json"))
-    deposits = []
-
-    for path in files:
+    if source_type == "sqlite":
         try:
-            with path.open("r", encoding="utf-8") as handle:
-                record = json.load(handle)
-            validate_record(record, path)
-            deposits.append(normalize_record(record))
-        except Exception as exc:
-            print(f"[ERROR] {path}: {exc}", file=sys.stderr)
+            uri = Path(source_path).resolve().as_uri() + "?mode=ro"
+            connection = sqlite3.connect(uri, uri=True, timeout=5.0)
+            with closing(connection) as conn:
+                records_found = conn.execute(
+                    "SELECT COUNT(*) FROM bookmarks"
+                ).fetchone()[0]
+        except sqlite3.Error as exc:
+            raise RhinoSpotterSyncError(
+                f"Could not inspect RhinoSpotter database {source_path}: {exc}"
+            ) from exc
+    else:
+        records_found = sum(1 for _ in Path(source_path).rglob("*.json"))
 
-    return root, files, deposits
+    return {
+        "source_type": source_type,
+        "source_path": str(source_path),
+        "records_found": int(records_found or 0),
+    }
 
 
-def sync_cards(cards_dir=None):
-    """Synchronise RhinoSpotter bookmarks and return a compact result summary.
+def sync_bookmarks(data_path=None):
+    """Synchronize RhinoSpotter bookmarks and return a compact summary.
 
-    The actual record normalisation, report_id generation and HTTP payload are
-    intentionally reused from rhinospotter_sync.py so GUI uploads remain fully
-    compatible with the previously tested command-line sync.
+    RhinoSpotter 4.2+ stores bookmarks in SQLite. Older JSON-card folders are
+    still accepted as a fallback. Record normalization, stable report IDs and
+    HTTP payload handling remain shared with the command-line sync module.
     """
 
-    root, files, deposits = _load_cards(cards_dir)
+    loaded = load_rhinospotter_records(data_path)
+    deposits = loaded["deposits"]
 
     summary = {
-        "cards_dir": str(root),
-        "files_found": len(files),
-        "records_valid": len(deposits),
+        "source_type": loaded["source_type"],
+        "source_path": str(loaded["source_path"]),
+        "records_found": loaded["records_found"],
+        "records_valid": loaded["records_valid"],
+        "read_errors": loaded["read_errors"],
         "inserted": 0,
         "matched": 0,
         "updated": 0,
-        "errors": 0,
+        "errors": loaded["read_errors"],
     }
 
     if not deposits:
@@ -93,3 +100,14 @@ def sync_cards(cards_dir=None):
                 summary["updated"] += 1
 
     return summary
+
+
+def sync_cards(cards_dir=None):
+    """Backward-compatible name used by the current GUI.
+
+    A path that still points to the historical ``cards`` directory will now
+    automatically prefer the sibling SQLite database when RhinoSpotter 4.2+
+    is installed.
+    """
+
+    return sync_bookmarks(data_path=cards_dir)

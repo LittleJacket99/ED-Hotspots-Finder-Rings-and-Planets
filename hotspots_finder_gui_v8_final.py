@@ -29,7 +29,7 @@ from hotspots_finder_gui_v8_ui import FinderV8FinalUIApp as _BaseFinalApp
 
 
 PUBLIC_APP_TITLE = "ED Hotspots Finder - Rings & Planets"
-PUBLIC_APP_VERSION = "v1.0.0"
+PUBLIC_APP_VERSION = "v1.0.1"
 base_gui.APP_TITLE = PUBLIC_APP_TITLE
 settings_gui.APP_TITLE = PUBLIC_APP_TITLE
 visual_theme.APP_WINDOW_TITLE = PUBLIC_APP_TITLE
@@ -183,6 +183,10 @@ class FinderV8FinalApp(_BaseFinalApp):
             application.get("ui_scale", DEFAULT_UI_SCALE)
         )
         self._results_transition_pending = False
+        self._responsive_layout_after_id = None
+        self._log_reposition_after_id = None
+        self._root_restore_after_id = None
+        self._restore_guard_enabled = False
 
         original_tk_init = tk.Tk.__init__
         scale = self._ui_scale
@@ -212,6 +216,130 @@ class FinderV8FinalApp(_BaseFinalApp):
         current_power = str(self.power_var.get() or "").strip()
         if current_power not in ALLOWED_POWERS:
             self.power_var.set("")
+
+        # Build Settings once while the main application is still hidden behind
+        # the startup splash. Later openings only reveal this already-realised
+        # native window, so Windows never performs a fresh Toplevel map animation.
+        self._prebuilding_settings_window = True
+        try:
+            self._open_settings_dialog()
+        finally:
+            self._prebuilding_settings_window = False
+
+        # Minimize/restore can expose partially repainted child widgets on
+        # Windows. Keep the root transparent after it is fully unmapped, then
+        # reveal it only after the restored layout has repainted off-screen.
+        self.bind("<Unmap>", self._on_root_unmap, add="+")
+        self.bind("<Map>", self._on_root_map, add="+")
+
+    def _cancel_root_restore_timer(self):
+        pending = getattr(self, "_root_restore_after_id", None)
+        if pending is None:
+            return
+        try:
+            self.after_cancel(pending)
+        except tk.TclError:
+            pass
+        self._root_restore_after_id = None
+
+    def _on_root_unmap(self, event=None):
+        if event is not None and event.widget is not self:
+            return
+        if not getattr(self, "_restore_guard_enabled", False):
+            return
+
+        self._cancel_root_restore_timer()
+
+        for attr in ("_responsive_layout_after_id", "_log_reposition_after_id"):
+            pending = getattr(self, attr, None)
+            if pending is not None:
+                try:
+                    self.after_cancel(pending)
+                except tk.TclError:
+                    pass
+                setattr(self, attr, None)
+
+        self._responsive_layout_pending = False
+        self._log_reposition_pending = False
+
+        try:
+            # <Unmap> fires once the minimize animation has finished, so this
+            # does not interfere with the animation itself. The next restore
+            # begins with the client area already transparent.
+            self.attributes("-alpha", 0.0)
+        except tk.TclError:
+            pass
+
+    def _on_root_map(self, event=None):
+        if event is not None and event.widget is not self:
+            return
+        if not getattr(self, "_restore_guard_enabled", False):
+            return
+
+        self._cancel_root_restore_timer()
+        try:
+            self.attributes("-alpha", 0.0)
+            self._root_restore_after_id = self.after(
+                70,
+                self._settle_root_after_restore,
+            )
+        except tk.TclError:
+            self._root_restore_after_id = None
+
+    def _settle_root_after_restore(self):
+        self._root_restore_after_id = None
+
+        try:
+            if self.state() != "normal":
+                self._root_restore_after_id = self.after(
+                    30,
+                    self._settle_root_after_restore,
+                )
+                return
+        except tk.TclError:
+            return
+
+        try:
+            self._apply_responsive_layout()
+
+            if not getattr(self, "_results_expanded", False):
+                self._reflow_systems_contents()
+                try:
+                    self._refresh_unified_system_filters_panel()
+                except (AttributeError, tk.TclError):
+                    pass
+
+            try:
+                self._sync_results_outline()
+            except (AttributeError, tk.TclError):
+                pass
+
+            if (
+                getattr(self, "_log_visible", False)
+                and not getattr(self, "_results_expanded", False)
+            ):
+                self._reposition_log_panel()
+
+            # Let Windows/Tk process one more paint turn while the mapped root
+            # is still invisible. This avoids the black/empty panel frames seen
+            # during restore.
+            self.update_idletasks()
+            self._root_restore_after_id = self.after(
+                55,
+                self._reveal_root_after_restore,
+            )
+        except tk.TclError:
+            pass
+
+    def _reveal_root_after_restore(self):
+        self._root_restore_after_id = None
+        try:
+            if self.state() != "normal":
+                return
+            self.update_idletasks()
+            self.attributes("-alpha", 1.0)
+        except tk.TclError:
+            pass
 
     @staticmethod
     def _normalise_ui_scale(value):
@@ -263,6 +391,38 @@ class FinderV8FinalApp(_BaseFinalApp):
             )
         except tk.TclError:
             pass
+
+    def _schedule_responsive_layout(self, event=None):
+        """Debounce root resize events so minimize/restore animations stay stable."""
+
+        if event is not None and event.widget is not self:
+            return
+
+        pending = getattr(self, "_responsive_layout_after_id", None)
+        if pending is not None:
+            try:
+                self.after_cancel(pending)
+            except tk.TclError:
+                pass
+
+        self._responsive_layout_pending = True
+        try:
+            self._responsive_layout_after_id = self.after(
+                140,
+                self._run_debounced_responsive_layout,
+            )
+        except tk.TclError:
+            self._responsive_layout_after_id = None
+
+    def _run_debounced_responsive_layout(self):
+        self._responsive_layout_after_id = None
+        try:
+            if self.state() != "normal":
+                self._responsive_layout_pending = False
+                return
+        except tk.TclError:
+            return
+        self._apply_responsive_layout()
 
     def _apply_responsive_layout(self):
         self._responsive_layout_pending = False
@@ -439,6 +599,38 @@ class FinderV8FinalApp(_BaseFinalApp):
             raise
 
         self.after(30, lambda h=handles: self._finish_results_transition(h))
+
+    def _schedule_log_reposition(self, _event=None):
+        if not getattr(self, "_log_visible", False):
+            return
+        if getattr(self, "_results_expanded", False):
+            return
+
+        pending = getattr(self, "_log_reposition_after_id", None)
+        if pending is not None:
+            try:
+                self.after_cancel(pending)
+            except tk.TclError:
+                pass
+
+        self._log_reposition_pending = True
+        try:
+            self._log_reposition_after_id = self.after(
+                140,
+                self._run_debounced_log_reposition,
+            )
+        except tk.TclError:
+            self._log_reposition_after_id = None
+
+    def _run_debounced_log_reposition(self):
+        self._log_reposition_after_id = None
+        try:
+            if self.state() != "normal":
+                self._log_reposition_pending = False
+                return
+        except tk.TclError:
+            return
+        self._reposition_log_panel()
 
     def _reposition_log_panel(self):
         self._log_reposition_pending = False
@@ -787,12 +979,83 @@ class FinderV8FinalApp(_BaseFinalApp):
         except tk.TclError:
             return None
 
+    def _hide_persistent_settings_window(self, window=None):
+        window = window or getattr(self, "_settings_window", None)
+        if window is None:
+            return
+        try:
+            if not window.winfo_exists():
+                return
+            try:
+                window.grab_release()
+            except tk.TclError:
+                pass
+            window.attributes("-alpha", 0.0)
+            width = max(1, window.winfo_width())
+            height = max(1, window.winfo_height())
+            window.geometry(
+                f"{width}x{height}+{window.winfo_screenwidth() + 200}+"
+                f"{window.winfo_screenheight() + 200}"
+            )
+            window.update_idletasks()
+        except tk.TclError:
+            pass
+
+    def _show_persistent_settings_window(self, window):
+        try:
+            if not window.winfo_exists():
+                return
+            # Move the already-mapped transparent window into its final position,
+            # settle geometry, then make it visible without a native map event.
+            window.attributes("-alpha", 0.0)
+            self._center_settings_window(window, 600, 620)
+            window.update_idletasks()
+            window.attributes("-alpha", 1.0)
+            try:
+                window.grab_set()
+            except tk.TclError:
+                pass
+            window.lift()
+            window.focus_force()
+        except tk.TclError:
+            pass
+
     def _open_settings_dialog(self):
-        super()._open_settings_dialog()
+        existing = getattr(self, "_settings_window", None)
+        if existing is not None:
+            try:
+                if existing.winfo_exists():
+                    if not getattr(self, "_prebuilding_settings_window", False):
+                        restore = getattr(
+                            existing,
+                            "_edhf_restore_settings_values",
+                            None,
+                        )
+                        if callable(restore):
+                            restore()
+                        restore_app = getattr(
+                            existing,
+                            "_edhf_restore_application_values",
+                            None,
+                        )
+                        if callable(restore_app):
+                            restore_app()
+                        self._show_persistent_settings_window(existing)
+                    return
+            except tk.TclError:
+                pass
+
+        # Tell the base Settings builder not to map the Toplevel. Every lower
+        # layer may create/style controls normally while the native window stays
+        # withdrawn; this final layer alone performs the first deiconify.
+        self._defer_settings_reveal = True
+        try:
+            super()._open_settings_dialog()
+        finally:
+            self._defer_settings_reveal = False
+
         window = getattr(self, "_settings_window", None)
         if window is None or not window.winfo_exists():
-            return
-        if getattr(window, "_edhf_theme_controls", False):
             return
 
         window._edhf_theme_controls = True
@@ -958,10 +1221,7 @@ class FinderV8FinalApp(_BaseFinalApp):
                 child.bind("<ButtonRelease-1>", reset_application, add="+")
                 break
 
-        def restore_if_cancelled(event):
-            if event.widget is not window:
-                return
-
+        def restore_application_values():
             saved = app_settings.load_settings()
             saved_application = saved.get("application", {})
             saved_theme = self._normalise_theme_name(
@@ -970,19 +1230,47 @@ class FinderV8FinalApp(_BaseFinalApp):
             saved_scale = self._normalise_ui_scale(
                 saved_application.get("ui_scale", DEFAULT_UI_SCALE)
             )
-            chosen_theme = THEME_LABELS.get(
-                str(theme_var.get()),
-                "deep_black",
-            )
 
-            if saved_theme != chosen_theme:
-                self.v8_settings.setdefault("application", {})["theme"] = original_theme
-                self._apply_theme_choice(original_theme)
+            theme_var.set(THEME_NAMES.get(saved_theme, "Deep Black"))
+            scale_var.set(UI_SCALE_NAMES.get(saved_scale, "115%"))
+
+            current_theme = self._selected_theme_name()
+            if current_theme != saved_theme:
+                self.v8_settings.setdefault("application", {})["theme"] = saved_theme
+                self._apply_theme_choice(saved_theme)
 
             self.v8_settings.setdefault("application", {})["ui_scale"] = saved_scale
 
-        window.bind("<Destroy>", restore_if_cancelled, add="+")
-        self.after_idle(lambda: self._style_classic_widget_tree(window))
+        window._edhf_restore_application_values = restore_application_values
+
+        try:
+            self._style_mockup_controls(window)
+            self._style_classic_widget_tree(window)
+            self._center_settings_window(window, 600, 620)
+            window.update_idletasks()
+            self._center_settings_window(window, 600, 620)
+            window.update_idletasks()
+
+            if getattr(self, "_prebuilding_settings_window", False):
+                # Realise the HWND exactly once, invisibly and off-screen, during
+                # application startup. It stays mapped for the lifetime of the app.
+                window.attributes("-alpha", 0.0)
+                width = max(1, window.winfo_width())
+                height = max(1, window.winfo_height())
+                window.geometry(
+                    f"{width}x{height}+{window.winfo_screenwidth() + 200}+"
+                    f"{window.winfo_screenheight() + 200}"
+                )
+                window.deiconify()
+                window.update_idletasks()
+                try:
+                    window.grab_release()
+                except tk.TclError:
+                    pass
+            else:
+                self._show_persistent_settings_window(window)
+        except tk.TclError:
+            pass
 
     def _reflow_systems_contents(self):
         panel = getattr(self, "_systems_panel", None)
@@ -1338,6 +1626,7 @@ def main():
         app.lift()
         app.update_idletasks()
         app.update()
+        app._restore_guard_enabled = True
     finally:
         close_startup_splash(splash)
 

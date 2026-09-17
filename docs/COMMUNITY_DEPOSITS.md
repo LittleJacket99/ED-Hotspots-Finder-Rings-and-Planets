@@ -42,7 +42,7 @@ A contribution can improve future searches for everyone using the service.
 
 ## RhinoSpotter
 
-ED Hotspots Finder currently supports optional synchronization of compatible local records created by **[RhinoSpotter](https://github.com/Fumlop/EDRhinoSpotter)**, an independent EDMC plugin developed by **Fumlop**.
+ED Hotspots Finder supports optional synchronization of compatible local bookmarks created by **[RhinoSpotter](https://github.com/Fumlop/EDRhinoSpotter)**, an independent EDMC plugin developed by **Fumlop**. Current RhinoSpotter releases are read from the local SQLite bookmark database, with legacy JSON cards supported as a fallback.
 
 RhinoSpotter is used to record discoveries in-game; ED Hotspots Finder provides the synchronization path to Community Deposits.
 
