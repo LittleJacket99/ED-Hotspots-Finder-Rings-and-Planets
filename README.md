@@ -208,9 +208,9 @@ The build uses `HotspotsFinder-v8.spec`, bundles `app.ico` and `ED_Hotspots_Find
 A successful release build creates:
 
 ```text
-release\v1.0.0\ED Hotspots Finder - Rings & Planets.exe
-release\v1.0.0\ED-Hotspots-Finder-Rings-and-Planets-v1.0.0-Windows.zip
-release\v1.0.0\SHA256.txt
+release\v1.0.1\ED Hotspots Finder - Rings & Planets.exe
+release\v1.0.1\ED-Hotspots-Finder-Rings-and-Planets-v1.0.1-Windows.zip
+release\v1.0.1\SHA256.txt
 ```
 
 `build-v8` and `dist-v8` remain internal intermediate build directories and are not release artifacts.
