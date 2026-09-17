@@ -105,10 +105,16 @@ def show_startup_splash():
 
 
 def close_startup_splash(splash):
+    """Remove the splash from the compositor before the main window is revealed."""
+
     if splash is None:
         return
     try:
-        if splash.winfo_exists():
-            splash.destroy()
+        if not splash.winfo_exists():
+            return
+        splash.withdraw()
+        splash.update_idletasks()
+        splash.update()
+        splash.destroy()
     except tk.TclError:
         pass
