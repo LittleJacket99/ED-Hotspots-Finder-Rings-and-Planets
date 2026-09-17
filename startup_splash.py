@@ -13,6 +13,8 @@ SPLASH_IMAGE = "ED_Hotspots_Finder.png"
 TRANSPARENT_KEY = "#ff00ff"
 MAX_SPLASH_SIZE = 460
 ALPHA_CUTOFF = 176
+OFFSCREEN_POSITION = "-32000-32000"
+OFFSCREEN_PAINT_PASSES = 4
 
 
 def resource_path(filename):
@@ -59,6 +61,71 @@ def _release_splash_as_default_root(splash):
             tk._default_root = None
     except (AttributeError, tk.TclError):
         pass
+
+
+def _install_staged_main_deiconify():
+    """Paint the next Tk root offscreen before revealing it.
+
+    Windows can briefly show a newly mapped window's non-client border or paint
+    individual controls over several compositor frames. The splash has already
+    been mapped by the time this hook is installed, so the *next* ``Tk`` root to
+    be deiconified is the real application window. Map that window far offscreen,
+    let Tk and DWM complete a few paint passes, restore its requested geometry,
+    then immediately restore the original ``Tk.deiconify`` implementation.
+
+    The hook is deliberately one-shot and cannot affect Settings or any later
+    window operations.
+    """
+
+    if getattr(tk.Tk, "_edhf_staged_deiconify", False):
+        return
+
+    original_deiconify = tk.Tk.deiconify
+
+    def staged_deiconify(window, *args, **kwargs):
+        # Restore normal Tk behaviour before doing anything else. Even if the
+        # staging path fails, every later deiconify call behaves normally.
+        tk.Tk.deiconify = original_deiconify
+        try:
+            delattr(tk.Tk, "_edhf_staged_deiconify")
+        except AttributeError:
+            pass
+
+        target_geometry = None
+        mapped = False
+        try:
+            window.update_idletasks()
+            target_geometry = window.geometry()
+
+            # Position-only geometry preserves the fully calculated window size
+            # while moving the first native paint far outside any real monitor.
+            window.geometry(OFFSCREEN_POSITION)
+            original_deiconify(window, *args, **kwargs)
+            mapped = True
+
+            for _ in range(OFFSCREEN_PAINT_PASSES):
+                window.update_idletasks()
+                window.update()
+
+            if target_geometry:
+                window.geometry(target_geometry)
+                window.update_idletasks()
+        except tk.TclError:
+            # If mapping itself failed, fall back to the ordinary behaviour so
+            # startup can still continue instead of leaving the app withdrawn.
+            if not mapped:
+                try:
+                    original_deiconify(window, *args, **kwargs)
+                except tk.TclError:
+                    pass
+            elif target_geometry:
+                try:
+                    window.geometry(target_geometry)
+                except tk.TclError:
+                    pass
+
+    tk.Tk.deiconify = staged_deiconify
+    tk.Tk._edhf_staged_deiconify = True
 
 
 def show_startup_splash():
@@ -129,6 +196,10 @@ def show_startup_splash():
     # built. It stays fully alive and visible; only implicit variable ownership
     # is released so the main Tk root can own all app state.
     _release_splash_as_default_root(splash)
+
+    # The splash has already consumed its own deiconify, so this one-shot hook
+    # applies only to the real application root that will be revealed later.
+    _install_staged_main_deiconify()
     return splash
 
 
