@@ -1,27 +1,99 @@
-# ED Hotspots Finder - Rings & Planets
+<p align="center">
+  <img src="ED_Hotspots_Finder.png" width="700" alt="ED Hotspots Finder - Rings & Planets">
+</p>
 
-A standalone Windows companion for **Elite Dangerous** that searches multiple star systems for mining hotspots, landable bodies and related surface-mining information using **Spansh** and the **ED Alliance Community Deposits** database.
+<h1 align="center">ED Hotspots Finder - Rings & Planets</h1>
 
-The current interface is fully local: no Google Sheets connection and no Google OAuth are required.
+<p align="center">
+  <strong>Multi-system search and filtering for Elite Dangerous, designed especially for Powerplay-oriented system research.</strong>
+</p>
 
-[Download the latest Windows release](https://github.com/LittleJacket99/ED-Hotspots-Finder-Rings-and-Planets/releases/latest) · [v1.0.0 release notes](RELEASE_NOTES.md)
+<p align="center">
+  Find systems that match strategic requirements and the ring, hotspot and planetary characteristics you need.
+</p>
+
+<p align="center">
+  <a href="https://github.com/LittleJacket99/ED-Hotspots-Finder-Rings-and-Planets/releases/latest">Download latest Windows release</a>
+  ·
+  <a href="RELEASE_NOTES.md">Release notes</a>
+</p>
+
+<p align="center">
+  <img src="docs/images/main-interface.png" width="1200" alt="ED Hotspots Finder main interface">
+</p>
+
+## What is ED Hotspots Finder?
+
+**ED Hotspots Finder - Rings & Planets** is a Windows companion for **Elite Dangerous** designed to search and analyze multiple star systems at once.
+
+Its main goal is to help commanders identify systems that satisfy specific requirements, with a particular focus on **Powerplay-oriented system research**.
+
+You can provide a list of systems manually or discover systems through filters such as **Power**, **Power State**, **Faction**, **Reference System** and **Distance**. The selected systems can then be searched for the characteristics you actually need: specific **ring types**, **mining hotspots**, **pristine reserves**, **planet types**, **landable bodies**, **volcanism** and other planetary information.
+
+Instead of checking systems one by one across different tools, ED Hotspots Finder is designed to reduce a large candidate area to the systems that actually match the requirements of a Powerplay task or other targeted search.
 
 ## Main features
 
-- Search a manual list of systems in **System Input**.
-- Automatically normalize manual system names through Spansh before scanning.
-- Find systems with **System Filters** using Faction, Powerplay power, Power States, Reference System and maximum distance.
-- Search for mining hotspots with ring-type and mineral filters, including **Only Pristine**.
-- Search planets with body-type filters, **Only Landables**, volcanism and arrival-distance data where available.
-- Display **Community Deposits** stored in the shared ED Alliance Community Deposits database.
-- Optional RhinoSpotter integration for synchronizing local deposit cards with the community database.
-- Sort and filter result tables directly in the desktop app.
-- Export the current result tab to **CSV** or **XLSX**.
-- Expand/restore the results area and open the detailed activity log.
+- Search many systems in a single operation.
+- Manual **System Input** with automatic Spansh name normalization.
+- System discovery through **Faction**, **Power**, **Power State**, **Reference System** and distance filters.
+- Search for specific ring types and mining hotspots.
+- Filter hotspots by commodity and pristine reserve status.
+- Search planets by body type, landability and volcanism.
+- View arrival-distance and other body information where available.
+- Search the shared **Community Deposits** database.
+- Synchronize compatible RhinoSpotter discoveries with the community database.
+- Sort and filter result tables directly inside the application.
+- Export results to **CSV** and **XLSX**.
+- Expand or restore the results area and open the detailed activity log.
 - Choose between **Deep Black** and **Green Warm** themes.
 - UI scaling options: 100%, 110%, 115% and 125%.
 
-Spansh and the Community Deposits service are community-data sources. Missing or outdated data can affect results; no match is not proof that a system or body contains no relevant feature.
+Spansh and Community Deposits are community-data sources. Missing or outdated data can affect results; no match is not proof that a system or body contains no relevant feature.
+
+## Powerplay-oriented system research
+
+The application is particularly useful when a Powerplay task requires searching a large set of systems for specific physical characteristics.
+
+A commander can first define the strategic search area through Powerplay, faction and distance filters, then search the resulting systems for the required hotspot, ring or planetary conditions.
+
+This combines **where to search** with **what the system must contain** in a single workflow.
+
+## Community Deposits
+
+ED Hotspots Finder also includes a community project whose goal is to build a **shared database of planetary surface deposits discovered by Elite Dangerous players**.
+
+A deposit found by one commander can become useful information for other commanders searching the same region or looking for specific planetary resources.
+
+The idea is simple:
+
+**Discover → Bookmark → Synchronize → Share → Search**
+
+Players can record planetary deposits while playing, contribute compatible discoveries to the shared database, and make them available through ED Hotspots Finder's multi-system searches.
+
+### Help build the database
+
+The usefulness of Community Deposits grows with every contribution.
+
+If you explore planetary surfaces or participate in surface mining, you can help by recording the deposits you encounter and synchronizing compatible records with the shared database.
+
+ED Hotspots Finder can both search deposits already reported by other commanders and contribute compatible locally recorded deposits to the shared dataset.
+
+Read more: **[Community Deposits documentation](docs/COMMUNITY_DEPOSITS.md)**
+
+## RhinoSpotter integration
+
+Community deposit collection is integrated with **[RhinoSpotter](https://github.com/Fumlop/EDRhinoSpotter)**, an independent EDMC plugin developed by **Fumlop** for Elite Dangerous surface mining.
+
+RhinoSpotter can record planetary mining locations and related information while a commander is exploring the surface. ED Hotspots Finder can use compatible locally recorded discoveries as a contribution source for the Community Deposits database.
+
+This creates a complementary workflow:
+
+**RhinoSpotter records discoveries in-game → ED Hotspots Finder synchronizes them → Community Deposits makes them searchable across systems.**
+
+RhinoSpotter is a separate project and is not bundled with ED Hotspots Finder.
+
+Read more: **[RhinoSpotter integration](docs/RHINOSPOTTER.md)**
 
 ## Quick start
 
@@ -67,29 +139,9 @@ The Reference System is normalized through the same Spansh system-name lookup us
 
 Hotspot searches can be filtered by ring type and mineral/material. **Only Pristine** limits results to pristine systems where the available source data supports that classification.
 
-Results are shown locally in the app rather than written to a spreadsheet.
-
 ## Planets
 
 Planet searches support body-type filters and **Only Landables**. Returned data can include landability, volcanism and arrival distance where supplied by Spansh.
-
-## Community Deposits
-
-The **Community Deposits** option queries the ED Alliance Community Deposits service and displays known player-reported deposits alongside the normal search workflow.
-
-The public API is maintained separately from the desktop executable. Network access is required to retrieve community records.
-
-## RhinoSpotter integration
-
-The app can read RhinoSpotter JSON cards from the configured cards folder and synchronize valid deposit reports with the Community Deposits database.
-
-By default the app looks in:
-
-```text
-%LOCALAPPDATA%\RhinoSpotter\cards
-```
-
-A custom cards directory can be configured in Settings. The sync reuses the same validation and normalization logic as the standalone RhinoSpotter sync helper.
 
 ## Export
 
@@ -97,8 +149,6 @@ The current result tab can be exported to:
 
 - **CSV** — UTF-8 with BOM and semicolon delimiters for convenient opening in European Excel installations.
 - **XLSX** — generated locally by the application, with a frozen header row and autofilter.
-
-No spreadsheet account or external office suite integration is required.
 
 ## Settings
 
@@ -110,8 +160,6 @@ Application settings are stored locally in:
 
 Current settings include startup filter defaults, RhinoSpotter options, theme and UI scale.
 
-The standalone release does not use Google authorization and does not create `token.json`.
-
 ## Troubleshooting
 
 | Problem | What to check |
@@ -119,7 +167,7 @@ The standalone release does not use Google authorization and does not create `to
 | A system name is rejected | Check the spelling and whether Spansh can resolve the system. |
 | A scan returns unexpected or incomplete data | Open **Log Details**, verify the active filters and retry with a small system list. |
 | Community Deposits cannot be loaded | Check the Internet connection and retry later; the community API may be temporarily unavailable. |
-| RhinoSpotter sync finds no cards | Verify the configured cards directory and that it contains valid `.json` cards. |
+| RhinoSpotter sync finds no cards | Verify the configured cards directory and that it contains compatible records. |
 | The interface is too large or too small | Open **Settings**, change UI Scale, save and restart the app. |
 | Windows SmartScreen appears | The executable is currently unsigned. Confirm that it was downloaded from this repository's Releases page. |
 
@@ -171,7 +219,7 @@ release\v1.0.0\SHA256.txt
 | `local_scan.py` | Local scan orchestration |
 | `system_filter_search.py` | Faction/Power/Reference System resolution and system-name canonicalization |
 | `community_deposits.py` | Community Deposits API client |
-| `rhinospotter_sync.py` | RhinoSpotter card normalization and upload logic |
+| `rhinospotter_sync.py` | RhinoSpotter record normalization and upload logic |
 | `rhinospotter_sync_service.py` | GUI-friendly RhinoSpotter sync wrapper |
 | `results_export.py` | CSV/XLSX export helpers |
 | `app_settings.py` | Persistent local settings |
@@ -187,4 +235,14 @@ The application may make network requests to:
 
 Application settings remain local in `%APPDATA%\HotspotsFinder\config.json`.
 
-No Google Sheets access, Google OAuth token or Google account is required by the standalone release.
+## Related projects and data sources
+
+- **[RhinoSpotter](https://github.com/Fumlop/EDRhinoSpotter)** by Fumlop — EDMC surface-mining plugin used as an optional source for Community Deposits contributions.
+- **Spansh** — system and body data, system-name resolution and search support.
+- **ED Alliance Community Deposits** — shared community database used to store and retrieve player-reported planetary deposits.
+
+## License
+
+ED Hotspots Finder - Rings & Planets is intended to be released under the **GNU General Public License v3.0 (GPL-3.0)**.
+
+See [LICENSE](LICENSE) for the full license text once added to the repository.
