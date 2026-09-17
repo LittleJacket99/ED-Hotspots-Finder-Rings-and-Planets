@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="ED_Hotspots_Finder.png" width="700" alt="ED Hotspots Finder - Rings & Planets">
+  <img src="ED_Hotspots_Finder.png" width="420" alt="ED Hotspots Finder - Rings & Planets">
 </p>
 
 <h1 align="center">ED Hotspots Finder - Rings & Planets</h1>
@@ -58,6 +58,12 @@ The application is particularly useful when a Powerplay task requires searching 
 A commander can first define the strategic search area through Powerplay, faction and distance filters, then search the resulting systems for the required hotspot, ring or planetary conditions.
 
 This combines **where to search** with **what the system must contain** in a single workflow.
+
+<p align="center">
+  <img src="docs/images/search-results.png" width="1200" alt="ED Hotspots Finder example search results">
+</p>
+
+<p align="center"><em>Example search results after applying system and body filters.</em></p>
 
 ## Community Deposits
 
@@ -243,6 +249,6 @@ Application settings remain local in `%APPDATA%\HotspotsFinder\config.json`.
 
 ## License
 
-ED Hotspots Finder - Rings & Planets is intended to be released under the **GNU General Public License v3.0 (GPL-3.0)**.
+ED Hotspots Finder - Rings & Planets is released under the **GNU General Public License v3.0 (GPL-3.0)**.
 
-See [LICENSE](LICENSE) for the full license text once added to the repository.
+See [LICENSE](LICENSE) for the full license text.
