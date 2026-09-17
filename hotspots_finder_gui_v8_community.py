@@ -409,7 +409,7 @@ class FinderV8CommunityApp(FinderV8App):
 
     def _rhino_upload_worker(self, systems, refresh_after_upload):
         try:
-            summary = rhinospotter_sync_service.sync_cards()
+            summary = rhinospotter_sync_service.sync_bookmarks()
 
             community_headers = []
             community_rows = []
