@@ -30,6 +30,9 @@ DEFAULT_SETTINGS = {
         "cards_dir": "",
         "ask_before_sync": True,
     },
+    "application": {
+        "theme": "deep_black",
+    },
     "last_filters": {},
 }
 
