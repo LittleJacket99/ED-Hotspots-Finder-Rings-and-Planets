@@ -15,10 +15,13 @@ from pathlib import Path
 from tkinter import ttk
 
 import app_settings
+import finder_engine as scan_engine
 import hotspots_finder_gui_v8_layout2 as layout_metrics
 import hotspots_finder_gui_v8_loglayout as log_layout_metrics
 import hotspots_finder_gui_v8_ui as ui_theme
 import hotspots_finder_gui_v8_visual as visual_theme
+import local_scan
+import system_filter_search
 import ui_scale_runtime
 from hotspots_finder_gui_v8_ui import FinderV8FinalUIApp as _BaseFinalApp
 
@@ -566,10 +569,11 @@ class FinderV8FinalApp(_BaseFinalApp):
         try:
             window.iconbitmap(default=str(icon_path))
         except (tk.TclError, OSError):
-            try:
-                window.iconbitmap(str(icon_path))
-            except (tk.TclError, OSError):
-                pass
+            pass
+        try:
+            window.iconbitmap(str(icon_path))
+        except (tk.TclError, OSError):
+            pass
 
     @staticmethod
     def _normalise_theme_name(value):
@@ -952,6 +956,47 @@ class FinderV8FinalApp(_BaseFinalApp):
         except tk.TclError:
             pass
 
+    def _canonicalize_manual_systems(self, systems):
+        canonical_systems = []
+        seen = set()
+
+        for entered in systems or []:
+            scan_engine.check_cancel(self.cancel_event)
+            entered = str(entered or "").strip()
+            if not entered:
+                continue
+
+            canonical = system_filter_search.canonicalize_system_name(
+                entered,
+                cancel_event=self.cancel_event,
+            )
+            key = scan_engine.norm(canonical)
+            if key in seen:
+                continue
+
+            seen.add(key)
+            canonical_systems.append(canonical)
+            if canonical != entered:
+                print(f'Manual system normalized: "{entered}" -> "{canonical}"')
+
+        return canonical_systems
+
+    def _scan_worker(self, config):
+        try:
+            normalized_config = dict(config or {})
+            normalized_config["systems"] = self._canonicalize_manual_systems(
+                normalized_config.get("systems", [])
+            )
+            result = local_scan.run_local_scan(
+                normalized_config,
+                cancel_event=self.cancel_event,
+            )
+            self.after(0, self._scan_complete, result)
+        except scan_engine.ScanCancelled:
+            self.after(0, self._scan_cancelled)
+        except Exception as exc:
+            self.after(0, self._scan_failed, str(exc))
+
     def _scan_complete(self, result):
         try:
             return super()._scan_complete(result)
@@ -992,6 +1037,7 @@ def main():
             time.sleep(0.01)
 
         app.deiconify()
+        app._apply_app_icon(app)
         app.lift()
         mapped_until = time.perf_counter() + 0.20
         while time.perf_counter() < mapped_until:
