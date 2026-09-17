@@ -3,7 +3,7 @@ setlocal
 cd /d "%~dp0"
 
 echo =======================================================
-echo ED Hotspots ^& Landables Finder v8 - Windows test build
+echo ED Hotspots Finder - Rings ^& Planets v1.0.0 - Windows test build
 echo =======================================================
 echo.
 
@@ -30,18 +30,18 @@ if errorlevel 1 (
 if exist build-v8 rmdir /s /q build-v8
 if exist dist-v8 rmdir /s /q dist-v8
 
-echo Building v8 executable...
+echo Building executable...
 python -m PyInstaller --noconfirm --clean --workpath build-v8 --distpath dist-v8 HotspotsFinder-v8.spec
 if errorlevel 1 goto :fail
 
-if not exist "dist-v8\ED Hotspots & Landables Finder v8.exe" (
+if not exist "dist-v8\ED Hotspots Finder - Rings & Planets.exe" (
     echo ERROR: Expected executable was not created.
     goto :fail
 )
 
 echo.
 echo BUILD OK
-echo EXE: dist-v8\ED Hotspots ^& Landables Finder v8.exe
+echo EXE: dist-v8\ED Hotspots Finder - Rings ^& Planets.exe
 echo.
 pause
 exit /b 0
