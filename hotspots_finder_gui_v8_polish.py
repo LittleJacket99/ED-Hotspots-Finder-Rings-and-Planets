@@ -22,7 +22,6 @@ BOXES = {
     "planets": (18, 227, 250, 130),
     "community": (18, 427, 250, 105),
     "systems": (285, 92, 225, 488),
-    "systemFiltersTitle": (18, 537, 160, 38),
     "faction": (18, 580, 225, 55),
     "power": (285, 615, 225, 55),
     "powerStates": (285, 680, 225, 75),
@@ -155,7 +154,6 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
         self._planets_box = self._make_box("planets")
         self._community_box = self._make_box("community")
         self._systems_panel = self._make_box("systems")
-        self._system_filters_title_box = self._make_box("systemFiltersTitle")
         self._faction_box = self._make_box("faction")
         self._power_box = self._make_box("power")
         self._power_states_box = self._make_box("powerStates")
@@ -421,14 +419,6 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
         ).place(x=9, y=361, width=207, height=38)
 
     def _build_system_filter_boxes(self):
-        tk.Label(
-            self._system_filters_title_box,
-            text="SYSTEM FILTERS",
-            bg=PANEL,
-            fg=COLORS["orange"],
-            font=("Segoe UI", 10, "bold"),
-        ).place(x=0, y=9)
-
         self._build_labeled_entry(
             self._faction_box,
             "Faction",
@@ -518,7 +508,6 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
                 "_planets_box",
                 "_community_box",
                 "_systems_panel",
-                "_system_filters_title_box",
                 "_faction_box",
                 "_power_box",
                 "_power_states_box",
@@ -547,7 +536,6 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
             "_planets_box": "planets",
             "_community_box": "community",
             "_systems_panel": "systems",
-            "_system_filters_title_box": "systemFiltersTitle",
             "_faction_box": "faction",
             "_power_box": "power",
             "_power_states_box": "powerStates",
