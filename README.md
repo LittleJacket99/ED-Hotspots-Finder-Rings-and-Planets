@@ -1,4 +1,4 @@
-# ED Hotspots & Landables Finder
+# ED Hotspots Finder - Rings & Planets
 
 A standalone Windows companion for **Elite Dangerous** that searches multiple star systems for mining hotspots, landable bodies and related surface-mining information using **Spansh** and the **ED Alliance Community Deposits** database.
 
@@ -26,7 +26,7 @@ Spansh and the Community Deposits service are community-data sources. Missing or
 ## Quick start
 
 1. Download the Windows executable or ZIP from **Releases**.
-2. Run the downloaded **ED Hotspots & Landables Finder** executable.
+2. Run **ED Hotspots Finder - Rings & Planets.exe**.
 3. Enter one or more systems in **System Input**, or leave it empty and configure **System Filters**.
 4. Enable **Hotspots**, **Planets** and/or **Community Deposits** as needed.
 5. Set the relevant filters.
@@ -149,7 +149,7 @@ build_windows_v8.bat
 
 The current internal build files still use **v8** in their filenames because that was the final development iteration before the first public release. The public release version starts at **v1.0.0**.
 
-The build uses `HotspotsFinder-v8.spec`, bundles `app.ico` and `ED_Hotspots_Finder.png`, and uses `hotspots_finder_gui_v8_final.py` as the entry point.
+The build uses `HotspotsFinder-v8.spec`, bundles `app.ico` and `ED_Hotspots_Finder.png`, and uses `hotspots_finder_gui_v8_final.py` as the entry point. The public executable is named **ED Hotspots Finder - Rings & Planets.exe**.
 
 ## Project structure
 
