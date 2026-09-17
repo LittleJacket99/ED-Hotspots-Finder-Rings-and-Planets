@@ -185,6 +185,8 @@ class FinderV8FinalApp(_BaseFinalApp):
         self._results_transition_pending = False
         self._responsive_layout_after_id = None
         self._log_reposition_after_id = None
+        self._root_restore_after_id = None
+        self._restore_guard_enabled = False
 
         original_tk_init = tk.Tk.__init__
         scale = self._ui_scale
@@ -223,6 +225,121 @@ class FinderV8FinalApp(_BaseFinalApp):
             self._open_settings_dialog()
         finally:
             self._prebuilding_settings_window = False
+
+        # Minimize/restore can expose partially repainted child widgets on
+        # Windows. Keep the root transparent after it is fully unmapped, then
+        # reveal it only after the restored layout has repainted off-screen.
+        self.bind("<Unmap>", self._on_root_unmap, add="+")
+        self.bind("<Map>", self._on_root_map, add="+")
+
+    def _cancel_root_restore_timer(self):
+        pending = getattr(self, "_root_restore_after_id", None)
+        if pending is None:
+            return
+        try:
+            self.after_cancel(pending)
+        except tk.TclError:
+            pass
+        self._root_restore_after_id = None
+
+    def _on_root_unmap(self, event=None):
+        if event is not None and event.widget is not self:
+            return
+        if not getattr(self, "_restore_guard_enabled", False):
+            return
+
+        self._cancel_root_restore_timer()
+
+        for attr in ("_responsive_layout_after_id", "_log_reposition_after_id"):
+            pending = getattr(self, attr, None)
+            if pending is not None:
+                try:
+                    self.after_cancel(pending)
+                except tk.TclError:
+                    pass
+                setattr(self, attr, None)
+
+        self._responsive_layout_pending = False
+        self._log_reposition_pending = False
+
+        try:
+            # <Unmap> fires once the minimize animation has finished, so this
+            # does not interfere with the animation itself. The next restore
+            # begins with the client area already transparent.
+            self.attributes("-alpha", 0.0)
+        except tk.TclError:
+            pass
+
+    def _on_root_map(self, event=None):
+        if event is not None and event.widget is not self:
+            return
+        if not getattr(self, "_restore_guard_enabled", False):
+            return
+
+        self._cancel_root_restore_timer()
+        try:
+            self.attributes("-alpha", 0.0)
+            self._root_restore_after_id = self.after(
+                70,
+                self._settle_root_after_restore,
+            )
+        except tk.TclError:
+            self._root_restore_after_id = None
+
+    def _settle_root_after_restore(self):
+        self._root_restore_after_id = None
+
+        try:
+            if self.state() != "normal":
+                self._root_restore_after_id = self.after(
+                    30,
+                    self._settle_root_after_restore,
+                )
+                return
+        except tk.TclError:
+            return
+
+        try:
+            self._apply_responsive_layout()
+
+            if not getattr(self, "_results_expanded", False):
+                self._reflow_systems_contents()
+                try:
+                    self._refresh_unified_system_filters_panel()
+                except (AttributeError, tk.TclError):
+                    pass
+
+            try:
+                self._sync_results_outline()
+            except (AttributeError, tk.TclError):
+                pass
+
+            if (
+                getattr(self, "_log_visible", False)
+                and not getattr(self, "_results_expanded", False)
+            ):
+                self._reposition_log_panel()
+
+            # Let Windows/Tk process one more paint turn while the mapped root
+            # is still invisible. This avoids the black/empty panel frames seen
+            # during restore.
+            self.update_idletasks()
+            self._root_restore_after_id = self.after(
+                55,
+                self._reveal_root_after_restore,
+            )
+        except tk.TclError:
+            pass
+
+    def _reveal_root_after_restore(self):
+        self._root_restore_after_id = None
+        try:
+            if self.state() != "normal":
+                return
+            self.update_idletasks()
+            self.attributes("-alpha", 1.0)
+        except tk.TclError:
+            pass
 
     @staticmethod
     def _normalise_ui_scale(value):
@@ -1509,6 +1626,7 @@ def main():
         app.lift()
         app.update_idletasks()
         app.update()
+        app._restore_guard_enabled = True
     finally:
         close_startup_splash(splash)
 
