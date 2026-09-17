@@ -23,8 +23,8 @@ class FinderV8SettingsMixin:
 
     def _refresh_runtime_settings(self):
         rhino = self.v8_settings.get("rhinospotter", {})
-        self.rhinospotter_cards_dir = str(
-            app_settings.resolve_rhinospotter_cards_dir(self.v8_settings)
+        self.rhinospotter_data_path = str(
+            app_settings.resolve_rhinospotter_data_path(self.v8_settings)
         )
         self.ask_before_rhino_sync = bool(rhino.get("ask_before_sync", True))
 
@@ -180,8 +180,10 @@ class FinderV8SettingsMixin:
 
         startup = self.v8_settings.get("startup", {})
         rhino = self.v8_settings.get("rhinospotter", {})
-        auto_rhino_path = str(app_settings.default_rhinospotter_cards_dir())
-        saved_rhino_path = str(rhino.get("cards_dir", "") or "").strip()
+        auto_rhino_path = str(app_settings.default_rhinospotter_data_path())
+        saved_rhino_path = str(
+            app_settings.resolve_rhinospotter_data_path(self.v8_settings)
+        )
 
         hotspot_var = tk.BooleanVar(
             window, value=bool(startup.get("hotspots_enabled", True))
@@ -355,8 +357,9 @@ class FinderV8SettingsMixin:
         tk.Label(
             rhino_panel,
             text=(
-                "Auto restores %LOCALAPPDATA%\\RhinoSpotter\\cards. "
-                "You can also type a folder directly or select it with Browse."
+                "Auto uses %LOCALAPPDATA%\\RhinoSpotter and detects "
+                "db\\rhinospotter.db automatically. Legacy JSON cards "
+                "are still supported."
             ),
             bg=COLORS["panel"],
             fg=COLORS["muted"],
@@ -368,13 +371,24 @@ class FinderV8SettingsMixin:
 
         def refresh_rhino_status(_event=None):
             text = str(rhino_path_var.get() or "").strip()
-            path = Path(text).expanduser() if text else Path(auto_rhino_path)
-            if path.is_dir():
-                rhino_status_var.set("RhinoSpotter data folder detected")
-                status_label.configure(fg=COLORS["green"])
-            else:
-                rhino_status_var.set("RhinoSpotter data folder not detected")
+            source = Path(text).expanduser() if text else Path(auto_rhino_path)
+            try:
+                info = rhinospotter_sync_service.inspect_source(source)
+            except Exception:
+                rhino_status_var.set("RhinoSpotter data source not detected")
                 status_label.configure(fg=COLORS["red"])
+                return
+
+            source_label = (
+                "SQLite database"
+                if info.get("source_type") == "sqlite"
+                else "Legacy JSON cards"
+            )
+            records_found = int(info.get("records_found", 0) or 0)
+            rhino_status_var.set(
+                f"{source_label} detected · {records_found} bookmarks"
+            )
+            status_label.configure(fg=COLORS["green"])
 
         def browse_rhino():
             current_text = str(rhino_path_var.get() or "").strip()
@@ -388,7 +402,7 @@ class FinderV8SettingsMixin:
 
             selected = filedialog.askdirectory(
                 parent=window,
-                title="Select RhinoSpotter cards folder",
+                title="Select RhinoSpotter data folder",
                 initialdir=str(initial),
             )
             if selected:
@@ -506,7 +520,7 @@ class FinderV8SettingsMixin:
                 "remember_last_filters": bool(remember_var.get()),
             }
             self.v8_settings["rhinospotter"] = {
-                "cards_dir": stored_rhino_path,
+                "data_path": stored_rhino_path,
                 "ask_before_sync": bool(ask_sync_var.get()),
             }
             if remember_var.get():
@@ -575,26 +589,37 @@ class FinderV8SettingsMixin:
         if self.rhino_upload_running or self.running:
             return super().start_rhino_upload()
 
-        cards_dir = app_settings.resolve_rhinospotter_cards_dir(self.v8_settings)
-        if not cards_dir.is_dir():
+        data_path = app_settings.resolve_rhinospotter_data_path(
+            self.v8_settings
+        )
+        try:
+            source_info = rhinospotter_sync_service.inspect_source(data_path)
+        except Exception as exc:
             messagebox.showerror(
                 APP_TITLE,
                 (
-                    "RhinoSpotter data folder was not found.\n\n"
-                    f"{cards_dir}\n\n"
-                    "Open Settings to select the RhinoSpotter cards folder."
+                    "RhinoSpotter data source was not found or could not be read.\n\n"
+                    f"{exc}\n\n"
+                    "Open Settings to select the RhinoSpotter data folder."
                 ),
                 parent=self,
             )
             return
 
         if self.ask_before_rhino_sync:
+            source_label = (
+                "SQLite database"
+                if source_info.get("source_type") == "sqlite"
+                else "Legacy JSON cards"
+            )
             confirmed = messagebox.askyesno(
                 APP_TITLE,
                 (
                     "Sync RhinoSpotter deposits to the Community Deposits "
                     "database?\n\n"
-                    f"Source folder:\n{cards_dir}"
+                    f"Source: {source_label}\n"
+                    f"{source_info.get('source_path', data_path)}\n\n"
+                    f"Bookmarks found: {source_info.get('records_found', 0)}"
                 ),
                 parent=self,
             )
@@ -605,8 +630,12 @@ class FinderV8SettingsMixin:
 
     def _rhino_upload_worker(self, systems, refresh_after_upload):
         try:
-            cards_dir = app_settings.resolve_rhinospotter_cards_dir(self.v8_settings)
-            summary = rhinospotter_sync_service.sync_cards(cards_dir=cards_dir)
+            data_path = app_settings.resolve_rhinospotter_data_path(
+                self.v8_settings
+            )
+            summary = rhinospotter_sync_service.sync_bookmarks(
+                data_path=data_path
+            )
 
             community_headers = []
             community_rows = []
