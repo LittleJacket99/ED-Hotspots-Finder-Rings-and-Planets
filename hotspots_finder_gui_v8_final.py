@@ -788,41 +788,27 @@ class FinderV8FinalApp(_BaseFinalApp):
             return None
 
     def _open_settings_dialog(self):
-        # This is the outermost Settings layer. Keep a newly-created Toplevel
-        # withdrawn until every inherited layer and the final Theme/UI Scale
-        # controls have finished building. Revealing it here avoids exposing
-        # intermediate layouts from lower classes.
         existing = getattr(self, "_settings_window", None)
-        creating = True
         if existing is not None:
             try:
-                creating = not existing.winfo_exists()
+                if existing.winfo_exists():
+                    existing.lift()
+                    existing.focus_force()
+                    return
             except tk.TclError:
-                creating = True
+                pass
 
-        original_toplevel = tk.Toplevel
-
-        if creating:
-            def hidden_toplevel(*args, **kwargs):
-                window = original_toplevel(*args, **kwargs)
-                try:
-                    window.withdraw()
-                except tk.TclError:
-                    pass
-                return window
-
-            tk.Toplevel = hidden_toplevel
-
+        # Tell the base Settings builder not to map the Toplevel. Every lower
+        # layer may create/style controls normally while the native window stays
+        # withdrawn; this final layer alone performs the first deiconify.
+        self._defer_settings_reveal = True
         try:
             super()._open_settings_dialog()
         finally:
-            if creating:
-                tk.Toplevel = original_toplevel
+            self._defer_settings_reveal = False
 
         window = getattr(self, "_settings_window", None)
         if window is None or not window.winfo_exists():
-            return
-        if getattr(window, "_edhf_theme_controls", False):
             return
 
         window._edhf_theme_controls = True
@@ -1013,23 +999,22 @@ class FinderV8FinalApp(_BaseFinalApp):
 
         window.bind("<Destroy>", restore_if_cancelled, add="+")
 
-        if creating:
-            try:
-                # Settle all queued styling and geometry while the window is
-                # still withdrawn. These methods are idempotent, so any inherited
-                # after_idle styling that runs here sees the same final state.
-                self._style_mockup_controls(window)
-                self._style_classic_widget_tree(window)
-                self._center_settings_window(window, 600, 620)
-                window.update_idletasks()
-                self._center_settings_window(window, 600, 620)
-                window.deiconify()
-                window.lift()
-                window.focus_force()
-            except tk.TclError:
-                pass
-        else:
-            self.after_idle(lambda: self._style_classic_widget_tree(window))
+        try:
+            # Run the same style passes that lower layers queue with after_idle,
+            # then flush all idle geometry while the Toplevel is still withdrawn.
+            self._style_mockup_controls(window)
+            self._style_classic_widget_tree(window)
+            self._center_settings_window(window, 600, 620)
+            window.update_idletasks()
+            self._center_settings_window(window, 600, 620)
+            window.update_idletasks()
+
+            # First and only visible mapping of the Settings window.
+            window.deiconify()
+            window.lift()
+            window.focus_force()
+        except tk.TclError:
+            pass
 
     def _reflow_systems_contents(self):
         panel = getattr(self, "_systems_panel", None)
