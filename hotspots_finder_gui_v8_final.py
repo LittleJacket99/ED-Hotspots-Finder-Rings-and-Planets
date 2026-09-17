@@ -16,8 +16,10 @@ from tkinter import ttk
 
 import app_settings
 import finder_engine as scan_engine
+import hotspots_finder_gui_v8 as base_gui
 import hotspots_finder_gui_v8_layout2 as layout_metrics
 import hotspots_finder_gui_v8_loglayout as log_layout_metrics
+import hotspots_finder_gui_v8_settings as settings_gui
 import hotspots_finder_gui_v8_ui as ui_theme
 import hotspots_finder_gui_v8_visual as visual_theme
 import local_scan
@@ -25,6 +27,11 @@ import system_filter_search
 import ui_scale_runtime
 from hotspots_finder_gui_v8_ui import FinderV8FinalUIApp as _BaseFinalApp
 
+
+PUBLIC_APP_TITLE = "ED Hotspots Finder - Rings & Planets"
+base_gui.APP_TITLE = PUBLIC_APP_TITLE
+settings_gui.APP_TITLE = PUBLIC_APP_TITLE
+visual_theme.APP_WINDOW_TITLE = PUBLIC_APP_TITLE
 
 THEME_LABELS = {
     "Deep Black": "deep_black",
@@ -99,6 +106,47 @@ def _enable_windows_dpi_awareness():
 class FinderV8FinalApp(_BaseFinalApp):
     """Approved v8 UI plus application-level behaviour."""
 
+    def _apply_brand_header(self):
+        """Render the public release branding without internal version labels."""
+
+        header = getattr(self, "_header_frame", None)
+        if header is None:
+            return
+
+        theme = visual_theme.THEME
+        try:
+            header.configure(bg=theme["header"])
+            for child in header.winfo_children():
+                child.destroy()
+
+            title_block = tk.Frame(
+                header,
+                bg=theme["header"],
+                bd=0,
+                highlightthickness=0,
+            )
+            title_block.place(x=24, y=12, width=390, height=58)
+
+            tk.Label(
+                title_block,
+                text="ED Hotspots Finder",
+                bg=theme["header"],
+                fg=theme["accent"],
+                font=("Segoe UI", 17, "bold"),
+                anchor="w",
+            ).pack(anchor="w")
+
+            tk.Label(
+                title_block,
+                text="Rings & Planets",
+                bg=theme["header"],
+                fg=theme["text"],
+                font=("Segoe UI", 10, "bold"),
+                anchor="w",
+            ).pack(anchor="w", pady=(2, 0))
+        except tk.TclError:
+            return
+
     def __init__(self):
         saved = app_settings.load_settings()
         application = saved.get("application", {})
@@ -128,6 +176,7 @@ class FinderV8FinalApp(_BaseFinalApp):
         if getattr(tk, "_support_default_root", True):
             tk._default_root = self
 
+        self.title(PUBLIC_APP_TITLE)
         self._apply_scaled_root_geometry()
         self._apply_app_icon(self)
 
