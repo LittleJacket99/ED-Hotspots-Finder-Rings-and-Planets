@@ -20,7 +20,6 @@ WINDOW_HEIGHT = 819
 BOXES = {
     "hotspots": (18, 92, 250, 130),
     "planets": (18, 227, 250, 130),
-    "resultsOptions": (18, 362, 250, 60),
     "community": (18, 427, 250, 105),
     "systems": (285, 92, 225, 488),
     "systemFiltersTitle": (18, 537, 160, 38),
@@ -154,7 +153,6 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
 
         self._hotspots_box = self._make_box("hotspots")
         self._planets_box = self._make_box("planets")
-        self._results_options_box = self._make_box("resultsOptions")
         self._community_box = self._make_box("community")
         self._systems_panel = self._make_box("systems")
         self._system_filters_title_box = self._make_box("systemFiltersTitle")
@@ -167,7 +165,6 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
 
         self._build_hotspots_box(self._hotspots_box)
         self._build_planets_box(self._planets_box)
-        self._build_results_options_box(self._results_options_box)
         self._build_community_box(self._community_box)
         self._build_systems_box(self._systems_panel)
         self._build_system_filter_boxes()
@@ -321,10 +318,6 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
                 parent, label, self.planet_type_vars[key],
                 x=128, y=62 + row * 19, width=112, height=18
             )
-
-    def _build_results_options_box(self, parent):
-        # Kept as an empty compatibility hook for older layout wrappers.
-        return None
 
     def _build_community_box(self, parent):
         self._section_label(parent, "COMMUNITY DEPOSITS")
@@ -523,7 +516,6 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
             for name in (
                 "_hotspots_box",
                 "_planets_box",
-                "_results_options_box",
                 "_community_box",
                 "_systems_panel",
                 "_system_filters_title_box",
@@ -553,7 +545,6 @@ class FinderV8PolishApp(FinderV8LogLayoutApp):
         mapping = {
             "_hotspots_box": "hotspots",
             "_planets_box": "planets",
-            "_results_options_box": "resultsOptions",
             "_community_box": "community",
             "_systems_panel": "systems",
             "_system_filters_title_box": "systemFiltersTitle",
