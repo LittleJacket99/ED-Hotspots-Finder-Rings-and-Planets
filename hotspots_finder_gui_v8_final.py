@@ -146,7 +146,7 @@ class FinderV8FinalApp(_BaseFinalApp):
     def _apply_scaled_root_geometry(self):
         width = ui_scale_runtime.px(layout_metrics.WINDOW_WIDTH)
         height = ui_scale_runtime.px(layout_metrics.WINDOW_HEIGHT)
-        top = ui_scale_runtime.px(85)
+        top = ui_scale_runtime.px(135)
 
         try:
             screen_width = self.winfo_screenwidth()
