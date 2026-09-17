@@ -375,10 +375,6 @@ def main():
 
     splash = show_startup_splash()
 
-    # Keep the temporary one-second minimum while the splash is being tuned.
-    if splash is not None:
-        time.sleep(1.0)
-
     app = None
     try:
         app = FinderV8FinalApp()
