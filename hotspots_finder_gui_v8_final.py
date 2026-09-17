@@ -183,6 +183,8 @@ class FinderV8FinalApp(_BaseFinalApp):
             application.get("ui_scale", DEFAULT_UI_SCALE)
         )
         self._results_transition_pending = False
+        self._responsive_layout_after_id = None
+        self._log_reposition_after_id = None
 
         original_tk_init = tk.Tk.__init__
         scale = self._ui_scale
@@ -272,6 +274,38 @@ class FinderV8FinalApp(_BaseFinalApp):
             )
         except tk.TclError:
             pass
+
+    def _schedule_responsive_layout(self, event=None):
+        """Debounce root resize events so minimize/restore animations stay stable."""
+
+        if event is not None and event.widget is not self:
+            return
+
+        pending = getattr(self, "_responsive_layout_after_id", None)
+        if pending is not None:
+            try:
+                self.after_cancel(pending)
+            except tk.TclError:
+                pass
+
+        self._responsive_layout_pending = True
+        try:
+            self._responsive_layout_after_id = self.after(
+                140,
+                self._run_debounced_responsive_layout,
+            )
+        except tk.TclError:
+            self._responsive_layout_after_id = None
+
+    def _run_debounced_responsive_layout(self):
+        self._responsive_layout_after_id = None
+        try:
+            if self.state() != "normal":
+                self._responsive_layout_pending = False
+                return
+        except tk.TclError:
+            return
+        self._apply_responsive_layout()
 
     def _apply_responsive_layout(self):
         self._responsive_layout_pending = False
@@ -448,6 +482,38 @@ class FinderV8FinalApp(_BaseFinalApp):
             raise
 
         self.after(30, lambda h=handles: self._finish_results_transition(h))
+
+    def _schedule_log_reposition(self, _event=None):
+        if not getattr(self, "_log_visible", False):
+            return
+        if getattr(self, "_results_expanded", False):
+            return
+
+        pending = getattr(self, "_log_reposition_after_id", None)
+        if pending is not None:
+            try:
+                self.after_cancel(pending)
+            except tk.TclError:
+                pass
+
+        self._log_reposition_pending = True
+        try:
+            self._log_reposition_after_id = self.after(
+                140,
+                self._run_debounced_log_reposition,
+            )
+        except tk.TclError:
+            self._log_reposition_after_id = None
+
+    def _run_debounced_log_reposition(self):
+        self._log_reposition_after_id = None
+        try:
+            if self.state() != "normal":
+                self._log_reposition_pending = False
+                return
+        except tk.TclError:
+            return
+        self._reposition_log_panel()
 
     def _reposition_log_panel(self):
         self._log_reposition_pending = False
