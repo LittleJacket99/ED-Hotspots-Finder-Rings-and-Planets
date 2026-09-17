@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""v8 feature test: fixed compact log overlay aligned right in Results."""
+"""Responsive log overlay and result-table layout support for the v8 UI."""
 
 import tkinter as tk
 from hotspots_finder_gui_v8_expandresults import FinderV8ExpandResultsApp
