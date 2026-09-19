@@ -20,6 +20,7 @@ from tkinter import messagebox, ttk
 import app_settings
 import finder_engine as scan_engine
 import hotspots_finder_gui_v8 as base_gui
+import hotspots_finder_gui_v8_community as community_gui
 import hotspots_finder_gui_v8_layout2 as layout_metrics
 import hotspots_finder_gui_v8_loglayout as log_layout_metrics
 import hotspots_finder_gui_v8_settings as settings_gui
@@ -35,6 +36,7 @@ from hotspots_finder_gui_v8_ui import FinderV8FinalUIApp as _BaseFinalApp
 PUBLIC_APP_TITLE = "ED Hotspots Finder - Rings & Planets"
 PUBLIC_APP_VERSION = "v1.0.1"
 base_gui.APP_TITLE = PUBLIC_APP_TITLE
+community_gui.APP_TITLE = PUBLIC_APP_TITLE
 settings_gui.APP_TITLE = PUBLIC_APP_TITLE
 visual_theme.APP_WINDOW_TITLE = PUBLIC_APP_TITLE
 
