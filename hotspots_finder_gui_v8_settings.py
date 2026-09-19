@@ -294,7 +294,7 @@ class FinderV8SettingsMixin:
 
         tk.Label(
             rhino_panel,
-            text="Data folder",
+            text="Source",
             bg=COLORS["panel"],
             fg=COLORS["muted"],
             font=("Segoe UI", 9),
@@ -347,7 +347,7 @@ class FinderV8SettingsMixin:
 
         check(
             rhino_panel,
-            "Ask before syncing deposits to the database",
+            "Ask before exporting bookmarks to Community Deposits",
             ask_sync_var,
             12,
             115,
@@ -357,9 +357,9 @@ class FinderV8SettingsMixin:
         tk.Label(
             rhino_panel,
             text=(
-                "Auto uses %LOCALAPPDATA%\\RhinoSpotter and detects "
-                "db\\rhinospotter.db automatically. Legacy JSON cards "
-                "are still supported."
+                "Auto prefers RhinoSpotter 5.1+ rs_api from the EDMC plugin "
+                "folder. Older installs fall back to the local SQLite database "
+                "or legacy JSON cards."
             ),
             bg=COLORS["panel"],
             fg=COLORS["muted"],
@@ -379,11 +379,17 @@ class FinderV8SettingsMixin:
                 status_label.configure(fg=COLORS["red"])
                 return
 
-            source_label = (
-                "SQLite database"
-                if info.get("source_type") == "sqlite"
-                else "Legacy JSON cards"
-            )
+            source_type = info.get("source_type")
+            if source_type == "rs_api":
+                version = str(info.get("api_version") or "").strip()
+                source_label = (
+                    f"RhinoSpotter API {version}" if version else "RhinoSpotter API"
+                )
+            elif source_type == "sqlite":
+                source_label = "SQLite fallback"
+            else:
+                source_label = "Legacy JSON cards"
+
             records_found = int(info.get("records_found", 0) or 0)
             rhino_status_var.set(
                 f"{source_label} detected · {records_found} bookmarks"
@@ -422,11 +428,13 @@ class FinderV8SettingsMixin:
         application_panel = panel(430, 60, "APPLICATION")
         update_check = tk.Checkbutton(
             application_panel,
-            text="Check for updates on startup (available after the v8 release)",
+            text="Check for updates on startup",
             bg=COLORS["panel"],
-            fg="#777777",
+            fg=COLORS["text"],
+            activebackground=COLORS["panel"],
+            activeforeground=COLORS["text"],
             selectcolor="#404040",
-            state="disabled",
+            state="normal",
             anchor="w",
             font=("Segoe UI", 9),
         )
@@ -607,19 +615,37 @@ class FinderV8SettingsMixin:
             return
 
         if self.ask_before_rhino_sync:
-            source_label = (
-                "SQLite database"
-                if source_info.get("source_type") == "sqlite"
-                else "Legacy JSON cards"
-            )
+            source_type = source_info.get("source_type")
+            if source_type == "rs_api":
+                version = str(source_info.get("api_version") or "").strip()
+                source_label = (
+                    f"RhinoSpotter API {version}" if version else "RhinoSpotter API"
+                )
+            elif source_type == "sqlite":
+                source_label = "SQLite fallback"
+            else:
+                source_label = "Legacy JSON cards"
+
+            radius_inferred = int(source_info.get("radius_inferred", 0) or 0)
+            radius_missing = int(source_info.get("radius_missing", 0) or 0)
+            radius_note = ""
+            if source_type == "rs_api":
+                radius_note = (
+                    f"\nPlanet radii recovered from same body: {radius_inferred}"
+                    f"\nPlanet radii still unknown: {radius_missing}"
+                )
+
             confirmed = messagebox.askyesno(
                 APP_TITLE,
                 (
-                    "Sync RhinoSpotter deposits to the Community Deposits "
-                    "database?\n\n"
+                    "Export these RhinoSpotter bookmarks to the shared "
+                    "Community Deposits database?\n\n"
                     f"Source: {source_label}\n"
                     f"{source_info.get('source_path', data_path)}\n\n"
                     f"Bookmarks found: {source_info.get('records_found', 0)}"
+                    f"{radius_note}\n\n"
+                    "This sends bookmark coordinates and mining data to the "
+                    "shared Community Deposits database."
                 ),
                 parent=self,
             )

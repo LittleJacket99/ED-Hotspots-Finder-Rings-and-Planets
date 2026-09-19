@@ -258,7 +258,7 @@ class FinderV8Layout2App(BasePolishApp):
 
         self.get_rhinospotter_button = tk.Button(
             self._community_box,
-            text="Get RhinoSpotter",
+            text="Get RhinoSpotter by Fumlop",
             command=self._open_rhinospotter_repository,
             bg="#3a4148",
             fg=COLORS["text"],

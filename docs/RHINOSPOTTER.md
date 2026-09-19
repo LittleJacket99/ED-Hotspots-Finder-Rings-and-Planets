@@ -22,25 +22,21 @@ This lets local discoveries made by individual commanders contribute to a larger
 
 ## Current synchronization workflow
 
-Current RhinoSpotter releases store bookmarks in a SQLite database:
+RhinoSpotter 5.1+ exposes a documented external API for other applications through:
 
 ```text
-%LOCALAPPDATA%\RhinoSpotter\db\rhinospotter.db
+%LOCALAPPDATA%\EDMarketConnector\plugins\RhinoSpotter\rs_api.py
 ```
 
-ED Hotspots Finder automatically detects this database from the standard RhinoSpotter data folder:
+ED Hotspots Finder automatically prefers this API and reads bookmarks through `rs_api.bookmarks()`. This avoids depending on RhinoSpotter's private storage schema.
 
-```text
-%LOCALAPPDATA%\RhinoSpotter
-```
+For older RhinoSpotter installations, ED Hotspots Finder keeps compatibility fallbacks for the local SQLite bookmark database and legacy JSON card folders. The SQLite fallback is opened read-only.
 
-The database is opened read-only. Older RhinoSpotter installations that still use JSON cards are also supported as a fallback.
-
-A custom RhinoSpotter data folder can be selected in ED Hotspots Finder Settings.
+A custom RhinoSpotter source can be selected in ED Hotspots Finder Settings. The Settings status shows the detected source, RhinoSpotter API version when applicable, and the number of bookmarks found.
 
 When synchronization is started, compatible bookmarks are validated and prepared before being sent to the Community Deposits service.
 
-The synchronization result reports the detected source, bookmark count, valid records, new deposits, matched reports, updated reports and errors.
+The synchronization result reports the source actually used, bookmark count, valid records, new deposits, matched reports, updated reports and errors.
 
 ## Using RhinoSpotter with ED Hotspots Finder
 

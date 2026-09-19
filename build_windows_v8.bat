@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0"
 
-set "VERSION=v1.0.1"
+set "VERSION=v1.0.2"
 set "BUILD_EXE_NAME=ED Hotspots Finder - Rings & Planets.exe"
 set "ASSET_EXE_NAME=ED-Hotspots-Finder-Rings-and-Planets.exe"
 set "ZIP_NAME=ED-Hotspots-Finder-Rings-and-Planets-%VERSION%-Windows.zip"

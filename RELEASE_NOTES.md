@@ -1,3 +1,24 @@
+# v1.0.2 — RhinoSpotter rs_api and update checker
+
+This maintenance release switches the preferred RhinoSpotter integration to the documented RhinoSpotter 5.1+ external API and finalizes the application's update-checking workflow.
+
+## Changes
+
+- Added automatic detection of RhinoSpotter 5.1+ `rs_api.py` from the EDMC plugin folder.
+- RhinoSpotter bookmarks are now read through `rs_api.bookmarks()` when available.
+- Direct SQLite and legacy JSON access remain compatibility fallbacks for older RhinoSpotter installations.
+- Settings now reports the detected RhinoSpotter API version and bookmark count.
+- The synchronization confirmation and completion dialogs now report the actual source used, including the RhinoSpotter API version.
+- Missing planet radii can be recovered from another bookmark on the same body when available.
+- Stable report IDs are preserved, so existing Community Deposits reports are updated instead of duplicated.
+- Renamed the RhinoSpotter Settings field label to `Source` for a cleaner layout.
+- Enabled **Check for updates on startup** and added a direct GitHub repository link in Settings.
+- Standardized Community Deposits dialogs on the public application title.
+
+Tested with RhinoSpotter API 5.1.1 and 17 bookmarks, with all 17 records synchronized successfully and no duplicate deposits or errors.
+
+---
+
 # v1.0.1 — RhinoSpotter compatibility update
 
 This maintenance release updates the RhinoSpotter integration for the storage format used by current RhinoSpotter releases.

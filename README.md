@@ -201,16 +201,16 @@ python -m pip install pyinstaller
 build_windows_v8.bat
 ```
 
-The current internal build files still use **v8** in their filenames because that was the final development iteration before the first public release. Public versioning started at **v1.0.0**; the current release line is **v1.0.1**.
+The current internal build files still use **v8** in their filenames because that was the final development iteration before the first public release. Public versioning started at **v1.0.0**; the current release line is **v1.0.2**.
 
 The build uses `HotspotsFinder-v8.spec`, bundles `app.ico` and `ED_Hotspots_Finder.png`, and uses `hotspots_finder_gui_v8_final.py` as the entry point. Inside the ZIP the executable keeps the friendly name **ED Hotspots Finder - Rings & Planets.exe**; the standalone GitHub asset uses **ED-Hotspots-Finder-Rings-and-Planets.exe** to avoid filename normalization.
 
 A successful release build creates:
 
 ```text
-release\v1.0.1\ED-Hotspots-Finder-Rings-and-Planets.exe
-release\v1.0.1\ED-Hotspots-Finder-Rings-and-Planets-v1.0.1-Windows.zip
-release\v1.0.1\SHA256.txt
+release\v1.0.2\ED-Hotspots-Finder-Rings-and-Planets.exe
+release\v1.0.2\ED-Hotspots-Finder-Rings-and-Planets-v1.0.2-Windows.zip
+release\v1.0.2\SHA256.txt
 ```
 
 `build-v8` and `dist-v8` remain internal intermediate build directories and are not release artifacts.

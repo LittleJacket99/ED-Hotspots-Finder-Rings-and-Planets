@@ -1,5 +1,6 @@
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import sqlite3
@@ -15,14 +16,25 @@ API_URL = (
     "littlejacket99.workers.dev/v1/deposits/batch"
 )
 
-USER_AGENT = "ED-Hotspots-Finder-Rings-and-Planets/1.0.1"
+USER_AGENT = "ED-Hotspots-Finder-Rings-and-Planets/1.0.2"
 
 MAX_BATCH_SIZE = 200
 
-RHINOSPOTTER_ROOT = (
-    Path(os.environ.get("LOCALAPPDATA") or Path.home())
+LOCAL_APP_DATA = Path(
+    os.environ.get("LOCALAPPDATA")
+    or (Path.home() / "AppData" / "Local")
+)
+
+RHINOSPOTTER_ROOT = LOCAL_APP_DATA / "RhinoSpotter"
+
+RHINOSPOTTER_PLUGIN_DIR = (
+    LOCAL_APP_DATA
+    / "EDMarketConnector"
+    / "plugins"
     / "RhinoSpotter"
 )
+
+RS_API_PATH = RHINOSPOTTER_PLUGIN_DIR / "rs_api.py"
 
 DATABASE_PATH = (
     RHINOSPOTTER_ROOT
@@ -125,7 +137,6 @@ def validate_record(record, source):
         "planet_name",
         "latitude",
         "longitude",
-        "planet_radius",
         "commodity",
     ]
 
@@ -141,6 +152,200 @@ def validate_record(record, source):
             f"{_source_label(source)}: missing fields: "
             + ", ".join(missing)
         )
+
+
+def _path_key(value):
+    return os.path.normcase(os.path.abspath(str(Path(value).expanduser())))
+
+
+def _is_default_data_path(path):
+    return _path_key(path) == _path_key(RHINOSPOTTER_ROOT)
+
+
+def _rs_api_candidates(source=None):
+    """Return documented RhinoSpotter API locations to try, in priority order."""
+
+    candidates = []
+    if source is not None:
+        path = Path(source).expanduser()
+        if path.is_file() and path.name.casefold() == "rs_api.py":
+            candidates.append(path)
+        elif path.is_dir():
+            candidates.append(path / "rs_api.py")
+
+        # The Settings dialog historically passes the standard data root even
+        # when Auto is selected. Treat that path as automatic discovery too.
+        if _is_default_data_path(path):
+            candidates.insert(0, RS_API_PATH)
+    else:
+        candidates.append(RS_API_PATH)
+
+    unique = []
+    seen = set()
+    for candidate in candidates:
+        key = _path_key(candidate)
+        if key not in seen:
+            seen.add(key)
+            unique.append(candidate)
+    return unique
+
+
+def _load_rs_api_module(api_path):
+    """Load RhinoSpotter's documented external API without bundling it."""
+
+    api_path = Path(api_path).expanduser()
+    if not api_path.is_file():
+        raise FileNotFoundError(f"RhinoSpotter API not found: {api_path}")
+
+    plugin_dir = str(api_path.resolve().parent)
+    added_path = plugin_dir not in sys.path
+    if added_path:
+        sys.path.insert(0, plugin_dir)
+
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "edhf_rhinospotter_rs_api",
+            api_path,
+        )
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Could not load RhinoSpotter API: {api_path}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+    except Exception as exc:
+        raise RuntimeError(
+            f"Could not import RhinoSpotter API {api_path}: {exc}"
+        ) from exc
+    finally:
+        if added_path:
+            try:
+                sys.path.remove(plugin_dir)
+            except ValueError:
+                pass
+
+    schema = getattr(module, "SCHEMA", None)
+    if schema != 1:
+        raise RuntimeError(
+            "Unsupported RhinoSpotter API schema "
+            f"{schema!r}. This version of ED Hotspots Finder supports SCHEMA 1."
+        )
+    return module
+
+
+def _api_record(mark):
+    """Map rs_api.bookmarks() outward keys to EDHF's stable internal names."""
+
+    if not isinstance(mark, dict):
+        return mark
+
+    return {
+        "commander": mark.get("commander"),
+        "system": mark.get("system"),
+        "planet_name": mark.get("body"),
+        "location_index": mark.get("location"),
+        "latitude": mark.get("latitude"),
+        "longitude": mark.get("longitude"),
+        "planet_radius": mark.get("planet_radius"),
+        "commodity": mark.get("material"),
+        "rigs": mark.get("rigs"),
+        "amount": mark.get("amount"),
+        "density": mark.get("density"),
+        "heading": mark.get("heading"),
+        "marked_at": mark.get("marked_at"),
+        "depleted_at": mark.get("depleted_at"),
+    }
+
+
+def _body_key(record):
+    system = clean_text(record.get("system"))
+    body = clean_text(record.get("planet_name"))
+    if not system or not body:
+        return None
+    return system.casefold(), body.casefold()
+
+
+def _propagate_planet_radii(records):
+    """Fill old missing radii from another bookmark on the same body.
+
+    RhinoSpotter only began recording planet_radius in September 2026. A body's
+    radius is stable, so one newer bookmark makes older bookmarks on that same
+    (system, body) comparable without inventing a value.
+    """
+
+    known = {}
+    for record in records:
+        key = _body_key(record)
+        radius = record.get("planet_radius") if isinstance(record, dict) else None
+        if key is not None and radius not in (None, ""):
+            known.setdefault(key, radius)
+
+    inferred = 0
+    missing = 0
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        if record.get("planet_radius") not in (None, ""):
+            continue
+        key = _body_key(record)
+        radius = known.get(key) if key is not None else None
+        if radius is not None:
+            record["planet_radius"] = radius
+            inferred += 1
+        else:
+            missing += 1
+    return inferred, missing
+
+
+def _prepare_records(items):
+    """Validate raw records, propagate body radius where possible, normalize."""
+
+    valid = []
+    errors = 0
+    for label, record in items:
+        try:
+            validate_record(record, label)
+            valid.append(record)
+        except Exception as exc:
+            errors += 1
+            print(f"[ERROR] {label}: {exc}", file=sys.stderr)
+
+    inferred, missing = _propagate_planet_radii(valid)
+    deposits = [normalize_record(record) for record in valid]
+    return deposits, errors, inferred, missing
+
+
+def _load_rs_api(api_path):
+    module = _load_rs_api_module(api_path)
+
+    try:
+        bookmarks = module.bookmarks()
+    except Exception as exc:
+        raise RuntimeError(f"RhinoSpotter API could not read bookmarks: {exc}") from exc
+
+    if not isinstance(bookmarks, list):
+        raise RuntimeError("RhinoSpotter API returned an unexpected bookmarks value.")
+
+    items = []
+    for index, mark in enumerate(bookmarks, start=1):
+        bookmark_id = mark.get("id") if isinstance(mark, dict) else None
+        label = f"rs_api bookmark #{bookmark_id or index}"
+        items.append((label, _api_record(mark)))
+
+    deposits, errors, inferred, missing = _prepare_records(items)
+
+    try:
+        api_version = str(module.version())
+    except Exception:
+        api_version = ""
+
+    return {
+        "records_found": len(bookmarks),
+        "deposits": deposits,
+        "read_errors": errors,
+        "radius_inferred": inferred,
+        "radius_missing": missing,
+        "api_version": api_version,
+        "api_schema": getattr(module, "SCHEMA", None),
+    }
 
 
 def _database_candidates(path):
@@ -176,17 +381,21 @@ def _database_candidates(path):
 
 
 def resolve_source(source=None):
-    """Resolve a RhinoSpotter source to (kind, path).
+    """Resolve RhinoSpotter to its public API first, then legacy storage.
 
-    Current RhinoSpotter releases use SQLite. Legacy JSON cards remain
-    supported as a fallback for older installs and migrated data folders.
+    RhinoSpotter 5.1+ exposes rs_api.py specifically so external applications do
+    not depend on its private database schema. Direct SQLite/JSON access remains
+    only as a compatibility fallback for older RhinoSpotter installations.
 
-    Accepted paths:
-    - RhinoSpotter root folder
-    - db folder
-    - rhinospotter.db itself
-    - legacy cards folder
+    Accepted explicit paths:
+    - RhinoSpotter plugin folder containing rs_api.py
+    - rs_api.py itself
+    - historical RhinoSpotter data root/db/cards paths
     """
+
+    for candidate in _rs_api_candidates(source):
+        if candidate.is_file():
+            return "rs_api", candidate
 
     path = Path(source).expanduser() if source else RHINOSPOTTER_ROOT
 
@@ -201,13 +410,12 @@ def resolve_source(source=None):
     elif path.name.casefold() == "cards" and path.is_dir():
         legacy_candidates.append(path)
 
-    # When no explicit source is supplied, retain the old default fallback.
     if source is None:
         legacy_candidates.append(CARDS_DIR)
 
     seen = set()
     for candidate in legacy_candidates:
-        key = os.path.normcase(os.path.abspath(str(candidate)))
+        key = _path_key(candidate)
         if key in seen:
             continue
         seen.add(key)
@@ -215,34 +423,31 @@ def resolve_source(source=None):
             return "legacy_json", candidate
 
     expected = (
-        f"SQLite database: {DATABASE_PATH}\n"
+        f"RhinoSpotter API: {RS_API_PATH}\n"
+        f"SQLite fallback: {DATABASE_PATH}\n"
         f"Legacy cards folder: {CARDS_DIR}"
     )
     raise FileNotFoundError(
-        "RhinoSpotter data source not found.\n\n"
+        "RhinoSpotter source not found.\n\n"
         f"Checked from: {path}\n\n{expected}"
     )
 
-
 def _load_json_cards(cards_dir):
     files = sorted(Path(cards_dir).rglob("*.json"))
-    deposits = []
-    errors = 0
+    items = []
+    parse_errors = 0
 
     for path in files:
         try:
             with path.open("r", encoding="utf-8") as handle:
                 record = json.load(handle)
-
-            validate_record(record, path)
-            deposits.append(normalize_record(record))
-
+            items.append((path, record))
         except Exception as exc:
-            errors += 1
+            parse_errors += 1
             print(f"[ERROR] {path}: {exc}", file=sys.stderr)
 
-    return files, deposits, errors
-
+    deposits, errors, inferred, missing = _prepare_records(items)
+    return files, deposits, parse_errors + errors, inferred, missing
 
 def load_cards(cards_dir=CARDS_DIR):
     """Legacy JSON-card loader kept for backwards compatibility."""
@@ -253,7 +458,7 @@ def load_cards(cards_dir=CARDS_DIR):
             f"RhinoSpotter cards folder not found: {cards_dir}"
         )
 
-    files, deposits, _errors = _load_json_cards(cards_dir)
+    files, deposits, _errors, _inferred, _missing = _load_json_cards(cards_dir)
     return files, deposits
 
 
@@ -265,8 +470,6 @@ def _load_database(database_path):
         )
 
     try:
-        # Open the RhinoSpotter database in SQLite read-only mode. This lets us
-        # read the live WAL-backed database without ever mutating plugin data.
         uri = database_path.resolve().as_uri() + "?mode=ro"
         connection = sqlite3.connect(uri, uri=True, timeout=5.0)
         with closing(connection) as conn:
@@ -279,35 +482,47 @@ def _load_database(database_path):
             f"Could not read RhinoSpotter database {database_path}: {exc}"
         ) from exc
 
-    deposits = []
-    errors = 0
-
+    items = []
+    parse_errors = 0
     for bookmark_id, raw_data in rows:
         label = f"{database_path.name}: bookmark #{bookmark_id}"
         try:
             record = json.loads(raw_data)
-            validate_record(record, label)
-            deposits.append(normalize_record(record))
         except Exception as exc:
-            errors += 1
+            parse_errors += 1
             print(f"[ERROR] {label}: {exc}", file=sys.stderr)
+            continue
+        items.append((label, record))
 
-    return rows, deposits, errors
-
+    deposits, errors, inferred, missing = _prepare_records(items)
+    return rows, deposits, parse_errors + errors, inferred, missing
 
 def load_rhinospotter_records(source=None):
-    """Load current SQLite bookmarks or legacy JSON cards.
+    """Load RhinoSpotter bookmarks through rs_api when available.
 
-    Returns metadata plus normalized Community Deposits payload records.
+    Direct SQLite and legacy JSON readers are retained only for older installs.
+    Missing planet radii are inherited from another bookmark on the same body
+    when possible; otherwise the field remains absent/unknown rather than zero.
     """
 
     source_type, source_path = resolve_source(source)
+    api_version = ""
+    api_schema = None
 
-    if source_type == "sqlite":
-        rows, deposits, errors = _load_database(source_path)
+    if source_type == "rs_api":
+        loaded = _load_rs_api(source_path)
+        deposits = loaded["deposits"]
+        errors = loaded["read_errors"]
+        records_found = loaded["records_found"]
+        inferred = loaded["radius_inferred"]
+        missing = loaded["radius_missing"]
+        api_version = loaded["api_version"]
+        api_schema = loaded["api_schema"]
+    elif source_type == "sqlite":
+        rows, deposits, errors, inferred, missing = _load_database(source_path)
         records_found = len(rows)
     else:
-        files, deposits, errors = _load_json_cards(source_path)
+        files, deposits, errors, inferred, missing = _load_json_cards(source_path)
         records_found = len(files)
 
     return {
@@ -316,9 +531,12 @@ def load_rhinospotter_records(source=None):
         "records_found": records_found,
         "records_valid": len(deposits),
         "read_errors": errors,
+        "radius_inferred": inferred,
+        "radius_missing": missing,
+        "api_version": api_version,
+        "api_schema": api_schema,
         "deposits": deposits,
     }
-
 
 def send_batch(deposits):
     payload = {
@@ -382,8 +600,8 @@ def main():
     parser.add_argument(
         "--source",
         help=(
-            "Optional RhinoSpotter root/db/cards path. "
-            "By default the current SQLite database is detected automatically."
+            "Optional RhinoSpotter plugin/API or legacy data path. "
+            "By default rs_api is preferred, with SQLite/JSON fallback."
         ),
     )
 
@@ -395,13 +613,22 @@ def main():
     source_path = loaded["source_path"]
 
     print()
-    print(
-        "Source type: "
-        + ("SQLite database" if source_type == "sqlite" else "Legacy JSON cards")
-    )
+    source_labels = {
+        "rs_api": "RhinoSpotter API",
+        "sqlite": "SQLite database (legacy fallback)",
+        "legacy_json": "Legacy JSON cards",
+    }
+    print("Source type: " + source_labels.get(source_type, source_type))
     print(f"Source: {source_path}")
+    if source_type == "rs_api":
+        version = loaded.get("api_version") or "unknown"
+        schema = loaded.get("api_schema")
+        print(f"RhinoSpotter version: {version}")
+        print(f"API schema: {schema}")
     print(f"Bookmarks found: {loaded['records_found']}")
     print(f"Valid records: {loaded['records_valid']}")
+    print(f"Planet radii inferred from same body: {loaded['radius_inferred']}")
+    print(f"Planet radii still unknown: {loaded['radius_missing']}")
     print(f"Read errors: {loaded['read_errors']}")
     print()
 
