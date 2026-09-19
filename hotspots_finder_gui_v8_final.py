@@ -9,10 +9,12 @@ hotspots_finder_gui_v8_ui.py.
 
 import ctypes
 import sys
+import threading
 import time
 import tkinter as tk
+import webbrowser
 from pathlib import Path
-from tkinter import ttk
+from tkinter import messagebox, ttk
 
 import app_settings
 import finder_engine as scan_engine
@@ -25,6 +27,7 @@ import hotspots_finder_gui_v8_visual as visual_theme
 import local_scan
 import system_filter_search
 import ui_scale_runtime
+import update_checker
 from hotspots_finder_gui_v8_ui import FinderV8FinalUIApp as _BaseFinalApp
 
 
@@ -176,6 +179,57 @@ class FinderV8FinalApp(_BaseFinalApp):
         except tk.TclError:
             return
 
+    def _show_update_available(self, result):
+        latest = str(result.get("latest_version") or "").strip()
+        release_url = str(result.get("release_url") or "").strip()
+        if not latest or not release_url:
+            return
+
+        try:
+            open_release = messagebox.askyesno(
+                PUBLIC_APP_TITLE,
+                (
+                    "A new version of ED Hotspots Finder is available.\n\n"
+                    f"Installed: {PUBLIC_APP_VERSION}\n"
+                    f"Latest: {latest}\n\n"
+                    "Open the GitHub release page?"
+                ),
+                parent=self,
+            )
+        except tk.TclError:
+            return
+
+        if open_release:
+            webbrowser.open_new_tab(release_url)
+
+    def _check_for_updates_on_startup(self):
+        if self._update_check_started:
+            return
+
+        application = self.v8_settings.get("application", {})
+        if not bool(application.get("check_updates_on_startup", True)):
+            return
+
+        self._update_check_started = True
+
+        def worker():
+            result = update_checker.check_for_update(PUBLIC_APP_VERSION)
+            if not result.get("update_available"):
+                return
+            try:
+                self.after(
+                    0,
+                    lambda update=result: self._show_update_available(update),
+                )
+            except tk.TclError:
+                pass
+
+        threading.Thread(
+            target=worker,
+            name="EDHFUpdateCheck",
+            daemon=True,
+        ).start()
+
     def __init__(self):
         saved = app_settings.load_settings()
         application = saved.get("application", {})
@@ -187,6 +241,7 @@ class FinderV8FinalApp(_BaseFinalApp):
         self._log_reposition_after_id = None
         self._root_restore_after_id = None
         self._restore_guard_enabled = False
+        self._update_check_started = False
 
         original_tk_init = tk.Tk.__init__
         scale = self._ui_scale
@@ -1071,6 +1126,15 @@ class FinderV8FinalApp(_BaseFinalApp):
             window,
             value=UI_SCALE_NAMES.get(original_scale, "115%"),
         )
+        update_var = tk.BooleanVar(
+            window,
+            value=bool(
+                self.v8_settings.get("application", {}).get(
+                    "check_updates_on_startup",
+                    True,
+                )
+            ),
+        )
 
         application_panel = None
         update_check = None
@@ -1104,7 +1168,11 @@ class FinderV8FinalApp(_BaseFinalApp):
             self._center_settings_window(window, width, height)
             application_panel.place_configure(height=132)
             if update_check is not None:
-                update_check.configure(text="Check for updates on startup")
+                update_check.configure(
+                    text="Check for updates on startup",
+                    variable=update_var,
+                    state="normal",
+                )
                 update_check.place_configure(x=12, y=100, width=320, height=20)
 
             for child in window.winfo_children():
@@ -1204,6 +1272,14 @@ class FinderV8FinalApp(_BaseFinalApp):
             value = UI_SCALE_LABELS.get(str(scale_var.get()), DEFAULT_UI_SCALE)
             self.v8_settings.setdefault("application", {})["ui_scale"] = value
 
+        def stage_update_check():
+            self.v8_settings.setdefault("application", {})[
+                "check_updates_on_startup"
+            ] = bool(update_var.get())
+
+        if update_check is not None:
+            update_check.configure(command=stage_update_check)
+
         theme_combo.bind("<<ComboboxSelected>>", preview_theme, add="+")
         scale_combo.bind("<<ComboboxSelected>>", stage_scale, add="+")
 
@@ -1217,6 +1293,8 @@ class FinderV8FinalApp(_BaseFinalApp):
                     self._apply_theme_choice("deep_black")
                     scale_var.set("115%")
                     stage_scale()
+                    update_var.set(True)
+                    stage_update_check()
 
                 child.bind("<ButtonRelease-1>", reset_application, add="+")
                 break
@@ -1230,9 +1308,13 @@ class FinderV8FinalApp(_BaseFinalApp):
             saved_scale = self._normalise_ui_scale(
                 saved_application.get("ui_scale", DEFAULT_UI_SCALE)
             )
+            saved_update_check = bool(
+                saved_application.get("check_updates_on_startup", True)
+            )
 
             theme_var.set(THEME_NAMES.get(saved_theme, "Deep Black"))
             scale_var.set(UI_SCALE_NAMES.get(saved_scale, "115%"))
+            update_var.set(saved_update_check)
 
             current_theme = self._selected_theme_name()
             if current_theme != saved_theme:
@@ -1240,6 +1322,9 @@ class FinderV8FinalApp(_BaseFinalApp):
                 self._apply_theme_choice(saved_theme)
 
             self.v8_settings.setdefault("application", {})["ui_scale"] = saved_scale
+            self.v8_settings.setdefault("application", {})[
+                "check_updates_on_startup"
+            ] = saved_update_check
 
         window._edhf_restore_application_values = restore_application_values
 
@@ -1627,6 +1712,7 @@ def main():
         app.update_idletasks()
         app.update()
         app._restore_guard_enabled = True
+        app.after(700, app._check_for_updates_on_startup)
     finally:
         close_startup_splash(splash)
 
