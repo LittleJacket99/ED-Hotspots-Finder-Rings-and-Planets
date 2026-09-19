@@ -294,7 +294,7 @@ class FinderV8SettingsMixin:
 
         tk.Label(
             rhino_panel,
-            text="Data / API folder",
+            text="Source",
             bg=COLORS["panel"],
             fg=COLORS["muted"],
             font=("Segoe UI", 9),
