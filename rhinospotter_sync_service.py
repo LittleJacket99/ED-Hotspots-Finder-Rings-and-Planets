@@ -20,9 +20,22 @@ class RhinoSpotterSyncError(RuntimeError):
 
 
 def inspect_source(data_path=None):
-    """Return the detected RhinoSpotter source and a lightweight record count."""
+    """Return the detected RhinoSpotter source and a lightweight summary."""
 
     source_type, source_path = resolve_source(data_path)
+
+    if source_type == "rs_api":
+        loaded = load_rhinospotter_records(data_path)
+        return {
+            "source_type": source_type,
+            "source_path": str(source_path),
+            "records_found": int(loaded["records_found"] or 0),
+            "records_valid": int(loaded["records_valid"] or 0),
+            "radius_inferred": int(loaded["radius_inferred"] or 0),
+            "radius_missing": int(loaded["radius_missing"] or 0),
+            "api_version": loaded.get("api_version", ""),
+            "api_schema": loaded.get("api_schema"),
+        }
 
     if source_type == "sqlite":
         try:
@@ -49,9 +62,10 @@ def inspect_source(data_path=None):
 def sync_bookmarks(data_path=None):
     """Synchronize RhinoSpotter bookmarks and return a compact summary.
 
-    RhinoSpotter 4.2+ stores bookmarks in SQLite. Older JSON-card folders are
-    still accepted as a fallback. Record normalization, stable report IDs and
-    HTTP payload handling remain shared with the command-line sync module.
+    RhinoSpotter 5.1+ is read through its documented rs_api interface. Direct
+    SQLite and JSON readers remain compatibility fallbacks for older installs.
+    Record normalization, stable report IDs and HTTP payload handling remain
+    shared with the command-line sync module.
     """
 
     loaded = load_rhinospotter_records(data_path)
@@ -63,6 +77,10 @@ def sync_bookmarks(data_path=None):
         "records_found": loaded["records_found"],
         "records_valid": loaded["records_valid"],
         "read_errors": loaded["read_errors"],
+        "radius_inferred": loaded.get("radius_inferred", 0),
+        "radius_missing": loaded.get("radius_missing", 0),
+        "api_version": loaded.get("api_version", ""),
+        "api_schema": loaded.get("api_schema"),
         "inserted": 0,
         "matched": 0,
         "updated": 0,
@@ -103,11 +121,10 @@ def sync_bookmarks(data_path=None):
 
 
 def sync_cards(cards_dir=None):
-    """Backward-compatible name used by the current GUI.
+    """Backward-compatible name used by older GUI layers.
 
-    A path that still points to the historical ``cards`` directory will now
-    automatically prefer the sibling SQLite database when RhinoSpotter 4.2+
-    is installed.
+    Automatic discovery now prefers RhinoSpotter rs_api. Older SQLite and JSON
+    sources remain available as compatibility fallbacks.
     """
 
     return sync_bookmarks(data_path=cards_dir)
