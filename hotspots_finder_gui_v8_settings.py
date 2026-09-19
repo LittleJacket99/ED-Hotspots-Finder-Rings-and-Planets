@@ -428,11 +428,13 @@ class FinderV8SettingsMixin:
         application_panel = panel(430, 60, "APPLICATION")
         update_check = tk.Checkbutton(
             application_panel,
-            text="Check for updates on startup (available after the v8 release)",
+            text="Check for updates on startup",
             bg=COLORS["panel"],
-            fg="#777777",
+            fg=COLORS["text"],
+            activebackground=COLORS["panel"],
+            activeforeground=COLORS["text"],
             selectcolor="#404040",
-            state="disabled",
+            state="normal",
             anchor="w",
             font=("Segoe UI", 9),
         )
