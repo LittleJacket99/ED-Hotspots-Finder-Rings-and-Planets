@@ -347,7 +347,7 @@ class FinderV8SettingsMixin:
 
         check(
             rhino_panel,
-            "Ask before syncing deposits to the database",
+            "Ask before exporting bookmarks to Community Deposits",
             ask_sync_var,
             12,
             115,
