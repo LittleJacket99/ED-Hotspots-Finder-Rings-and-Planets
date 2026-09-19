@@ -435,6 +435,7 @@ def resolve_source(source=None):
 def _load_json_cards(cards_dir):
     files = sorted(Path(cards_dir).rglob("*.json"))
     items = []
+    parse_errors = 0
 
     for path in files:
         try:
@@ -442,11 +443,11 @@ def _load_json_cards(cards_dir):
                 record = json.load(handle)
             items.append((path, record))
         except Exception as exc:
-            items.append((path, None))
+            parse_errors += 1
             print(f"[ERROR] {path}: {exc}", file=sys.stderr)
 
     deposits, errors, inferred, missing = _prepare_records(items)
-    return files, deposits, errors, inferred, missing
+    return files, deposits, parse_errors + errors, inferred, missing
 
 def load_cards(cards_dir=CARDS_DIR):
     """Legacy JSON-card loader kept for backwards compatibility."""
