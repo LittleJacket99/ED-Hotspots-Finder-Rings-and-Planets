@@ -8,6 +8,7 @@ hotspots_finder_gui_v8_ui.py.
 """
 
 import ctypes
+import queue
 import sys
 import threading
 import time
@@ -202,6 +203,19 @@ class FinderV8FinalApp(_BaseFinalApp):
         if open_release:
             webbrowser.open_new_tab(release_url)
 
+    def _poll_update_check_result(self):
+        try:
+            result = self._update_check_results.get_nowait()
+        except queue.Empty:
+            try:
+                self.after(100, self._poll_update_check_result)
+            except tk.TclError:
+                pass
+            return
+
+        if result.get("update_available"):
+            self._show_update_available(result)
+
     def _check_for_updates_on_startup(self):
         if self._update_check_started:
             return
@@ -213,22 +227,16 @@ class FinderV8FinalApp(_BaseFinalApp):
         self._update_check_started = True
 
         def worker():
-            result = update_checker.check_for_update(PUBLIC_APP_VERSION)
-            if not result.get("update_available"):
-                return
-            try:
-                self.after(
-                    0,
-                    lambda update=result: self._show_update_available(update),
-                )
-            except tk.TclError:
-                pass
+            self._update_check_results.put(
+                update_checker.check_for_update(PUBLIC_APP_VERSION)
+            )
 
         threading.Thread(
             target=worker,
             name="EDHFUpdateCheck",
             daemon=True,
         ).start()
+        self.after(100, self._poll_update_check_result)
 
     def __init__(self):
         saved = app_settings.load_settings()
@@ -242,6 +250,7 @@ class FinderV8FinalApp(_BaseFinalApp):
         self._root_restore_after_id = None
         self._restore_guard_enabled = False
         self._update_check_started = False
+        self._update_check_results = queue.SimpleQueue()
 
         original_tk_init = tk.Tk.__init__
         scale = self._ui_scale
