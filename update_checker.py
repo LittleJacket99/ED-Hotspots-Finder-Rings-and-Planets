@@ -1,1 +1,78 @@
-#!/usr/bin/env python3\n\n"""GitHub release update checking for ED Hotspots Finder."""\n\nimport json\nimport re\nimport urllib.error\nimport urllib.request\n\n\nLATEST_RELEASE_API = (\n    "https://api.github.com/repos/"\n    "LittleJacket99/ED-Hotspots-Finder-Rings-and-Planets/releases/latest"\n)\nLATEST_RELEASE_PAGE = (\n    "https://github.com/LittleJacket99/"\n    "ED-Hotspots-Finder-Rings-and-Planets/releases/latest"\n)\n\n\ndef _version_tuple(value):\n    """Return a comparable numeric tuple for tags such as v1.0.10."""\n\n    text = str(value or "").strip()\n    match = re.fullmatch(r"v?(\\d+)(?:\\.(\\d+))?(?:\\.(\\d+))?", text)\n    if not match:\n        return None\n    return tuple(int(part or 0) for part in match.groups())\n\n\ndef check_for_update(current_version, timeout=4.0):\n    """Query the latest public GitHub Release without blocking app startup.\n\n    Drafts and prereleases are ignored by the GitHub releases/latest endpoint.\n    Network/API failures are returned quietly so update checking can never stop\n    the application from starting.\n    """\n\n    request = urllib.request.Request(\n        LATEST_RELEASE_API,\n        headers={\n            "Accept": "application/vnd.github+json",\n            "User-Agent": f"ED-Hotspots-Finder-Rings-and-Planets/{current_version}",\n        },\n    )\n\n    try:\n        with urllib.request.urlopen(request, timeout=timeout) as response:\n            payload = json.load(response)\n\n        latest_version = str(payload.get("tag_name") or "").strip()\n        current_key = _version_tuple(current_version)\n        latest_key = _version_tuple(latest_version)\n        if current_key is None or latest_key is None:\n            raise ValueError("GitHub returned an unsupported version tag")\n\n        return {\n            "ok": True,\n            "update_available": latest_key > current_key,\n            "current_version": str(current_version),\n            "latest_version": latest_version,\n            "release_url": str(payload.get("html_url") or LATEST_RELEASE_PAGE),\n            "release_name": str(payload.get("name") or latest_version),\n        }\n    except (\n        OSError,\n        ValueError,\n        json.JSONDecodeError,\n        urllib.error.URLError,\n    ) as exc:\n        return {\n            "ok": False,\n            "update_available": False,\n            "current_version": str(current_version),\n            "latest_version": "",\n            "release_url": LATEST_RELEASE_PAGE,\n            "error": str(exc),\n        }\n
+#!/usr/bin/env python3
+
+"""GitHub release update checking for ED Hotspots Finder."""
+
+import json
+import re
+import urllib.error
+import urllib.request
+
+
+LATEST_RELEASE_API = (
+    "https://api.github.com/repos/"
+    "LittleJacket99/ED-Hotspots-Finder-Rings-and-Planets/releases/latest"
+)
+LATEST_RELEASE_PAGE = (
+    "https://github.com/LittleJacket99/"
+    "ED-Hotspots-Finder-Rings-and-Planets/releases/latest"
+)
+
+
+def _version_tuple(value):
+    """Return a comparable numeric tuple for tags such as v1.0.10."""
+
+    text = str(value or "").strip()
+    match = re.fullmatch(r"v?(\d+)(?:\.(\d+))?(?:\.(\d+))?", text)
+    if not match:
+        return None
+    return tuple(int(part or 0) for part in match.groups())
+
+
+def check_for_update(current_version, timeout=4.0):
+    """Query the latest public GitHub Release without blocking app startup.
+
+    Drafts and prereleases are ignored by the GitHub releases/latest endpoint.
+    Network/API failures are returned quietly so update checking can never stop
+    the application from starting.
+    """
+
+    request = urllib.request.Request(
+        LATEST_RELEASE_API,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": f"ED-Hotspots-Finder-Rings-and-Planets/{current_version}",
+        },
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            payload = json.load(response)
+
+        latest_version = str(payload.get("tag_name") or "").strip()
+        current_key = _version_tuple(current_version)
+        latest_key = _version_tuple(latest_version)
+        if current_key is None or latest_key is None:
+            raise ValueError("GitHub returned an unsupported version tag")
+
+        return {
+            "ok": True,
+            "update_available": latest_key > current_key,
+            "current_version": str(current_version),
+            "latest_version": latest_version,
+            "release_url": str(payload.get("html_url") or LATEST_RELEASE_PAGE),
+            "release_name": str(payload.get("name") or latest_version),
+        }
+    except (
+        OSError,
+        ValueError,
+        json.JSONDecodeError,
+        urllib.error.URLError,
+    ) as exc:
+        return {
+            "ok": False,
+            "update_available": False,
+            "current_version": str(current_version),
+            "latest_version": "",
+            "release_url": LATEST_RELEASE_PAGE,
+            "error": str(exc),
+        }
