@@ -437,11 +437,16 @@ class FinderV8CommunityApp(FinderV8App):
 
         self._finish_rhino_upload("RhinoSpotter upload completed")
 
-        source_label = (
-            "SQLite database"
-            if summary.get("source_type") == "sqlite"
-            else "Legacy JSON cards"
-        )
+        source_type = summary.get("source_type")
+        if source_type == "rs_api":
+            version = str(summary.get("api_version") or "").strip()
+            source_label = (
+                f"RhinoSpotter API {version}" if version else "RhinoSpotter API"
+            )
+        elif source_type == "sqlite":
+            source_label = "SQLite database"
+        else:
+            source_label = "Legacy JSON cards"
         messagebox.showinfo(
             APP_TITLE,
             (
