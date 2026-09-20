@@ -95,13 +95,14 @@ The backend distinguishes:
 
 Repeated synchronization of an unchanged report does not intentionally advance the deposit's visible **Updated** timestamp.
 
-Current meaningful mutable fields are:
+Current meaningful mutable fields for synchronized RhinoSpotter bookmarks are:
 
+- **Location**;
+- **Material**;
 - **Rigs**;
 - **Amount**;
+- **Density**;
 - depletion state.
-
-**Density** remains stable after deposit creation.
 
 Technical metadata such as a previously missing body ID or planet radius may be completed without being treated as a meaningful deposit update.
 
