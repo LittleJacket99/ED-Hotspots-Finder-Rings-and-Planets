@@ -5,7 +5,7 @@
 <h1 align="center">ED Hotspots Finder - Rings & Planets + EDMC plugin </h1>
 
 <p align="center">
-  < Help build the database CMDR >
+   #Helps build the database CMDR 
 <p>
 
 <p align="center">
