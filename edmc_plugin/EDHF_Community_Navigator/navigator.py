@@ -115,7 +115,7 @@ class NavigatorOverlay:
         self,
         master: tk.Misc,
         *,
-        initial_x: int = 80,
+        initial_x: int | None = None,
         initial_y: int = 120,
         on_position_changed: Callable[[int, int], None] | None = None,
     ):
@@ -135,6 +135,10 @@ class NavigatorOverlay:
 
         self._drag_x = 0
         self._drag_y = 0
+        if initial_x is None:
+            screen_width = self.main_window.winfo_screenwidth()
+            initial_x = max(0, (screen_width - HUD_WIDTH) // 2)
+
         self._window_x = int(initial_x)
         self._window_y = int(initial_y)
         self._on_position_changed = on_position_changed
