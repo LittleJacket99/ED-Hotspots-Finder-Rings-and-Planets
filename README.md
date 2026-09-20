@@ -2,9 +2,9 @@
   <img src="ED_Hotspots_Finder.png" width="420" alt="ED Hotspots Finder - Rings & Planets">
 </p>
 
-<h1 align="center">ED Hotspots Finder - Rings & Planets + EDMC plugin </h1>
+<h1 align="center">ED Hotspots Finder - Rings & Planets + EDMC Plugin</h1>
 
-<h2 align="center">Help build the shared Community Deposits database.</h3>
+<p align="center"><strong><big>Help build the shared Community Deposits database.</big></strong></p>
 
 
 <p align="center">
@@ -38,7 +38,8 @@ Instead of checking systems one by one across different tools, ED Hotspots Finde
   <img src="docs/images/main-interface.png" width="1200" alt="ED Hotspots Finder main interface">
 </p>
 
-## Main features
+**Main features**
+
 
 - Search many systems in a single operation.
 - Manual **System Input** with automatic Spansh name normalization.
@@ -57,7 +58,8 @@ Instead of checking systems one by one across different tools, ED Hotspots Finde
 
 Spansh and Community Deposits are community-data sources. Missing or outdated data can affect results; no match is not proof that a system or body contains no relevant feature.
 
-## Powerplay-oriented system research
+**Powerplay-oriented system research**
+
 
 The application is particularly useful when a Powerplay task requires searching a large set of systems for specific physical characteristics.
 
@@ -122,7 +124,8 @@ The idea is simple:
 
 Players can record planetary deposits while playing, contribute compatible discoveries to the shared database, and make them available through ED Hotspots Finder's multi-system searches.
 
-### Help build the database
+#**Help build the database**
+
 
 The usefulness of Community Deposits grows with every contribution.
 
@@ -148,17 +151,41 @@ Read more: **[RhinoSpotter integration](docs/RHINOSPOTTER.md)**
 
 ## Quick start
 
-1. Download the versioned Windows executable from **Releases**.
-2. Run the downloaded versioned executable, for example **ED-Hotspots-Finder-Rings-and-Planets-v1.0.2.exe**.
+Both downloads are available from the same **GitHub Release**.
+
+**ED Hotspots Finder - Rings & Planets**
+
+1. Download **ED-Hotspots-Finder-Rings-and-Planets-v1.0.2.exe** from **Releases**.
+2. Run the executable.
 3. Enter one or more systems in **System Input**, or leave it empty and configure **System Filters**.
 4. Enable **Hotspots**, **Planets** and/or **Community Deposits** as needed.
-5. Set the relevant filters.
-6. Click **SCAN**.
-7. Review the result tabs, use column filters if needed, and export the current tab to CSV or XLSX.
+5. Set the relevant filters and click **SCAN**.
+6. Review the result tabs, use column filters if needed, and export the current tab to CSV or XLSX.
 
 Python is not required for the public Windows build.
 
-## System Input and normalization
+**Hotspots Finder EDMC Plugin**
+
+1. Download **Hotspots-Finder-EDMC-Plugin-v1.0.2.zip** from the same **Releases** page.
+2. Extract the ZIP into:
+
+```text
+%LOCALAPPDATA%\EDMarketConnector\plugins\
+```
+
+3. Confirm that this file exists:
+
+```text
+%LOCALAPPDATA%\EDMarketConnector\plugins\EDHF_Community_Navigator\load.py
+```
+
+4. Restart EDMarketConnector completely.
+5. Use **Scan System** to check Community Deposits in your current system, **Open Deposits** to reopen cached results and **Start Tracking** to navigate to a selected deposit.
+6. Install RhinoSpotter 5.1+ if you also want to use **Sync Bookmarks** and contribute your discoveries to the shared Community Deposits database.
+7. Use **Open Finder** from EDMC to launch the desktop application directly.
+
+**System Input and normalization**
+
 
 Enter one system per line. Before the scan starts, each manual system name is resolved against Spansh and converted to its canonical capitalization.
 
@@ -172,7 +199,8 @@ SEEDI   -> Seedi
 
 Duplicate systems are removed after normalization. If a name cannot be resolved, the scan reports the error instead of silently querying an invalid system.
 
-## System Filters
+**System Filters**
+
 
 When **System Input** is empty, the app can resolve systems from filters instead.
 
@@ -186,22 +214,26 @@ Available controls include:
 
 The Reference System is normalized through the same Spansh system-name lookup used for manual input.
 
-## Hotspots
+**Hotspots**
+
 
 Hotspot searches can be filtered by ring type and mineral/material. **Only Pristine** limits results to pristine systems where the available source data supports that classification.
 
-## Planets
+**Planets**
+
 
 Planet searches support body-type filters and **Only Landables**. Returned data can include landability, volcanism and arrival distance where supplied by Spansh.
 
-## Export
+**Export**
+
 
 The current result tab can be exported to:
 
 - **CSV** — UTF-8 with BOM and semicolon delimiters for convenient opening in European Excel installations.
 - **XLSX** — generated locally by the application, with a frozen header row and autofilter.
 
-## Settings
+**Settings**
+
 
 Application settings are stored locally in:
 
@@ -211,7 +243,8 @@ Application settings are stored locally in:
 
 Current settings include startup filter defaults, RhinoSpotter options, theme and UI scale.
 
-## Troubleshooting
+**Troubleshooting**
+
 
 | Problem | What to check |
 | --- | --- |
@@ -260,7 +293,8 @@ release\v1.0.2\SHA256.txt
 
 `build-v8` and `dist-v8` remain internal intermediate build directories and are not release artifacts.
 
-## Project structure
+**Project structure**
+
 
 | Component | Role |
 | --- | --- |
@@ -277,7 +311,8 @@ release\v1.0.2\SHA256.txt
 | `startup_splash.py` | Startup splash and first-window reveal handling |
 | `HotspotsFinder-v8.spec` | PyInstaller configuration used by the current Windows build |
 
-## Privacy and network access
+**Privacy and network access**
+
 
 The application may make network requests to:
 
@@ -286,7 +321,8 @@ The application may make network requests to:
 
 Application settings remain local in `%APPDATA%\HotspotsFinder\config.json`.
 
-## Related projects and data sources
+**Related projects and data sources**
+
 
 - **[RhinoSpotter](https://github.com/Fumlop/EDRhinoSpotter)** by Fumlop — EDMC surface-mining plugin used as an optional source for Community Deposits contributions.
 - **Spansh** — system and body data, system-name resolution and search support.
