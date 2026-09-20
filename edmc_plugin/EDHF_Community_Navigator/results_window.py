@@ -184,14 +184,8 @@ class DepositsWindow:
 
         ttk.Button(
             buttons,
-            text="Track Selected",
+            text="Start Tracking",
             command=self._track_selected,
-        ).pack(side=tk.LEFT)
-
-        ttk.Button(
-            buttons,
-            text="Close",
-            command=self.window.destroy,
         ).pack(side=tk.RIGHT)
 
         self._apply_selection()
@@ -340,7 +334,10 @@ class DepositsWindow:
         window_height = required_height + 8
 
         self.window.geometry(f"{window_width}x{window_height}")
-        self.window.minsize(
-            min(window_width, 650),
-            window_height,
-        )
+
+        # The popup is fully auto-sized to its contents, so keep it fixed:
+        # this disables maximize/full-screen style resizing and avoids layout
+        # changes that could hide the action row.
+        self.window.resizable(False, False)
+        self.window.minsize(window_width, window_height)
+        self.window.maxsize(window_width, window_height)
