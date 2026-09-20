@@ -1,28 +1,41 @@
-# Hotspots Finder Deposits Companion
+# Hotspots Finder EDMC Plugin
 
 EDMarketConnector plugin for the **ED Hotspots Finder - Rings & Planets** ecosystem.
 
-Current Companion version: **v1.0.2**.
+Inside EDMC the plugin is displayed as **Hotspots Finder Deposits Companion**.
 
-The desktop application remains the general browser/search client. The Companion is the focused in-game client for synchronizing RhinoSpotter bookmarks, checking Community Deposits in the current system and navigating to a selected surface deposit.
+Current version: **v1.0.2**.
+
+The desktop application remains the main multi-system search and analysis client. The EDMC Plugin is the focused in-game client for synchronizing RhinoSpotter bookmarks, checking Community Deposits in the current system and navigating to a selected surface deposit.
 
 ## Current functionality
 
-- **Sync Bookmarks** — reads RhinoSpotter through its documented `rs_api.py` interface and synchronizes compatible bookmarks with Community Deposits.
+- **Sync Bookmarks** — reads RhinoSpotter 5.1+ through its documented `rs_api.py` interface and synchronizes compatible bookmarks with Community Deposits.
 - **Scan System** — queries Community Deposits for the system currently reported by EDMC.
 - **Open Deposits** — reopens the cached result snapshot without another API request.
 - **Refresh Deposits** — appears when a synchronization changed relevant data for the currently cached system.
-- Results table with body, location, material, rigs, amount, density, coordinates, report count and update time.
+- **No Deposits** — shown after a successful scan that returned no records.
+- Results table with **Body, Location, Material, Rigs, Amount, Density, Latitude, Longitude, Reports and Updated**.
 - **Start Tracking** — opens the compact surface-navigation HUD.
-- Live distance and relative-heading arrow from EDMC `dashboard_entry()` / Elite Dangerous `Status.json`.
-- **Open Finder** — launches the desktop ED Hotspots Finder executable.
-- Automatic update check on EDMC startup; Finder and Companion share the same GitHub release version, and the plugin offers to open the latest release page when a newer bundle is available.
+- Tracker display of compact body name, material, RhinoSpotter Location, relative direction and target distance.
+- Altitude-aware distance while approaching a body.
+- **Travel to <system>** and **Approach body <body>** guidance when the target is not yet suitable for surface navigation.
+- **Open Finder** — launches the configured desktop Finder executable.
+- Automatic update check on EDMC startup using the same GitHub release channel as the Finder.
 
 Synchronization responses distinguish new, matched, updated and unchanged reports so a repeated sync does not falsely refresh every deposit's update time.
 
+Community Deposits currently treats **Rigs**, **Amount** and depletion state as meaningful mutable fields. **Density** remains stable after deposit creation.
+
 ## Installation
 
-Copy the whole `EDHF_Community_Navigator` folder into:
+Download the public package:
+
+```text
+Hotspots-Finder-EDMC-Plugin-v1.0.2.zip
+```
+
+Extract it into:
 
 ```text
 %LOCALAPPDATA%\EDMarketConnector\plugins\
@@ -36,13 +49,15 @@ so the installed path becomes:
 
 Then restart EDMarketConnector completely.
 
-RhinoSpotter should be installed alongside it:
+RhinoSpotter should be installed alongside it for bookmark synchronization:
 
 ```text
 %LOCALAPPDATA%\EDMarketConnector\plugins\RhinoSpotter\rs_api.py
 ```
 
-The Companion currently supports RhinoSpotter API `SCHEMA = 1`.
+The plugin currently supports RhinoSpotter API `SCHEMA = 1`.
+
+RhinoSpotter is required only for **Sync Bookmarks**. Community Deposits scanning and tracking work independently.
 
 ## Community Deposits API
 
@@ -57,7 +72,7 @@ No separate plugin database is introduced.
 
 ## Result caching
 
-The Companion queries a system once and keeps that result snapshot locally while the commander remains in the same system.
+The plugin queries a system once and keeps that result snapshot locally while the commander remains in the same system.
 
 The middle EDMC action changes between:
 
@@ -76,4 +91,4 @@ The HUD is a frameless always-on-top Tk window intended for borderless/windowed 
 
 It keeps a fixed palette for readability, remembers only its own screen position, and does not intentionally modify the EDMC main window geometry.
 
-The tracker displays the compact body name, material and RhinoSpotter location, plus a relative direction arrow and target distance. While approaching a body, altitude is combined with the surface separation so the displayed distance does not collapse to a few metres while the ship is still high above the target.
+The tracker displays the compact body name, material and RhinoSpotter Location, plus a relative direction arrow and target distance. While approaching a body, altitude is combined with the surface separation so the displayed distance does not collapse to a few metres while the ship is still high above the target.
