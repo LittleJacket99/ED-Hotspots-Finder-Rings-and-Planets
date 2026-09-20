@@ -138,10 +138,10 @@ From the repository root, the Windows release package can be generated with:
 The script reads the version from `load.py` and creates:
 
 ```text
-release\companion\v1.0.3\Hotspots-Finder-Deposits-Companion-v1.0.3.zip
+release\companion\v1.0.3\Hotspots-Finder-EDMC-Plugin-v1.0.3.zip
 release\companion\v1.0.3\SHA256.txt
 ```
 
-The ZIP contains the complete `EDHF_Community_Navigator` folder ready to place under the EDMarketConnector plugins directory.
+On GitHub the downloadable package is published as **Hotspots Finder EDMC Plugin**. The ZIP contains the complete `EDHF_Community_Navigator` folder ready to place under the EDMarketConnector plugins directory.
 
 Development remains on the `edmc-companion-dev` branch until the packaged build passes the final installation smoke test.
