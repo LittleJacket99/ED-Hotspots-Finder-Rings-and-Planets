@@ -10,14 +10,14 @@ The desktop application remains the general browser/search client. The Companion
 - **Scan System** — queries Community Deposits for the system currently reported by EDMC.
 - **Open Deposits** — reopens the cached result snapshot without another API request.
 - **Refresh Deposits** — appears when a synchronization changed relevant data for the currently cached system.
-- Results table with body, material, rigs, amount, density, coordinates, report count and update time.
+- Results table with body, location, material, rigs, amount, density, coordinates, report count and update time.
 - **Start Tracking** — opens the compact surface-navigation HUD.
 - Live distance and relative-heading arrow from EDMC `dashboard_entry()` / Elite Dangerous `Status.json`.
 - **Open Finder** — launches the desktop ED Hotspots Finder executable.
 
 Synchronization responses distinguish new, matched, updated and unchanged reports so a repeated sync does not falsely refresh every deposit's update time.
 
-## Development installation
+## Installation
 
 Copy the whole `EDHF_Community_Navigator` folder into:
 
@@ -73,4 +73,4 @@ The HUD is a frameless always-on-top Tk window intended for borderless/windowed 
 
 It keeps a fixed palette for readability, remembers only its own screen position, and does not intentionally modify the EDMC main window geometry.
 
-The tracker displays the compact body name, material, a relative direction arrow and surface distance.
+The tracker displays the compact body name, material and RhinoSpotter location, plus a relative direction arrow and target distance. While approaching a body, altitude is combined with the surface separation so the displayed distance does not collapse to a few metres while the ship is still high above the target.
