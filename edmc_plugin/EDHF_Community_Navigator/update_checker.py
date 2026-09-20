@@ -7,15 +7,14 @@ import urllib.request
 from typing import Any
 
 
-RELEASES_API = (
+LATEST_RELEASE_API = (
     "https://api.github.com/repos/"
-    "LittleJacket99/ED-Hotspots-Finder-Rings-and-Planets/releases?per_page=30"
+    "LittleJacket99/ED-Hotspots-Finder-Rings-and-Planets/releases/latest"
 )
-RELEASES_PAGE = (
+LATEST_RELEASE_PAGE = (
     "https://github.com/LittleJacket99/"
-    "ED-Hotspots-Finder-Rings-and-Planets/releases"
+    "ED-Hotspots-Finder-Rings-and-Planets/releases/latest"
 )
-TAG_PREFIX = "companion-v"
 
 
 def _version_tuple(value: Any) -> tuple[int, int, int] | None:
@@ -27,10 +26,10 @@ def _version_tuple(value: Any) -> tuple[int, int, int] | None:
 
 
 def check_for_update(current_version: str, timeout: float = 4.0) -> dict[str, Any]:
-    """Return the latest public Companion release, ignoring Finder releases."""
+    """Check the shared Finder + Companion GitHub release channel."""
 
     request = urllib.request.Request(
-        RELEASES_API,
+        LATEST_RELEASE_API,
         headers={
             "Accept": "application/vnd.github+json",
             "User-Agent": f"Hotspots-Finder-Deposits-Companion/{current_version}",
@@ -41,58 +40,23 @@ def check_for_update(current_version: str, timeout: float = 4.0) -> dict[str, An
         with urllib.request.urlopen(request, timeout=timeout) as response:
             payload = json.load(response)
 
-        if not isinstance(payload, list):
-            raise ValueError("GitHub returned an unexpected releases response")
-
-        latest_release = None
-        latest_key = None
-
-        for release in payload:
-            if not isinstance(release, dict):
-                continue
-            if release.get("draft") or release.get("prerelease"):
-                continue
-
-            tag = str(release.get("tag_name") or "").strip()
-            if not tag.casefold().startswith(TAG_PREFIX):
-                continue
-
-            version_text = tag[len(TAG_PREFIX):]
-            version_key = _version_tuple(version_text)
-            if version_key is None:
-                continue
-
-            if latest_key is None or version_key > latest_key:
-                latest_key = version_key
-                latest_release = release
-
+        latest_version = str(payload.get("tag_name") or "").strip()
         current_key = _version_tuple(current_version)
-        if current_key is None:
-            raise ValueError("Installed Companion version is unsupported")
+        latest_key = _version_tuple(latest_version)
 
-        if latest_release is None or latest_key is None:
-            return {
-                "ok": True,
-                "update_available": False,
-                "current_version": str(current_version),
-                "latest_version": "",
-                "release_url": RELEASES_PAGE,
-            }
-
-        tag = str(latest_release.get("tag_name") or "").strip()
-        latest_version = tag[len(TAG_PREFIX):]
+        if current_key is None or latest_key is None:
+            raise ValueError("GitHub returned an unsupported version tag")
 
         return {
             "ok": True,
             "update_available": latest_key > current_key,
             "current_version": str(current_version),
-            "latest_version": latest_version,
-            "release_tag": tag,
+            "latest_version": latest_version.lstrip("vV"),
             "release_url": str(
-                latest_release.get("html_url") or RELEASES_PAGE
+                payload.get("html_url") or LATEST_RELEASE_PAGE
             ),
             "release_name": str(
-                latest_release.get("name") or tag
+                payload.get("name") or latest_version
             ),
         }
 
@@ -107,6 +71,6 @@ def check_for_update(current_version: str, timeout: float = 4.0) -> dict[str, An
             "update_available": False,
             "current_version": str(current_version),
             "latest_version": "",
-            "release_url": RELEASES_PAGE,
+            "release_url": LATEST_RELEASE_PAGE,
             "error": str(exc),
         }
