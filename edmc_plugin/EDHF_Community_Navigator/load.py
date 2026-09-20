@@ -15,7 +15,10 @@ from theme import theme
 from EDHF_Community_Navigator.community_api import fetch_system_deposits
 from EDHF_Community_Navigator.navigator import NavigatorOverlay
 from EDHF_Community_Navigator.results_window import DepositsWindow
-from EDHF_Community_Navigator.rhinospotter_client import sync_bookmarks
+from EDHF_Community_Navigator.rhinospotter_client import (
+    RhinoSpotterNotInstalled,
+    sync_bookmarks,
+)
 
 
 VERSION = "0.1.0"
@@ -299,6 +302,9 @@ def _start_scan() -> None:
 def _sync_worker() -> None:
     try:
         summary = sync_bookmarks(_plugin_dir)
+    except RhinoSpotterNotInstalled as exc:
+        logger.warning("%s", exc)
+        _post_worker_result("sync_rhino_missing", str(exc))
     except Exception as exc:
         logger.exception("RhinoSpotter synchronization failed")
         _post_worker_result("sync_error", str(exc))
@@ -337,6 +343,8 @@ def _handle_worker_event(_event: tk.Event | None = None) -> None:
 
         if kind == "sync_ok":
             _handle_sync_ok(payload)
+        elif kind == "sync_rhino_missing":
+            _set_busy(False, payload)
         elif kind == "sync_error":
             _set_busy(False, f"Sync failed: {payload}")
         elif kind == "scan_ok":
