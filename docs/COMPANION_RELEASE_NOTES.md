@@ -1,8 +1,8 @@
 # Hotspots Finder Deposits Companion — Release Notes
 
-## v1.0.3 — First Companion release
+## v1.0.2 — First Companion release
 
-First public release of **Hotspots Finder Deposits Companion**, published on GitHub as **Hotspots Finder EDMC Plugin** and included in the unified **ED Hotspots Finder v1.0.3** release.
+First public release of **Hotspots Finder Deposits Companion**, published on GitHub as **Hotspots Finder EDMC Plugin** and included in the unified **ED Hotspots Finder v1.0.2** release.
 
 ### Features
 
