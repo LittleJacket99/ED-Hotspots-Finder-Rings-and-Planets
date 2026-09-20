@@ -160,7 +160,7 @@ Once surface navigation data is available, the plugin combines the target coordi
 Download:
 
 ```text
-Hotspots-Finder-EDMC-Plugin-v1.0.3.zip
+Hotspots-Finder-EDMC-Plugin-v1.0.2.zip
 ```
 
 Extract it so this path exists:
@@ -192,7 +192,7 @@ From the repository root, the release package can be generated with:
 The script reads the version from `load.py` and creates:
 
 ```text
-release\v1.0.2\Hotspots-Finder-EDMC-Plugin-v1.0.3.zip
+release\v1.0.2\Hotspots-Finder-EDMC-Plugin-v1.0.2.zip
 release\v1.0.2\SHA256.txt
 ```
 
