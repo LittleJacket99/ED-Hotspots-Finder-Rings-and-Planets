@@ -1,21 +1,62 @@
-# v1.0.2 — RhinoSpotter rs_api and update checker
+# v1.0.2 — Community Deposits, RhinoSpotter API and EDMC Plugin
 
-This maintenance release switches the preferred RhinoSpotter integration to the documented RhinoSpotter 5.1+ external API and finalizes the application's update-checking workflow.
+This release expands the existing v1.0.2 maintenance update into the first unified **ED Hotspots Finder + Hotspots Finder EDMC Plugin** release.
 
-## Changes
+The desktop Finder and the EDMC plugin share the same Community Deposits service and the same public release version.
+
+## ED Hotspots Finder changes
 
 - Added automatic detection of RhinoSpotter 5.1+ `rs_api.py` from the EDMC plugin folder.
 - RhinoSpotter bookmarks are now read through `rs_api.bookmarks()` when available.
 - Direct SQLite and legacy JSON access remain compatibility fallbacks for older RhinoSpotter installations.
-- Settings now reports the detected RhinoSpotter API version and bookmark count.
-- The synchronization confirmation and completion dialogs now report the actual source used, including the RhinoSpotter API version.
+- Settings reports the detected RhinoSpotter API version and bookmark count.
+- Synchronization confirmation and completion dialogs report the actual source used.
 - Missing planet radii can be recovered from another bookmark on the same body when available.
-- Stable report IDs are preserved, so existing Community Deposits reports are updated instead of duplicated.
-- Renamed the RhinoSpotter Settings field label to `Source` for a cleaner layout.
+- Stable report IDs are preserved so existing Community Deposits reports are updated instead of duplicated.
+- Synchronization now distinguishes **new**, **matched**, **updated** and **unchanged** reports.
+- Re-synchronizing an unchanged report no longer intentionally advances the deposit's visible **Updated** time on the Community Deposits service.
+- Added the missing **Location** column to Community Deposits results.
 - Enabled **Check for updates on startup** and added a direct GitHub repository link in Settings.
 - Standardized Community Deposits dialogs on the public application title.
+- The Windows release is now distributed directly as the versioned standalone executable instead of wrapping the Finder in an additional ZIP.
 
-Tested with RhinoSpotter API 5.1.1 and 17 bookmarks, with all 17 records synchronized successfully and no duplicate deposits or errors.
+## Hotspots Finder EDMC Plugin
+
+v1.0.2 also introduces the first public release of the EDMarketConnector plugin, published as:
+
+```text
+Hotspots-Finder-EDMC-Plugin-v1.0.2.zip
+```
+
+Main features:
+
+- **Sync Bookmarks** through RhinoSpotter 5.1+ `rs_api.py`.
+- **Scan System** for Community Deposits in the current Elite Dangerous system.
+- Cached **Open Deposits** without unnecessary repeat API requests.
+- **Refresh Deposits** only when relevant synchronized data changed.
+- Results table with Body, Location, Material, Rigs, Amount, Density, Latitude, Longitude, Reports and Updated.
+- **Start Tracking** with a compact always-on-top navigation HUD.
+- Tracker display of material and RhinoSpotter **Location**.
+- **Travel to <system>** when the selected deposit is in another system.
+- **Approach body <body>** while surface coordinates are not yet available.
+- Altitude-aware target distance during aerial approach.
+- Heading-relative direction arrow.
+- Independent saved tracker position.
+- **Open Finder** directly from EDMC.
+- Automatic update check using the same GitHub release channel as the desktop Finder.
+
+The plugin uses the same Community Deposits backend as the desktop application and does not maintain a separate deposit database.
+
+## Distribution
+
+The unified v1.0.2 GitHub Release contains the standalone Finder executable and the EDMC plugin package:
+
+```text
+ED-Hotspots-Finder-Rings-and-Planets-v1.0.2.exe
+Hotspots-Finder-EDMC-Plugin-v1.0.2.zip
+```
+
+The public Windows executable remains unsigned, so Windows SmartScreen may display an unknown-publisher warning.
 
 ---
 
@@ -119,5 +160,3 @@ The public Windows executable is currently unsigned, so Windows SmartScreen may 
 ## Notes
 
 Spansh and Community Deposits are community-data sources. Missing or outdated source data can affect search results.
-
-The **Check for updates on startup** option remains disabled for the initial `v1.0.0` release and can be enabled after the first public GitHub Release is available for the application to query.
