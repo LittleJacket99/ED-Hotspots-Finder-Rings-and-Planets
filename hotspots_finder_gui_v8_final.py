@@ -1214,7 +1214,7 @@ class FinderV8FinalApp(_BaseFinalApp):
         repo_link.bind(
             "<Button-1>",
             lambda _event: ui_theme.webbrowser.open_new_tab(
-                "https://github.com/LittleJacket99/ED-Hotspots-Finder-Rings-and-Planets"
+                "https://github.com/LittleJacket99/ED-Hotspots-Finder-Rings-and-Planets-with-EDMC-plugin"
             ),
         )
         repo_link.bind(
