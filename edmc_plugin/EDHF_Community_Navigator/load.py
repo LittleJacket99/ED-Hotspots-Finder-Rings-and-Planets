@@ -494,6 +494,7 @@ def _handle_scan_ok(system: str, records: list[dict[str, Any]]) -> None:
 
     # Ignore a late worker result if the commander changed system meanwhile.
     if not _same_system(system, _current_system):
+        _set_busy(False, f"{_current_system or 'Current system'}: ready")
         return
 
     _cached_system = system
@@ -502,10 +503,12 @@ def _handle_scan_ok(system: str, records: list[dict[str, Any]]) -> None:
 
     _set_busy(False, f"{system}: {len(records)} community deposits")
 
+    # A refresh must rebuild the window from the new snapshot rather than
+    # bringing an older already-open table back to the front.
+    _close_results_window()
+
     if records:
         _show_deposits_window(system, records)
-    else:
-        _close_results_window()
 
 
 def _show_deposits_window(
