@@ -20,7 +20,7 @@ This project includes two connected tools for **Elite Dangerous**:
 
 Both tools use the same **Community Deposits** database service: the Finder is the main search and analysis client, while the EDMC Plugin provides quick access to the same shared data during gameplay.
 - **[Community Deposits](#community-deposits)** — the shared database of player-reported planetary surface deposits.
-- **[RhinoSpotter integration](#rhinospotter-integration)**
+- **[RhinoSpotter integration](#rhinospotter-integration)** — allows to feed the database. 
 - **[Quick start](#quick-start)**
 
 
