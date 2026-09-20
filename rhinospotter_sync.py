@@ -63,18 +63,19 @@ def make_report_id(record):
     """
     Create a stable ID for one RhinoSpotter bookmark.
 
-    We intentionally do not use fields that can change when RhinoSpotter
-    refreshes the same bookmark (amount, density, updated_at, depleted_at).
+    RhinoSpotter 5.3+ can edit material, rigs, amount, density and location.
+    The identity therefore uses only immutable bookmark data plus RhinoSpotter's
+    stable row id when available.
     """
 
     identity = {
         "commander": clean_text(record.get("commander")),
         "system": clean_text(record.get("system")),
+        "source": "rhinospotter",
+        "source_record_id": record.get("source_record_id"),
         "planet_name": clean_text(record.get("planet_name")),
-        "location_index": record.get("location_index"),
         "latitude": record.get("latitude"),
         "longitude": record.get("longitude"),
-        "commodity": clean_text(record.get("commodity")),
         "marked_at": clean_text(record.get("marked_at")),
     }
 
@@ -95,6 +96,8 @@ def make_report_id(record):
 def normalize_record(record):
     payload = {
         "report_id": make_report_id(record),
+        "source": "rhinospotter",
+        "source_record_id": record.get("source_record_id"),
         "commander": clean_text(record.get("commander")),
         "system": clean_text(record.get("system")),
         "system_address": record.get("system_address"),
@@ -238,6 +241,7 @@ def _api_record(mark):
         return mark
 
     return {
+        "source_record_id": mark.get("id"),
         "commander": mark.get("commander"),
         "system": mark.get("system"),
         "planet_name": mark.get("body"),
@@ -488,6 +492,8 @@ def _load_database(database_path):
         label = f"{database_path.name}: bookmark #{bookmark_id}"
         try:
             record = json.loads(raw_data)
+            if isinstance(record, dict):
+                record.setdefault("source_record_id", bookmark_id)
         except Exception as exc:
             parse_errors += 1
             print(f"[ERROR] {label}: {exc}", file=sys.stderr)
