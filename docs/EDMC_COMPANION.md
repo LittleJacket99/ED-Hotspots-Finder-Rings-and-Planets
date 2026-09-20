@@ -121,7 +121,7 @@ The HUD shows the compact body name together with material and RhinoSpotter Loca
 
 ## Release packaging
 
-Finder and Companion are published together in one GitHub Release and share the same public release version. The first release containing the Companion is **v1.0.3**. Both update checkers therefore use the repository's normal `vX.Y.Z` release tag and open the same release page.
+Finder and Companion are published together in one GitHub Release and share the same public release version. The first release containing the Companion is **v1.0.2**. Both update checkers therefore use the repository's normal `vX.Y.Z` release tag and open the same release page.
 
 The plugin source lives in:
 
@@ -138,8 +138,8 @@ From the repository root, the Windows release package can be generated with:
 The script reads the version from `load.py` and creates:
 
 ```text
-release\companion\v1.0.3\Hotspots-Finder-EDMC-Plugin-v1.0.3.zip
-release\companion\v1.0.3\SHA256.txt
+release\companion\v1.0.2\Hotspots-Finder-EDMC-Plugin-v1.0.2.zip
+release\companion\v1.0.2\SHA256.txt
 ```
 
 On GitHub the downloadable package is published as **Hotspots Finder EDMC Plugin**. The ZIP contains the complete `EDHF_Community_Navigator` folder ready to place under the EDMarketConnector plugins directory.
