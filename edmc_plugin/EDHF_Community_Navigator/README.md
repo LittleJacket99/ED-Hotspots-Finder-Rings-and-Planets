@@ -1,21 +1,21 @@
-# EDHF Community Navigator
+# Hotspots Finder Deposits Companion
 
-Development EDMarketConnector plugin for the **ED Hotspots Finder - Rings & Planets** ecosystem.
+EDMarketConnector plugin for the **ED Hotspots Finder - Rings & Planets** ecosystem.
 
-The desktop application remains the general browser/search client for Hotspots, Planets and Community Deposits. This plugin is the focused in-game client for synchronizing RhinoSpotter bookmarks, scanning the current system and navigating to a selected community deposit.
+The desktop application remains the general browser/search client. The Companion is the focused in-game client for synchronizing RhinoSpotter bookmarks, checking Community Deposits in the current system and navigating to a selected surface deposit.
 
-## Current development scope
-
-The first prototype provides:
+## Current functionality
 
 - **Sync Bookmarks** — reads RhinoSpotter through its documented `rs_api.py` interface and synchronizes compatible bookmarks with Community Deposits.
-- **Scan Deposits** — queries Community Deposits for the star system currently reported by EDMC.
-- A results window with body, material, rigs, amount, density, coordinates, report count and update time.
-- **Track Selected** — opens a small always-on-top surface-navigation HUD.
-- Live HUD updates from EDMC `dashboard_entry()`, which is fed by Elite Dangerous `Status.json`.
-- Surface distance, bearing and relative heading arrow using the current latitude/longitude/heading and planet radius.
+- **Scan System** — queries Community Deposits for the system currently reported by EDMC.
+- **Open Deposits** — reopens the cached result snapshot without another API request.
+- **Refresh Deposits** — appears when a synchronization changed relevant data for the currently cached system.
+- Results table with body, material, rigs, amount, density, coordinates, report count and update time.
+- **Start Tracking** — opens the compact surface-navigation HUD.
+- Live distance and relative-heading arrow from EDMC `dashboard_entry()` / Elite Dangerous `Status.json`.
+- **Open Finder** — launches the desktop ED Hotspots Finder executable.
 
-This is an early development build and is not part of a public release yet.
+Synchronization responses distinguish new, matched, updated and unchanged reports so a repeated sync does not falsely refresh every deposit's update time.
 
 ## Development installation
 
@@ -31,7 +31,7 @@ so the installed path becomes:
 %LOCALAPPDATA%\EDMarketConnector\plugins\EDHF_Community_Navigator\load.py
 ```
 
-Then restart EDMarketConnector.
+Then restart EDMarketConnector completely.
 
 RhinoSpotter should be installed alongside it:
 
@@ -39,32 +39,7 @@ RhinoSpotter should be installed alongside it:
 %LOCALAPPDATA%\EDMarketConnector\plugins\RhinoSpotter\rs_api.py
 ```
 
-The current prototype supports RhinoSpotter `SCHEMA = 1`.
-
-## Runtime flow
-
-```text
-RhinoSpotter rs_api
-        |
-        | Sync Bookmarks
-        v
-Community Deposits API
-        ^
-        |
-        | Scan Deposits
-        |
-EDMC current system
-        |
-        v
-Results window
-        |
-        | Track Selected
-        v
-Status.json / dashboard_entry
-        |
-        v
-Surface Navigator HUD
-```
+The Companion currently supports RhinoSpotter API `SCHEMA = 1`.
 
 ## Community Deposits API
 
@@ -77,16 +52,25 @@ POST /v1/deposits/batch
 
 No separate plugin database is introduced.
 
+## Result caching
+
+The Companion queries a system once and keeps that result snapshot locally while the commander remains in the same system.
+
+The middle EDMC action changes between:
+
+```text
+Scan System
+Open Deposits
+Refresh Deposits
+No Deposits
+```
+
+A system change clears the cache. A sync only marks the cached snapshot stale when the server reports a relevant data change.
+
 ## Navigator notes
 
-The HUD is a frameless always-on-top Tk window intended for the same desktop-overlay workflow as EDMC. Borderless/windowed Elite Dangerous is the safest mode for desktop overlays; exclusive fullscreen behavior can depend on Windows and the game.
+The HUD is a frameless always-on-top Tk window intended for borderless/windowed Elite Dangerous desktop-overlay use.
 
-The initial HUD shows:
+It keeps a fixed palette for readability, remembers only its own screen position, and does not intentionally modify the EDMC main window geometry.
 
-- target material and body;
-- direction arrow relative to current ship/SRV heading;
-- surface distance;
-- target bearing;
-- current heading.
-
-More navigator controls, overlay preferences and persistence can be added after the first live EDMC test.
+The tracker displays the compact body name, material, a relative direction arrow and surface distance.
