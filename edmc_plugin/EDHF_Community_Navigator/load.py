@@ -3,9 +3,10 @@ from __future__ import annotations
 import logging
 import os
 import queue
+import subprocess
 import threading
 import tkinter as tk
-from tkinter import ttk
+from tkinter import filedialog
 from typing import Any
 
 from config import appname, config
@@ -22,6 +23,7 @@ PLUGIN_NAME = "EDHF Community Navigator"
 WORKER_EVENT = "<<EDHFCommunityNavigatorWorker>>"
 NAV_X_KEY = "edhf_community_navigator_x"
 NAV_Y_KEY = "edhf_community_navigator_y"
+FINDER_EXE_KEY = "edhf_finder_exe_path"
 
 plugin_name = os.path.basename(os.path.dirname(__file__))
 logger = logging.getLogger(f"{appname}.{plugin_name}")
@@ -29,8 +31,9 @@ logger = logging.getLogger(f"{appname}.{plugin_name}")
 _plugin_dir = ""
 _frame: tk.Frame | None = None
 _status: tk.Label | None = None
-_sync_button: ttk.Button | None = None
-_scan_button: ttk.Button | None = None
+_sync_button: tk.Label | None = None
+_scan_button: tk.Label | None = None
+_open_button: tk.Label | None = None
 _navigator: NavigatorOverlay | None = None
 _results_window: DepositsWindow | None = None
 
@@ -49,7 +52,7 @@ def plugin_start3(plugin_dir: str) -> str:
 
 
 def plugin_app(parent: tk.Frame) -> tk.Frame:
-    global _frame, _status, _sync_button, _scan_button, _navigator
+    global _frame, _status, _sync_button, _scan_button, _open_button, _navigator
 
     frame = tk.Frame(parent)
     _frame = frame
@@ -74,40 +77,72 @@ def plugin_app(parent: tk.Frame) -> tk.Frame:
 
     heading = tk.Label(
         frame,
-        text="Hotspots Finder Community",
+        text="Hotspots Finder Community Deposits",
         font=("TkDefaultFont", 9, "bold"),
         anchor="w",
     )
-    heading.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 3))
+    heading.grid(row=0, column=0, columnspan=3, sticky=tk.W, pady=(0, 3))
 
-    _sync_button = ttk.Button(
+    _sync_button = _make_action_button(
         frame,
         text="Sync Bookmarks",
         command=_start_sync,
     )
     _sync_button.grid(row=1, column=0, sticky=tk.EW, padx=(0, 3))
 
-    _scan_button = ttk.Button(
+    _scan_button = _make_action_button(
         frame,
         text="Scan Deposits",
         command=_start_scan,
     )
-    _scan_button.grid(row=1, column=1, sticky=tk.EW, padx=(3, 0))
+    _scan_button.grid(row=1, column=1, sticky=tk.EW, padx=3)
+
+    _open_button = _make_action_button(
+        frame,
+        text="Open Finder",
+        command=_open_finder,
+    )
+    _open_button.grid(row=1, column=2, sticky=tk.EW, padx=(3, 0))
 
     _status = tk.Label(
         frame,
         text="Ready",
         anchor="w",
     )
-    _status.grid(row=2, column=0, columnspan=2, sticky=tk.EW, pady=(3, 0))
+    _status.grid(row=2, column=0, columnspan=3, sticky=tk.EW, pady=(3, 0))
 
     frame.columnconfigure(0, weight=1)
     frame.columnconfigure(1, weight=1)
+    frame.columnconfigure(2, weight=1)
 
     frame.bind_all(WORKER_EVENT, _handle_worker_event, add="+")
     theme.update(frame)
     return frame
 
+
+def _make_action_button(
+    parent: tk.Misc,
+    *,
+    text: str,
+    command,
+) -> tk.Label:
+    """Create an EDMC-themed action control for dark/transparent themes."""
+    button = tk.Label(
+        parent,
+        text=text,
+        anchor=tk.CENTER,
+        relief=tk.GROOVE,
+        borderwidth=1,
+        padx=6,
+        pady=3,
+    )
+
+    def invoke(_event=None) -> None:
+        if str(button.cget("state")) != str(tk.DISABLED):
+            command()
+
+    theme.button_bind(button, invoke)
+    return button
 
 
 def _save_navigator_position(x: int, y: int) -> None:
@@ -193,6 +228,44 @@ def _set_busy(busy: bool, text: str) -> None:
         _scan_button.config(state=state)
     if _status is not None:
         _status.config(text=text)
+
+
+def _open_finder() -> None:
+    path = config.get_str(FINDER_EXE_KEY).strip()
+
+    if not path or not os.path.isfile(path):
+        initial_dir = os.path.dirname(path) if path else ""
+        path = filedialog.askopenfilename(
+            parent=_frame.winfo_toplevel() if _frame is not None else None,
+            title="Select ED Hotspots Finder executable",
+            initialdir=initial_dir or None,
+            filetypes=(
+                ("Executable files", "*.exe"),
+                ("All files", "*.*"),
+            ),
+        )
+
+        if not path:
+            if _status is not None:
+                _status.config(text="Finder executable not selected")
+            return
+
+        config.set(FINDER_EXE_KEY, path)
+
+    try:
+        if hasattr(os, "startfile"):
+            os.startfile(path)
+        else:
+            subprocess.Popen([path])
+    except Exception as exc:
+        logger.exception("Could not open ED Hotspots Finder")
+        config.delete(FINDER_EXE_KEY)
+        if _status is not None:
+            _status.config(text=f"Could not open Finder: {exc}")
+        return
+
+    if _status is not None:
+        _status.config(text="ED Hotspots Finder opened")
 
 
 def _start_sync() -> None:
