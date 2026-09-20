@@ -244,6 +244,11 @@ def sync_bookmarks(plugin_dir: str | Path) -> dict[str, Any]:
         "radius_missing": loaded["radius_missing"],
         "api_version": loaded["api_version"],
         "api_schema": loaded["api_schema"],
+        "systems": sorted({
+            str(record.get("system")).strip()
+            for record in records
+            if record.get("system")
+        }, key=str.casefold),
         "inserted": 0,
         "matched": 0,
         "updated": 0,
