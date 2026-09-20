@@ -18,6 +18,10 @@ class RhinoSpotterError(RuntimeError):
     """Raised when RhinoSpotter cannot be read or synchronized."""
 
 
+class RhinoSpotterNotInstalled(RhinoSpotterError):
+    """Raised when a compatible RhinoSpotter EDMC plugin is unavailable."""
+
+
 def _clean_text(value: Any) -> str | None:
     if value is None:
         return None
@@ -29,9 +33,9 @@ def resolve_rs_api(plugin_dir: str | Path) -> Path:
     plugin_dir = Path(plugin_dir).resolve()
     path = plugin_dir.parent / "RhinoSpotter" / "rs_api.py"
     if not path.is_file():
-        raise RhinoSpotterError(
-            "RhinoSpotter rs_api.py was not found. "
-            "Install/update RhinoSpotter in EDMarketConnector and restart EDMC."
+        raise RhinoSpotterNotInstalled(
+            "RhinoSpotter not found. Install or update RhinoSpotter 5.1+ "
+            "as an EDMC plugin, then restart EDMC."
         )
     return path
 
