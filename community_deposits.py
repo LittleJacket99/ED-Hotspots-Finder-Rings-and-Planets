@@ -9,7 +9,7 @@ import requests
 
 API_BASE = "https://ed-alliance-community-deposits.littlejacket99.workers.dev"
 DEPOSITS_URL = f"{API_BASE}/v1/deposits"
-USER_AGENT = "ED-Hotspots-Finder-Rings-and-Planets/1.0.2"
+USER_AGENT = "ED-Hotspots-Finder-Rings-and-Planets/1.0.3"
 REQUEST_TIMEOUT = 20
 
 COMMUNITY_HEADERS = [
