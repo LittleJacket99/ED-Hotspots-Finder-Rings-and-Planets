@@ -4,7 +4,7 @@
 
 <h1 align="center">ED Hotspots Finder - Rings & Planets + EDMC plugin </h1>
 
-<h3 align="center">Help build the shared Community Deposits database.</h3>
+<h2 align="center">Help build the shared Community Deposits database.</h3>
 
 
 <p align="center">
