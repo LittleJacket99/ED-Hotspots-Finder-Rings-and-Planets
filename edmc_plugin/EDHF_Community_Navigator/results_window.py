@@ -27,7 +27,7 @@ MAX_COLUMN_WIDTH = 420
 CELL_PADDING = 20
 ROW_HEIGHT = 25
 HEADER_HEIGHT = 27
-MAX_VISIBLE_ROWS = 12
+MAX_VISIBLE_ROWS = 10
 
 
 def _first(record: dict[str, Any], *keys: str):
@@ -149,16 +149,8 @@ class DepositsWindow:
         )
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
 
-        scroll_x = ttk.Scrollbar(
-            outer,
-            orient=tk.HORIZONTAL,
-            command=self.canvas.xview,
-        )
-        scroll_x.pack(fill=tk.X, pady=(4, 0))
-
         self.canvas.configure(
             yscrollcommand=scroll_y.set,
-            xscrollcommand=scroll_x.set,
         )
 
         self.table = tk.Frame(
@@ -328,8 +320,8 @@ class DepositsWindow:
         desired_width = min(table_width + 55, max_width)
         window_width = max(desired_width, 650)
 
-        # outer.winfo_reqheight() now includes title, table canvas,
-        # horizontal scrollbar and the bottom button row.
+        # outer.winfo_reqheight() includes title, the capped table canvas
+        # and the bottom action row.
         required_height = self.window.winfo_reqheight()
         window_height = required_height + 8
 
