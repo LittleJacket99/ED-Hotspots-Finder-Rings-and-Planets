@@ -1,1 +1,1 @@
-"""ED Hotspots Finder Community Navigator EDMC plugin."""
+"""Hotspots Finder Deposits Companion EDMC plugin."""
