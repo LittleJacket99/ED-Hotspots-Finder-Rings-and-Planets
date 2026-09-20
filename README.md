@@ -2,11 +2,8 @@
   <img src="ED_Hotspots_Finder.png" width="420" alt="ED Hotspots Finder - Rings & Planets">
 </p>
 
-<h1 align="center">ED Hotspots Finder - Rings & Planets + EDMC plugin </h1>
+<h1 align="center">ED Hotspots Finder - Rings & Planets + EDMC plugin </h1> 
 
-<p align="center">
-   # Helps build the database CMDR 
-</p>
 
 <p align="center">
   <a href="https://github.com/LittleJacket99/ED-Hotspots-Finder-Rings-and-Planets-with-EDMC-plugin/releases/latest">Download latest Windows release</a>
