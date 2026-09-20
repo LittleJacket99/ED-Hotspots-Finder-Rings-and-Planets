@@ -15,6 +15,7 @@ The desktop Finder and the EDMC plugin share the same Community Deposits service
 - Stable report IDs are preserved so existing Community Deposits reports are updated instead of duplicated.
 - Synchronization now distinguishes **new**, **matched**, **updated** and **unchanged** reports.
 - Re-synchronizing an unchanged report no longer intentionally advances the deposit's visible **Updated** time on the Community Deposits service.
+- **Rigs** is now treated as mutable Community Deposits data, alongside **Amount** and depletion state, so RhinoSpotter edits can update an existing deposit.
 - Added the missing **Location** column to Community Deposits results.
 - Enabled **Check for updates on startup** and added a direct GitHub repository link in Settings.
 - Standardized Community Deposits dialogs on the public application title.
