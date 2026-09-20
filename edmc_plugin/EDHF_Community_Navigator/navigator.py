@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 import tkinter as tk
-from typing import Any
+from typing import Any, Callable
 
 
 ACCENT = "#5acd57"
@@ -11,6 +11,7 @@ TEXT = "#f2f5f2"
 MUTED = "#a6b0a6"
 
 HUD_WIDTH = 250
+HUD_HEIGHT = 145
 
 
 def _first(record: dict[str, Any], *keys: str):
@@ -110,21 +111,33 @@ def format_distance(distance_m: float) -> str:
 
 
 class NavigatorOverlay:
-    def __init__(self, master: tk.Misc):
-        self.master = master
+    def __init__(
+        self,
+        master: tk.Misc,
+        *,
+        initial_x: int = 80,
+        initial_y: int = 120,
+        on_position_changed: Callable[[int, int], None] | None = None,
+    ):
+        # Keep a reference to EDMC's top-level only so the overlay shares the
+        # same Tcl interpreter. Its geometry is never used for the HUD.
+        self.main_window = master.winfo_toplevel()
         self.window: tk.Toplevel | None = None
+        self.canvas: tk.Canvas | None = None
+
         self.target: dict[str, Any] | None = None
         self.target_system: str | None = None
 
-        self.title_label: tk.Label | None = None
-        self.body_label: tk.Label | None = None
-        self.arrow_label: tk.Label | None = None
-        self.distance_label: tk.Label | None = None
+        self._body_item: int | None = None
+        self._material_item: int | None = None
+        self._arrow_item: int | None = None
+        self._distance_item: int | None = None
 
         self._drag_x = 0
         self._drag_y = 0
-        self._window_x = 80
-        self._window_y = 120
+        self._window_x = int(initial_x)
+        self._window_y = int(initial_y)
+        self._on_position_changed = on_position_changed
 
     def start(self, record: dict[str, Any], current_system: str | None = None) -> None:
         self.target = dict(record)
@@ -140,9 +153,6 @@ class NavigatorOverlay:
         body = _first(record, "body", "body_name", "planet_name") or "Unknown"
         display_body = _compact_body_name(body, self.target_system)
 
-        # Recreate the HUD for every tracking request. This avoids stale or
-        # withdrawn Tk toplevel state and guarantees Track Selected always
-        # opens a fresh, fully populated overlay.
         self._destroy_window(keep_target=True)
         self._create_window(material, display_body)
 
@@ -159,11 +169,12 @@ class NavigatorOverlay:
         current_system: str | None = None,
         current_body: str | None = None,
     ) -> None:
-        if self.target is None or self.window is None:
+        if self.target is None or self.window is None or self.canvas is None:
             return
 
         if not self.window.winfo_exists():
             self.window = None
+            self.canvas = None
             return
 
         target_body = _first(self.target, "body", "body_name", "planet_name")
@@ -172,14 +183,16 @@ class NavigatorOverlay:
         if self.target_system and current_system and not _same_name(
             self.target_system, current_system
         ):
-            self.arrow_label.config(text="◎")
-            self.distance_label.config(text=f"Travel to {self.target_system}")
+            self._set_navigation_text(
+                "◎",
+                f"Travel to {self.target_system}",
+            )
             return
 
         if target_body and status_body and not _same_name(target_body, status_body):
-            self.arrow_label.config(text="◎")
-            self.distance_label.config(
-                text=f"Approach {_compact_body_name(target_body, self.target_system)}"
+            self._set_navigation_text(
+                "◎",
+                f"Approach {_compact_body_name(target_body, self.target_system)}",
             )
             return
 
@@ -193,18 +206,15 @@ class NavigatorOverlay:
             radius = _float(_first(self.target, "planet_radius", "body_radius"))
 
         if latitude is None or longitude is None:
-            self.arrow_label.config(text="•")
-            self.distance_label.config(text="Waiting for position")
+            self._set_navigation_text("•", "Waiting for position")
             return
 
         if target_lat is None or target_lon is None:
-            self.arrow_label.config(text="!")
-            self.distance_label.config(text="No target coordinates")
+            self._set_navigation_text("!", "No target coordinates")
             return
 
         if radius is None or radius <= 0:
-            self.arrow_label.config(text="•")
-            self.distance_label.config(text="Waiting for planet radius")
+            self._set_navigation_text("•", "Waiting for planet radius")
             return
 
         distance_m, bearing = surface_distance_and_bearing(
@@ -221,13 +231,23 @@ class NavigatorOverlay:
             delta = signed_heading_delta(bearing, heading)
             arrow = direction_arrow(delta)
 
-        self.arrow_label.config(text=arrow)
-        self.distance_label.config(text=format_distance(distance_m))
+        self._set_navigation_text(arrow, format_distance(distance_m))
+
+    def _set_navigation_text(self, arrow: str, distance: str) -> None:
+        if self.canvas is None:
+            return
+        if self._arrow_item is not None:
+            self.canvas.itemconfigure(self._arrow_item, text=arrow)
+        if self._distance_item is not None:
+            self.canvas.itemconfigure(self._distance_item, text=distance)
 
     def _create_window(self, material: str, display_body: str) -> None:
-        window = tk.Toplevel(self.master)
-        self.window = window
+        # Guard EDMC's own geometry. The overlay must never become the source
+        # of the main application's saved window position.
+        main_geometry = self.main_window.winfo_geometry()
 
+        window = tk.Toplevel(self.main_window)
+        self.window = window
         window.overrideredirect(True)
         window.attributes("-topmost", True)
         try:
@@ -235,88 +255,86 @@ class NavigatorOverlay:
         except tk.TclError:
             pass
 
+        try:
+            window.wm_transient("")
+        except tk.TclError:
+            pass
+
         window.configure(background=BACKGROUND)
         window.resizable(False, False)
-
-        container = tk.Frame(
-            window,
-            background=BACKGROUND,
-            highlightbackground=ACCENT,
-            highlightcolor=ACCENT,
-            highlightthickness=1,
-            padx=9,
-            pady=5,
+        window.geometry(
+            f"{HUD_WIDTH}x{HUD_HEIGHT}+{self._window_x}+{self._window_y}"
         )
-        container.pack(fill=tk.BOTH, expand=True)
 
-        # First line: body on the left, close button on the right.
-        top = tk.Frame(container, background=BACKGROUND)
-        top.pack(fill=tk.X)
-
-        self.body_label = tk.Label(
-            top,
-            text=f"Body: {display_body}",
+        canvas = tk.Canvas(
+            window,
+            width=HUD_WIDTH,
+            height=HUD_HEIGHT,
             background=BACKGROUND,
-            foreground=MUTED,
+            highlightthickness=1,
+            highlightbackground=ACCENT,
+            bd=0,
+        )
+        self.canvas = canvas
+        canvas.pack(fill=tk.BOTH, expand=True)
+
+        self._body_item = canvas.create_text(
+            12,
+            14,
+            text=f"Body: {display_body}",
+            fill=MUTED,
             font=("Segoe UI", 8),
             anchor="w",
         )
-        self.body_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
-
-        close = tk.Label(
-            top,
-            text="×",
-            background=BACKGROUND,
-            foreground=MUTED,
-            font=("Segoe UI", 10, "bold"),
-            cursor="hand2",
-            padx=3,
-        )
-        close.pack(side=tk.RIGHT)
-        close.bind("<Button-1>", lambda _event: self.stop())
-
-        # Second line: material keeps its accent colour.
-        self.title_label = tk.Label(
-            container,
+        self._material_item = canvas.create_text(
+            12,
+            38,
             text=material,
-            background=BACKGROUND,
-            foreground=ACCENT,
+            fill=ACCENT,
             font=("Segoe UI", 10, "bold"),
             anchor="w",
         )
-        self.title_label.pack(fill=tk.X, pady=(0, 1))
-
-        self.arrow_label = tk.Label(
-            container,
+        self._arrow_item = canvas.create_text(
+            HUD_WIDTH / 2,
+            85,
             text="•",
-            background=BACKGROUND,
-            foreground=ACCENT,
-            font=("Segoe UI Symbol", 28, "bold"),
+            fill=ACCENT,
+            font=("Segoe UI Symbol", 30, "bold"),
+            anchor="center",
         )
-        self.arrow_label.pack(pady=(-3, -3))
-
-        self.distance_label = tk.Label(
-            container,
+        self._distance_item = canvas.create_text(
+            HUD_WIDTH / 2,
+            124,
             text="Waiting for position",
-            background=BACKGROUND,
-            foreground=TEXT,
-            font=("Segoe UI", 14, "bold"),
+            fill=TEXT,
+            font=("Segoe UI", 13, "bold"),
+            anchor="center",
         )
-        self.distance_label.pack()
 
-        for widget in (window, container, top, self.title_label, self.body_label):
-            widget.bind("<ButtonPress-1>", self._drag_start)
-            widget.bind("<B1-Motion>", self._drag_move)
-
-        # Let Tk measure the real requested height. A fixed 125px height clipped
-        # the arrow/distance on Windows when DPI/UI scaling was above 100%.
-        window.update_idletasks()
-        width = max(HUD_WIDTH, window.winfo_reqwidth())
-        height = window.winfo_reqheight()
-        window.geometry(
-            f"{width}x{height}+{self._window_x}+{self._window_y}"
+        # Close control is drawn on the same canvas. Dragging works anywhere
+        # else in the HUD, including over body/material/arrow/distance.
+        canvas.create_text(
+            HUD_WIDTH - 14,
+            15,
+            text="×",
+            fill=MUTED,
+            font=("Segoe UI", 10, "bold"),
+            anchor="center",
+            tags=("close",),
         )
+
+        canvas.tag_bind("close", "<Button-1>", lambda _event: self.stop())
+        canvas.bind("<ButtonPress-1>", self._drag_start)
+        canvas.bind("<B1-Motion>", self._drag_move)
+        canvas.bind("<ButtonRelease-1>", self._drag_end)
+
         window.lift()
+        window.update_idletasks()
+
+        # If creating the tool window caused Tk/Windows to alter EDMC's root
+        # geometry, restore the exact previous geometry immediately.
+        if self.main_window.winfo_geometry() != main_geometry:
+            self.main_window.geometry(main_geometry)
 
     def _destroy_window(self, *, keep_target: bool) -> None:
         if self.window is not None:
@@ -329,10 +347,11 @@ class NavigatorOverlay:
                 pass
 
         self.window = None
-        self.title_label = None
-        self.body_label = None
-        self.arrow_label = None
-        self.distance_label = None
+        self.canvas = None
+        self._body_item = None
+        self._material_item = None
+        self._arrow_item = None
+        self._distance_item = None
 
         if not keep_target:
             self.target = None
@@ -341,6 +360,13 @@ class NavigatorOverlay:
     def _drag_start(self, event: tk.Event) -> None:
         if self.window is None:
             return
+
+        # Do not start a drag when the close glyph itself was clicked.
+        if self.canvas is not None:
+            current = self.canvas.find_withtag("current")
+            if current and "close" in self.canvas.gettags(current[0]):
+                return
+
         self._drag_x = event.x_root - self.window.winfo_x()
         self._drag_y = event.y_root - self.window.winfo_y()
 
@@ -348,8 +374,17 @@ class NavigatorOverlay:
         if self.window is None:
             return
 
+        main_geometry = self.main_window.winfo_geometry()
+
         x = event.x_root - self._drag_x
         y = event.y_root - self._drag_y
         self._window_x = x
         self._window_y = y
         self.window.geometry(f"+{x}+{y}")
+
+        if self.main_window.winfo_geometry() != main_geometry:
+            self.main_window.geometry(main_geometry)
+
+    def _drag_end(self, _event: tk.Event) -> None:
+        if self._on_position_changed is not None:
+            self._on_position_changed(self._window_x, self._window_y)
