@@ -10,7 +10,7 @@ DEPOSITS_URL = f"{API_BASE}/v1/deposits"
 BATCH_URL = f"{API_BASE}/v1/deposits/batch"
 REQUEST_TIMEOUT = 20
 MAX_BATCH_SIZE = 200
-USER_AGENT = "Hotspots-Finder-Deposits-Companion/1.0.3"
+USER_AGENT = "Hotspots-Finder-Deposits-Companion/1.0.2"
 
 
 class CommunityAPIError(RuntimeError):
