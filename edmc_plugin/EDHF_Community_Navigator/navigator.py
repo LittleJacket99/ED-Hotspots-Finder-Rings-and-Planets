@@ -10,8 +10,8 @@ BACKGROUND = "#101410"
 TEXT = "#f2f5f2"
 MUTED = "#a6b0a6"
 
-HUD_WIDTH = 280
-HUD_HEIGHT = 150
+HUD_WIDTH = 250
+HUD_HEIGHT = 125
 
 
 def _first(record: dict[str, Any], *keys: str):
@@ -35,19 +35,16 @@ def _same_name(a: Any, b: Any) -> bool:
     return str(a).strip().casefold() == str(b).strip().casefold()
 
 
-def _compact_body_name(body: Any, system: Any = None, max_length: int = 34) -> str:
-    text = str(body or "Unknown body").strip()
+def _compact_body_name(body: Any, system: Any = None) -> str:
+    text = str(body or "Unknown").strip()
     system_text = str(system or "").strip()
 
     if system_text and text.casefold().startswith((system_text + " ").casefold()):
         suffix = text[len(system_text):].strip()
         if suffix:
-            return suffix
+            return "".join(suffix.split())
 
-    if len(text) <= max_length:
-        return text
-
-    return text[: max_length - 1].rstrip() + "…"
+    return "".join(text.split())
 
 
 def surface_distance_and_bearing(
@@ -124,7 +121,6 @@ class NavigatorOverlay:
         self.body_label: tk.Label | None = None
         self.arrow_label: tk.Label | None = None
         self.distance_label: tk.Label | None = None
-        self.detail_label: tk.Label | None = None
 
         self._drag_x = 0
         self._drag_y = 0
@@ -143,10 +139,9 @@ class NavigatorOverlay:
         display_body = _compact_body_name(body, self.target_system)
 
         self.title_label.config(text=str(material))
-        self.body_label.config(text=display_body)
+        self.body_label.config(text=f"Body: {display_body}")
         self.arrow_label.config(text="•")
-        self.distance_label.config(text="Waiting for surface position")
-        self.detail_label.config(text="")
+        self.distance_label.config(text="Waiting for position")
 
         self.window.deiconify()
         self.window.lift()
@@ -181,7 +176,6 @@ class NavigatorOverlay:
         ):
             self.arrow_label.config(text="◎")
             self.distance_label.config(text=f"Travel to {self.target_system}")
-            self.detail_label.config(text="")
             return
 
         if target_body and status_body and not _same_name(target_body, status_body):
@@ -189,7 +183,6 @@ class NavigatorOverlay:
             self.distance_label.config(
                 text=f"Approach {_compact_body_name(target_body, self.target_system)}"
             )
-            self.detail_label.config(text="")
             return
 
         latitude = _float(status.get("Latitude"))
@@ -203,22 +196,17 @@ class NavigatorOverlay:
 
         if latitude is None or longitude is None:
             self.arrow_label.config(text="•")
-            self.distance_label.config(text="Waiting for surface position")
-            self.detail_label.config(text="")
+            self.distance_label.config(text="Waiting for position")
             return
 
         if target_lat is None or target_lon is None:
             self.arrow_label.config(text="!")
-            self.distance_label.config(text="Target has no coordinates")
-            self.detail_label.config(text="")
+            self.distance_label.config(text="No target coordinates")
             return
 
         if radius is None or radius <= 0:
             self.arrow_label.config(text="•")
             self.distance_label.config(text="Waiting for planet radius")
-            self.detail_label.config(
-                text=f"Target {target_lat:.5f}, {target_lon:.5f}"
-            )
             return
 
         distance_m, bearing = surface_distance_and_bearing(
@@ -231,19 +219,12 @@ class NavigatorOverlay:
 
         if heading is None:
             arrow = "↑"
-            delta_text = ""
         else:
             delta = signed_heading_delta(bearing, heading)
             arrow = direction_arrow(delta)
-            delta_text = f" · Δ {delta:+.0f}°"
 
         self.arrow_label.config(text=arrow)
         self.distance_label.config(text=format_distance(distance_m))
-        self.detail_label.config(
-            text=f"BRG {bearing:03.0f}°"
-            + (f" · HDG {heading:03.0f}°" if heading is not None else "")
-            + delta_text
-        )
 
     def _ensure_window(self) -> None:
         if self.window is not None and self.window.winfo_exists():
@@ -267,8 +248,8 @@ class NavigatorOverlay:
             highlightbackground=ACCENT,
             highlightcolor=ACCENT,
             highlightthickness=1,
-            padx=10,
-            pady=6,
+            padx=9,
+            pady=5,
         )
         container.pack(fill=tk.BOTH, expand=True)
 
@@ -305,16 +286,16 @@ class NavigatorOverlay:
             font=("Segoe UI", 8),
             anchor="w",
         )
-        self.body_label.pack(fill=tk.X, pady=(0, 1))
+        self.body_label.pack(fill=tk.X, pady=(0, 0))
 
         self.arrow_label = tk.Label(
             container,
             text="•",
             background=BACKGROUND,
             foreground=ACCENT,
-            font=("Segoe UI Symbol", 30, "bold"),
+            font=("Segoe UI Symbol", 28, "bold"),
         )
-        self.arrow_label.pack(pady=(-1, -2))
+        self.arrow_label.pack(pady=(-3, -3))
 
         self.distance_label = tk.Label(
             container,
@@ -324,15 +305,6 @@ class NavigatorOverlay:
             font=("Segoe UI", 14, "bold"),
         )
         self.distance_label.pack()
-
-        self.detail_label = tk.Label(
-            container,
-            text="",
-            background=BACKGROUND,
-            foreground=MUTED,
-            font=("Consolas", 8),
-        )
-        self.detail_label.pack(pady=(1, 0))
 
         for widget in (window, container, top, self.title_label, self.body_label):
             widget.bind("<ButtonPress-1>", self._drag_start)
