@@ -98,15 +98,17 @@ The Community Deposits backend distinguishes:
 
 Repeated syncs therefore do not refresh the visible **Updated** timestamp just because the user pressed **Sync Bookmarks**.
 
-Current deposit update policy:
+Current deposit update policy for synchronized RhinoSpotter bookmarks:
 
+- **Location** — mutable;
+- **Material** — mutable;
 - **Rigs** — mutable;
 - **Amount** — mutable;
+- **Density** — mutable;
 - **depletion state** — mutable;
-- **Density** — kept stable after deposit creation;
 - missing technical metadata such as body ID or planet radius may be completed without counting as a meaningful deposit update.
 
-A change to Rigs, Amount or depletion state is treated as an update. Synchronizing the same values again returns `unchanged`.
+A change to one of those mutable bookmark values is treated as an update. Synchronizing the same values again returns `unchanged`.
 
 ## RhinoSpotter integration
 
@@ -158,7 +160,7 @@ Once surface navigation data is available, the plugin combines the target coordi
 Download:
 
 ```text
-Hotspots-Finder-EDMC-Plugin-v1.0.2.zip
+Hotspots-Finder-EDMC-Plugin-v1.0.3.zip
 ```
 
 Extract it so this path exists:
@@ -190,7 +192,7 @@ From the repository root, the release package can be generated with:
 The script reads the version from `load.py` and creates:
 
 ```text
-release\v1.0.2\Hotspots-Finder-EDMC-Plugin-v1.0.2.zip
+release\v1.0.2\Hotspots-Finder-EDMC-Plugin-v1.0.3.zip
 release\v1.0.2\SHA256.txt
 ```
 
