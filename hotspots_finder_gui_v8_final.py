@@ -34,7 +34,7 @@ from hotspots_finder_gui_v8_ui import FinderV8FinalUIApp as _BaseFinalApp
 
 
 PUBLIC_APP_TITLE = "ED Hotspots Finder - Rings & Planets"
-PUBLIC_APP_VERSION = "v1.0.2"
+PUBLIC_APP_VERSION = "v1.0.3"
 base_gui.APP_TITLE = PUBLIC_APP_TITLE
 community_gui.APP_TITLE = PUBLIC_APP_TITLE
 settings_gui.APP_TITLE = PUBLIC_APP_TITLE
