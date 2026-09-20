@@ -120,7 +120,7 @@ Development documentation: **[Hotspots Finder Deposits Companion](docs/EDMC_COMP
 
 ## Quick start
 
-1. Download the Windows executable or ZIP from **Releases**.
+1. Download the versioned Windows executable from **Releases**.
 2. Run **ED Hotspots Finder - Rings & Planets.exe**.
 3. Enter one or more systems in **System Input**, or leave it empty and configure **System Filters**.
 4. Enable **Hotspots**, **Planets** and/or **Community Deposits** as needed.
@@ -220,13 +220,12 @@ build_windows_v8.bat
 
 The current internal build files still use **v8** in their filenames because that was the final development iteration before the first public release. Public versioning started at **v1.0.0**; the current release line is **v1.0.2**.
 
-The build uses `HotspotsFinder-v8.spec`, bundles `app.ico` and `ED_Hotspots_Finder.png`, and uses `hotspots_finder_gui_v8_final.py` as the entry point. Inside the ZIP the executable keeps the friendly name **ED Hotspots Finder - Rings & Planets.exe**; the standalone GitHub asset uses **ED-Hotspots-Finder-Rings-and-Planets.exe** to avoid filename normalization.
+The build uses `HotspotsFinder-v8.spec`, bundles `app.ico` and `ED_Hotspots_Finder.png`, and uses `hotspots_finder_gui_v8_final.py` as the entry point. The GitHub Release publishes the standalone executable with the public version in its filename.
 
 A successful release build creates:
 
 ```text
-release\v1.0.2\ED-Hotspots-Finder-Rings-and-Planets.exe
-release\v1.0.2\ED-Hotspots-Finder-Rings-and-Planets-v1.0.2-Windows.zip
+release\v1.0.2\ED-Hotspots-Finder-Rings-and-Planets-v1.0.2.exe
 release\v1.0.2\SHA256.txt
 ```
 
