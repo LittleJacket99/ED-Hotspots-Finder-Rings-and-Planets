@@ -10,11 +10,11 @@ import urllib.request
 
 LATEST_RELEASE_API = (
     "https://api.github.com/repos/"
-    "LittleJacket99/ED-Hotspots-Finder-Rings-and-Planets/releases/latest"
+    "LittleJacket99/ED-Hotspots-Finder-Rings-and-Planets-with-EDMC-plugin/releases/latest"
 )
 LATEST_RELEASE_PAGE = (
     "https://github.com/LittleJacket99/"
-    "ED-Hotspots-Finder-Rings-and-Planets/releases/latest"
+    "ED-Hotspots-Finder-Rings-and-Planets-with-EDMC-plugin/releases/latest"
 )
 
 
