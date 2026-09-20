@@ -116,7 +116,7 @@ It complements the desktop Finder with quick in-game actions:
 
 The Companion uses the same Community Deposits backend as the desktop application and does not introduce a separate database.
 
-Development documentation: **[Hotspots Finder Deposits Companion](docs/EDMC_COMPANION.md)**
+Development documentation: **[Hotspots Finder Deposits Companion](docs/EDMC_COMPANION.md)** · **[Companion release notes](docs/COMPANION_RELEASE_NOTES.md)**
 
 ## Quick start
 
