@@ -173,7 +173,7 @@ Current settings include startup filter defaults, RhinoSpotter options, theme an
 | A system name is rejected | Check the spelling and whether Spansh can resolve the system. |
 | A scan returns unexpected or incomplete data | Open **Log Details**, verify the active filters and retry with a small system list. |
 | Community Deposits cannot be loaded | Check the Internet connection and retry later; the community API may be temporarily unavailable. |
-| RhinoSpotter sync finds no bookmarks | Open Settings and verify that the RhinoSpotter data source is detected. Current RhinoSpotter releases use `%LOCALAPPDATA%\\RhinoSpotter\\db\\rhinospotter.db`; legacy JSON cards remain supported. |
+| RhinoSpotter sync finds no bookmarks | Open Settings and verify that the RhinoSpotter source is detected. RhinoSpotter 5.1+ is read through its documented `%LOCALAPPDATA%\\EDMarketConnector\\plugins\\RhinoSpotter\\rs_api.py`; direct SQLite and legacy JSON access are compatibility fallbacks for older installations only. |
 | The interface is too large or too small | Open **Settings**, change UI Scale, save and restart the app. |
 | Windows SmartScreen appears | The executable is currently unsigned. Confirm that it was downloaded from this repository's Releases page. |
 
