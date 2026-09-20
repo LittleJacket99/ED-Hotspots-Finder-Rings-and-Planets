@@ -21,7 +21,7 @@ if (-not $Version) {
     $Version = $match.Matches[0].Groups[1].Value
 }
 
-$ReleaseDir = Join-Path $RepoRoot "release\companion\v$Version"
+$ReleaseDir = Join-Path $RepoRoot "release\v$Version"
 $StageRoot = Join-Path $env:TEMP "Hotspots-Finder-EDMC-Plugin-$Version"
 $StagePlugin = Join-Path $StageRoot "EDHF_Community_Navigator"
 $ZipPath = Join-Path $ReleaseDir "Hotspots-Finder-EDMC-Plugin-v$Version.zip"
@@ -31,12 +31,12 @@ if (Test-Path $StageRoot) {
     Remove-Item $StageRoot -Recurse -Force
 }
 
-if (Test-Path $ReleaseDir) {
-    Remove-Item $ReleaseDir -Recurse -Force
-}
-
 New-Item -ItemType Directory -Path $StagePlugin -Force | Out-Null
 New-Item -ItemType Directory -Path $ReleaseDir -Force | Out-Null
+
+if (Test-Path $ZipPath) {
+    Remove-Item $ZipPath -Force
+}
 
 Copy-Item (Join-Path $PluginSource "*") $StagePlugin -Recurse -Force
 
@@ -45,8 +45,17 @@ Get-ChildItem $StagePlugin -Recurse -File -Include "*.pyc","*.pyo" | Remove-Item
 
 Compress-Archive -Path $StagePlugin -DestinationPath $ZipPath -CompressionLevel Optimal -Force
 
+$name = [System.IO.Path]::GetFileName($ZipPath)
+$lines = @()
+if (Test-Path $HashPath) {
+    $lines = @(
+        Get-Content $HashPath |
+            Where-Object { $_ -notmatch ("  " + [regex]::Escape($name) + "$") }
+    )
+}
 $hash = Get-FileHash $ZipPath -Algorithm SHA256
-"$($hash.Hash)  $([System.IO.Path]::GetFileName($ZipPath))" | Set-Content -Path $HashPath -Encoding ascii
+$lines += "$($hash.Hash.ToLowerInvariant())  $name"
+$lines | Set-Content -Path $HashPath -Encoding ascii
 
 Remove-Item $StageRoot -Recurse -Force
 
