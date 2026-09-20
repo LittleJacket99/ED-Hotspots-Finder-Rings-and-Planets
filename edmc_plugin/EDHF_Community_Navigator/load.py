@@ -56,8 +56,12 @@ def plugin_app(parent: tk.Frame) -> tk.Frame:
 
     nav_x = config.get_int(NAV_X_KEY)
     nav_y = config.get_int(NAV_Y_KEY)
-    if nav_x <= 0:
-        nav_x = 80
+
+    # The first prototype used x=80 as its hard-coded default. Treat that
+    # untouched legacy position like "no saved position" so existing testers
+    # automatically migrate to the new top-centre default.
+    if nav_x in (0, 80):
+        nav_x = None
     if nav_y <= 0:
         nav_y = 120
 
