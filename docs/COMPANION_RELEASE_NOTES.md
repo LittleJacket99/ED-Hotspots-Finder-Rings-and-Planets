@@ -1,8 +1,8 @@
 # Hotspots Finder Deposits Companion — Release Notes
 
-## v1.0.0 — First release
+## v1.0.3 — First Companion release
 
-First public release of **Hotspots Finder Deposits Companion**, the EDMarketConnector extension for the ED Hotspots Finder Community Deposits ecosystem.
+First public release of **Hotspots Finder Deposits Companion**, included in the unified **ED Hotspots Finder v1.0.3** GitHub Release.
 
 ### Features
 
@@ -20,7 +20,7 @@ First public release of **Hotspots Finder Deposits Companion**, the EDMarketConn
 - Use live heading to display a relative direction arrow.
 - Remember the tracker position independently from the main EDMC window.
 - Launch ED Hotspots Finder directly from EDMC through **Open Finder**.
-- Automatically check the dedicated Companion release channel on EDMC startup and offer to open GitHub when a newer version is available.
+- Automatically check the shared Finder + Companion GitHub release channel on EDMC startup and offer to open GitHub when a newer bundle is available.
 - Follow the current EDMC theme in the main Companion controls and results window while keeping the tracker on its fixed high-contrast palette.
 
 ### Community Deposits behavior
