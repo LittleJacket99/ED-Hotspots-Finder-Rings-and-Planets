@@ -101,9 +101,9 @@ RhinoSpotter is a separate project and is not bundled with ED Hotspots Finder.
 
 Read more: **[RhinoSpotter integration](docs/RHINOSPOTTER.md)**
 
-## Hotspots Finder Deposits Companion
+## Hotspots Finder EDMC Plugin
 
-The repository also contains **Hotspots Finder Deposits Companion**, a focused EDMarketConnector extension for the Community Deposits workflow.
+The repository also contains the **Hotspots Finder EDMC Plugin**, displayed inside EDMC as **Hotspots Finder Deposits Companion**, a focused extension for the Community Deposits workflow.
 
 It complements the desktop Finder with quick in-game actions:
 
@@ -116,12 +116,12 @@ It complements the desktop Finder with quick in-game actions:
 
 The Companion uses the same Community Deposits backend as the desktop application and does not introduce a separate database.
 
-Development documentation: **[Hotspots Finder Deposits Companion](docs/EDMC_COMPANION.md)** · **[Companion release notes](docs/COMPANION_RELEASE_NOTES.md)**
+Documentation: **[Hotspots Finder EDMC Plugin](docs/EDMC_COMPANION.md)** · **[Plugin release notes](docs/COMPANION_RELEASE_NOTES.md)**
 
 ## Quick start
 
 1. Download the versioned Windows executable from **Releases**.
-2. Run **ED Hotspots Finder - Rings & Planets.exe**.
+2. Run the downloaded versioned executable, for example **ED-Hotspots-Finder-Rings-and-Planets-v1.0.2.exe**.
 3. Enter one or more systems in **System Input**, or leave it empty and configure **System Filters**.
 4. Enable **Hotspots**, **Planets** and/or **Community Deposits** as needed.
 5. Set the relevant filters.
@@ -226,6 +226,7 @@ A successful release build creates:
 
 ```text
 release\v1.0.2\ED-Hotspots-Finder-Rings-and-Planets-v1.0.2.exe
+release\v1.0.2\Hotspots-Finder-EDMC-Plugin-v1.0.2.zip
 release\v1.0.2\SHA256.txt
 ```
 
