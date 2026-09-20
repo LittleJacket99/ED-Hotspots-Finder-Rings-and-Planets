@@ -46,7 +46,7 @@ ED Hotspots Finder supports optional synchronization of compatible local bookmar
 
 RhinoSpotter is used to record discoveries in-game; both ED Hotspots Finder and Hotspots Finder Deposits Companion can provide the synchronization path to Community Deposits.
 
-Repeated synchronization of an unchanged report does not intentionally advance the deposit's update timestamp. The backend distinguishes unchanged reports from meaningful updates so the visible **Updated** value represents a real change rather than the time of the latest sync.
+Repeated synchronization of an unchanged report does not intentionally advance the deposit's update timestamp. The backend distinguishes unchanged reports from meaningful updates so the visible **Updated** value represents a real change rather than the time of the latest sync. Meaningful mutable fields currently include **Rigs**, **Amount** and depletion state; **Density** remains fixed after deposit creation.
 
 See [RhinoSpotter integration](RHINOSPOTTER.md) for the current workflow.
 
