@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/LittleJacket99/ED-Hotspots-Finder-Rings-and-Planets/releases/latest">Download latest Windows release</a>
+  <a href="https://github.com/LittleJacket99/ED-Hotspots-Finder-Rings-and-Planets-with-EDMC-plugin/releases/latest">Download latest Windows release</a>
   ·
   <a href="RELEASE_NOTES.md">Release notes</a>
 </p>
