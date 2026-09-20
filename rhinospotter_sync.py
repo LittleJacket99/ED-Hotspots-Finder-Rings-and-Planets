@@ -662,6 +662,7 @@ def main():
     inserted = 0
     matched = 0
     updated = 0
+    unchanged = 0
     errors = loaded["read_errors"]
 
     for batch in chunks(deposits, MAX_BATCH_SIZE):
@@ -681,12 +682,15 @@ def main():
                 matched += 1
             elif action == "updated_report":
                 updated += 1
+            elif action == "unchanged":
+                unchanged += 1
 
     print()
     print("Synchronization completed.")
     print(f"New deposits: {inserted}")
     print(f"Reports matched to existing deposits: {matched}")
     print(f"Updated reports: {updated}")
+    print(f"Unchanged reports: {unchanged}")
     print(f"Errors: {errors}")
 
 
