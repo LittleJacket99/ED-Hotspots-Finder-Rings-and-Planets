@@ -80,7 +80,7 @@ RhinoSpotter is not required for the plugin's Community Deposits lookup or navig
 
 The integration generates a stable `report_id` from fields that identify the bookmark/deposit rather than mutable state.
 
-Fields such as **Rigs**, **Amount**, **Density**, `updated_at` and depletion timestamps are not used to deliberately create a new report identity when the same bookmark is edited.
+RhinoSpotter's stable bookmark identity is preserved by current clients. Editable values such as **Location**, **Material**, **Rigs**, **Amount**, **Density**, `updated_at` and depletion timestamps do not deliberately create a new report identity when the same bookmark is edited.
 
 This allows the same RhinoSpotter bookmark to update its existing Community Deposits report instead of creating a duplicate.
 
@@ -88,11 +88,12 @@ This allows the same RhinoSpotter bookmark to update its existing Community Depo
 
 Current Community Deposits behavior treats these RhinoSpotter changes as meaningful updates:
 
+- **Location**;
+- **Material**;
 - **Rigs**;
 - **Amount**;
+- **Density**;
 - depletion state.
-
-**Density** remains stable after the Community Deposit is created.
 
 Re-synchronizing the same values again returns `unchanged` and does not intentionally refresh the visible **Updated** timestamp.
 
