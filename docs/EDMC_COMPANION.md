@@ -100,7 +100,7 @@ If RhinoSpotter is missing, **Sync Bookmarks** reports that RhinoSpotter 5.1+ mu
 The Community Deposits results window:
 
 - inherits the current EDMC colour theme;
-- shows Body, Material, Rigs, Amount, Density, Latitude, Longitude, Reports and Updated;
+- shows Body, Location, Material, Rigs, Amount, Density, Latitude, Longitude, Reports and Updated;
 - displays up to 10 rows before adding a vertical scrollbar;
 - provides **Start Tracking** for the selected deposit.
 
@@ -116,7 +116,7 @@ It is:
 - independently position-persistent;
 - reopened cleanly when tracking starts again.
 
-The HUD combines the selected target coordinates with live `Status.json` data from `dashboard_entry()` to calculate great-circle surface distance, bearing and a heading-relative direction arrow.
+The HUD shows the compact body name together with material and RhinoSpotter Location. It combines the selected target coordinates with live `Status.json` data from `dashboard_entry()` to calculate great-circle surface separation, bearing and a heading-relative direction arrow. When altitude is available, it is combined with the surface separation to give a useful target distance during aerial approach.
 
 ## Development location
 
