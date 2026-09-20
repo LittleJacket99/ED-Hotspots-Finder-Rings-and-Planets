@@ -124,6 +124,8 @@ class NavigatorOverlay:
 
         self._drag_x = 0
         self._drag_y = 0
+        self._window_x = 80
+        self._window_y = 120
 
     def start(self, record: dict[str, Any], current_system: str | None = None) -> None:
         self.target = dict(record)
@@ -133,30 +135,23 @@ class NavigatorOverlay:
             or ""
         ).strip() or None
 
-        self._ensure_window()
-        material = _first(record, "commodity", "material") or "Community deposit"
-        body = _first(record, "body", "body_name", "planet_name") or "Unknown body"
+        material = str(
+            _first(record, "commodity", "material") or "Community deposit"
+        )
+        body = _first(record, "body", "body_name", "planet_name") or "Unknown"
         display_body = _compact_body_name(body, self.target_system)
 
-        self.title_label.config(text=str(material))
-        self.body_label.config(text=f"Body: {display_body}")
-        self.arrow_label.config(text="•")
-        self.distance_label.config(text="Waiting for position")
-
-        self.window.deiconify()
-        self.window.lift()
+        # Recreate the HUD for every tracking request. This avoids stale or
+        # withdrawn Tk toplevel state and guarantees Track Selected always
+        # opens a fresh, fully populated overlay.
+        self._destroy_window(keep_target=True)
+        self._create_window(material, display_body)
 
     def stop(self) -> None:
-        self.target = None
-        self.target_system = None
-        if self.window is not None:
-            self.window.withdraw()
+        self._destroy_window(keep_target=False)
 
     def destroy(self) -> None:
-        if self.window is not None:
-            self.window.destroy()
-            self.window = None
-        self.target = None
+        self._destroy_window(keep_target=False)
 
     def update_status(
         self,
@@ -166,6 +161,10 @@ class NavigatorOverlay:
         current_body: str | None = None,
     ) -> None:
         if self.target is None or self.window is None:
+            return
+
+        if not self.window.winfo_exists():
+            self.window = None
             return
 
         target_body = _first(self.target, "body", "body_name", "planet_name")
@@ -226,20 +225,21 @@ class NavigatorOverlay:
         self.arrow_label.config(text=arrow)
         self.distance_label.config(text=format_distance(distance_m))
 
-    def _ensure_window(self) -> None:
-        if self.window is not None and self.window.winfo_exists():
-            return
-
+    def _create_window(self, material: str, display_body: str) -> None:
         window = tk.Toplevel(self.master)
         self.window = window
+
         window.overrideredirect(True)
         window.attributes("-topmost", True)
         try:
             window.attributes("-alpha", 0.94)
         except tk.TclError:
             pass
+
         window.configure(background=BACKGROUND)
-        window.geometry(f"{HUD_WIDTH}x{HUD_HEIGHT}+80+120")
+        window.geometry(
+            f"{HUD_WIDTH}x{HUD_HEIGHT}+{self._window_x}+{self._window_y}"
+        )
         window.resizable(False, False)
 
         container = tk.Frame(
@@ -258,7 +258,7 @@ class NavigatorOverlay:
 
         self.title_label = tk.Label(
             top,
-            text="Community deposit",
+            text=material,
             background=BACKGROUND,
             foreground=ACCENT,
             font=("Segoe UI", 10, "bold"),
@@ -280,13 +280,13 @@ class NavigatorOverlay:
 
         self.body_label = tk.Label(
             container,
-            text="",
+            text=f"Body: {display_body}",
             background=BACKGROUND,
             foreground=MUTED,
             font=("Segoe UI", 8),
             anchor="w",
         )
-        self.body_label.pack(fill=tk.X, pady=(0, 0))
+        self.body_label.pack(fill=tk.X)
 
         self.arrow_label = tk.Label(
             container,
@@ -299,7 +299,7 @@ class NavigatorOverlay:
 
         self.distance_label = tk.Label(
             container,
-            text="",
+            text="Waiting for position",
             background=BACKGROUND,
             foreground=TEXT,
             font=("Segoe UI", 14, "bold"),
@@ -310,6 +310,28 @@ class NavigatorOverlay:
             widget.bind("<ButtonPress-1>", self._drag_start)
             widget.bind("<B1-Motion>", self._drag_move)
 
+        window.lift()
+
+    def _destroy_window(self, *, keep_target: bool) -> None:
+        if self.window is not None:
+            try:
+                if self.window.winfo_exists():
+                    self._window_x = self.window.winfo_x()
+                    self._window_y = self.window.winfo_y()
+                    self.window.destroy()
+            except tk.TclError:
+                pass
+
+        self.window = None
+        self.title_label = None
+        self.body_label = None
+        self.arrow_label = None
+        self.distance_label = None
+
+        if not keep_target:
+            self.target = None
+            self.target_system = None
+
     def _drag_start(self, event: tk.Event) -> None:
         if self.window is None:
             return
@@ -319,6 +341,9 @@ class NavigatorOverlay:
     def _drag_move(self, event: tk.Event) -> None:
         if self.window is None:
             return
+
         x = event.x_root - self._drag_x
         y = event.y_root - self._drag_y
+        self._window_x = x
+        self._window_y = y
         self.window.geometry(f"+{x}+{y}")
