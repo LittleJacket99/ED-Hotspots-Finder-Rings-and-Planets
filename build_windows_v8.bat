@@ -54,6 +54,10 @@ if not exist "%DIST_EXE%" (
 if not exist "%RELEASE_DIR%" mkdir "%RELEASE_DIR%"
 if errorlevel 1 goto :fail
 
+rem Remove obsolete Finder assets from the previous packaging layout.
+if exist "%RELEASE_DIR%\ED-Hotspots-Finder-Rings-and-Planets.exe" del /q "%RELEASE_DIR%\ED-Hotspots-Finder-Rings-and-Planets.exe"
+if exist "%RELEASE_DIR%\ED-Hotspots-Finder-Rings-and-Planets-%VERSION%-Windows.zip" del /q "%RELEASE_DIR%\ED-Hotspots-Finder-Rings-and-Planets-%VERSION%-Windows.zip"
+
 copy /y "%DIST_EXE%" "%RELEASE_EXE%" >nul
 if errorlevel 1 goto :fail
 
