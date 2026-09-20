@@ -2,7 +2,11 @@
   <img src="ED_Hotspots_Finder.png" width="420" alt="ED Hotspots Finder - Rings & Planets">
 </p>
 
-<h1 align="center">ED Hotspots Finder - Rings & Planets + EDMC plugin </h1> 
+<h1 align="center">ED Hotspots Finder - Rings & Planets + EDMC plugin </h1>
+
+<p align="center">
+  <strong>Help build the shared Community Deposits database.</strong>
+</p>
 
 
 <p align="center">
