@@ -104,6 +104,23 @@ def direction_arrow(delta: float) -> str:
     return "↖"
 
 
+def navigation_distance(
+    surface_distance_m: float,
+    altitude_m: float | None,
+) -> float:
+    """Combine horizontal surface separation with current altitude.
+
+    Status.json altitude is the vertical component that the former
+    surface-only distance ignored. Keeping the great-circle surface
+    distance as the horizontal component also preserves useful ground/SRV
+    navigation when altitude is zero or unavailable.
+    """
+    if altitude_m is None or altitude_m <= 0:
+        return surface_distance_m
+
+    return math.hypot(surface_distance_m, altitude_m)
+
+
 def format_distance(distance_m: float) -> str:
     if distance_m < 1000.0:
         return f"{distance_m:.0f} m"
@@ -189,7 +206,8 @@ class NavigatorOverlay:
         ):
             self._set_navigation_text(
                 "◎",
-                f"Travel to {self.target_system}",
+                f"Travel to\n{self.target_system}",
+                compact=True,
             )
             return
 
@@ -197,12 +215,14 @@ class NavigatorOverlay:
             self._set_navigation_text(
                 "◎",
                 f"Approach {_compact_body_name(target_body, self.target_system)}",
+                compact=True,
             )
             return
 
         latitude = _float(status.get("Latitude"))
         longitude = _float(status.get("Longitude"))
         heading = _float(status.get("Heading"))
+        altitude = _float(status.get("Altitude"))
         target_lat = _float(_first(self.target, "latitude", "lat"))
         target_lon = _float(_first(self.target, "longitude", "lon", "lng"))
         radius = _float(status.get("PlanetRadius"))
@@ -221,12 +241,16 @@ class NavigatorOverlay:
             self._set_navigation_text("•", "Waiting for planet radius")
             return
 
-        distance_m, bearing = surface_distance_and_bearing(
+        surface_distance_m, bearing = surface_distance_and_bearing(
             latitude,
             longitude,
             target_lat,
             target_lon,
             radius,
+        )
+        distance_m = navigation_distance(
+            surface_distance_m,
+            altitude,
         )
 
         if heading is None:
@@ -237,13 +261,28 @@ class NavigatorOverlay:
 
         self._set_navigation_text(arrow, format_distance(distance_m))
 
-    def _set_navigation_text(self, arrow: str, distance: str) -> None:
+    def _set_navigation_text(
+        self,
+        arrow: str,
+        distance: str,
+        *,
+        compact: bool = False,
+    ) -> None:
         if self.canvas is None:
             return
         if self._arrow_item is not None:
             self.canvas.itemconfigure(self._arrow_item, text=arrow)
         if self._distance_item is not None:
-            self.canvas.itemconfigure(self._distance_item, text=distance)
+            self.canvas.itemconfigure(
+                self._distance_item,
+                text=distance,
+                width=HUD_WIDTH - 24,
+                font=(
+                    "Segoe UI",
+                    9 if compact else 13,
+                    "bold",
+                ),
+            )
 
     def _create_window(self, material: str, display_body: str) -> None:
         # Guard EDMC's own geometry. The overlay must never become the source
@@ -307,11 +346,13 @@ class NavigatorOverlay:
         )
         self._distance_item = canvas.create_text(
             HUD_WIDTH / 2,
-            124,
+            122,
             text="Waiting for position",
             fill=TEXT,
             font=("Segoe UI", 13, "bold"),
             anchor="center",
+            width=HUD_WIDTH - 24,
+            justify=tk.CENTER,
         )
 
         # Close control is drawn on the same canvas. Dragging works anywhere
