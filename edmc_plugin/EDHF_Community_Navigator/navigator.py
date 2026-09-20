@@ -230,7 +230,14 @@ class NavigatorOverlay:
             radius = _float(_first(self.target, "planet_radius", "body_radius"))
 
         if latitude is None or longitude is None:
-            self._set_navigation_text("•", "Waiting for position")
+            if target_body:
+                self._set_navigation_text(
+                    "◎",
+                    f"Approach {_compact_body_name(target_body, self.target_system)}",
+                    compact=True,
+                )
+            else:
+                self._set_navigation_text("•", "Waiting for position")
             return
 
         if target_lat is None or target_lon is None:
