@@ -22,9 +22,9 @@ if (-not $Version) {
 }
 
 $ReleaseDir = Join-Path $RepoRoot "release\companion\v$Version"
-$StageRoot = Join-Path $env:TEMP "Hotspots-Finder-Deposits-Companion-$Version"
+$StageRoot = Join-Path $env:TEMP "Hotspots-Finder-EDMC-Plugin-$Version"
 $StagePlugin = Join-Path $StageRoot "EDHF_Community_Navigator"
-$ZipPath = Join-Path $ReleaseDir "Hotspots-Finder-Deposits-Companion-v$Version.zip"
+$ZipPath = Join-Path $ReleaseDir "Hotspots-Finder-EDMC-Plugin-v$Version.zip"
 $HashPath = Join-Path $ReleaseDir "SHA256.txt"
 
 if (Test-Path $StageRoot) {
@@ -51,7 +51,7 @@ $hash = Get-FileHash $ZipPath -Algorithm SHA256
 Remove-Item $StageRoot -Recurse -Force
 
 Write-Host ""
-Write-Host "Hotspots Finder Deposits Companion v$Version"
+Write-Host "Hotspots Finder EDMC Plugin v$Version"
 Write-Host "ZIP:    $ZipPath"
 Write-Host "SHA256: $HashPath"
 Write-Host ""
