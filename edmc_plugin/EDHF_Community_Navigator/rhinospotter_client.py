@@ -252,10 +252,20 @@ def sync_bookmarks(plugin_dir: str | Path) -> dict[str, Any]:
         "inserted": 0,
         "matched": 0,
         "updated": 0,
+        "unchanged": 0,
+        "changed_systems": [],
         "errors": loaded["read_errors"],
     }
 
+    changed_systems: set[str] = set()
+
     for batch in chunks(records):
+        systems_by_report = {
+            str(record.get("report_id")): str(record.get("system")).strip()
+            for record in batch
+            if record.get("report_id") and record.get("system")
+        }
+
         result = send_deposit_batch(batch)
         results = result.get("results", [])
         if not isinstance(results, list):
@@ -275,5 +285,14 @@ def sync_bookmarks(plugin_dir: str | Path) -> dict[str, Any]:
                 summary["matched"] += 1
             elif action == "updated_report":
                 summary["updated"] += 1
+            elif action == "unchanged":
+                summary["unchanged"] += 1
 
+            if action in {"inserted", "matched_existing_deposit", "updated_report"}:
+                report_id = item.get("report_id")
+                system = systems_by_report.get(str(report_id))
+                if system:
+                    changed_systems.add(system)
+
+    summary["changed_systems"] = sorted(changed_systems, key=str.casefold)
     return summary
