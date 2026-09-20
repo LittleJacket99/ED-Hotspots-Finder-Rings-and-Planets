@@ -101,6 +101,23 @@ RhinoSpotter is a separate project and is not bundled with ED Hotspots Finder.
 
 Read more: **[RhinoSpotter integration](docs/RHINOSPOTTER.md)**
 
+## Hotspots Finder Deposits Companion
+
+The repository also contains **Hotspots Finder Deposits Companion**, a focused EDMarketConnector extension for the Community Deposits workflow.
+
+It complements the desktop Finder with quick in-game actions:
+
+- synchronize RhinoSpotter bookmarks;
+- scan Community Deposits for the current system;
+- reopen cached deposit results without unnecessary network requests;
+- refresh when relevant synchronized data changed;
+- track a selected surface deposit with a compact live navigation HUD;
+- launch the desktop Finder directly from EDMC.
+
+The Companion uses the same Community Deposits backend as the desktop application and does not introduce a separate database.
+
+Development documentation: **[Hotspots Finder Deposits Companion](docs/EDMC_COMPANION.md)**
+
 ## Quick start
 
 1. Download the Windows executable or ZIP from **Releases**.
