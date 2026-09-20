@@ -171,11 +171,16 @@ class NavigatorOverlay:
         material = str(
             _first(record, "commodity", "material") or "Community deposit"
         )
+        location = _first(record, "location_index", "location")
+        material_line = material
+        if location not in (None, ""):
+            material_line = f"{material}  Location {location}"
+
         body = _first(record, "body", "body_name", "planet_name") or "Unknown"
         display_body = _compact_body_name(body, self.target_system)
 
         self._destroy_window(keep_target=True)
-        self._create_window(material, display_body)
+        self._create_window(material_line, display_body)
 
     def stop(self) -> None:
         self._destroy_window(keep_target=False)
