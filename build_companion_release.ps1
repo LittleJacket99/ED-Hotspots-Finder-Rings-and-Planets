@@ -38,6 +38,11 @@ if (Test-Path $ZipPath) {
     Remove-Item $ZipPath -Force
 }
 
+$legacyZip = Join-Path $ReleaseDir "Hotspots-Finder-Deposits-Companion-v$Version.zip"
+if (Test-Path $legacyZip) {
+    Remove-Item $legacyZip -Force
+}
+
 Copy-Item (Join-Path $PluginSource "*") $StagePlugin -Recurse -Force
 
 Get-ChildItem $StagePlugin -Recurse -Directory -Filter "__pycache__" | Remove-Item -Recurse -Force
