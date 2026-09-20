@@ -463,12 +463,13 @@ def _handle_sync_ok(summary: dict[str, Any]) -> None:
     inserted = int(summary.get("inserted", 0) or 0)
     matched = int(summary.get("matched", 0) or 0)
     updated = int(summary.get("updated", 0) or 0)
+    unchanged = int(summary.get("unchanged", 0) or 0)
     errors = int(summary.get("errors", 0) or 0)
     found = int(summary.get("records_found", 0) or 0)
 
-    synced_systems = {
+    changed_systems = {
         str(system).strip().casefold()
-        for system in summary.get("systems", [])
+        for system in summary.get("changed_systems", [])
         if system
     }
 
@@ -476,13 +477,14 @@ def _handle_sync_ok(summary: dict[str, Any]) -> None:
         _cached_deposits is not None
         and _same_system(_cached_system, _current_system)
         and _current_system
-        and _current_system.strip().casefold() in synced_systems
+        and _current_system.strip().casefold() in changed_systems
     ):
         _deposits_cache_stale = True
 
     text = (
         f"Sync: {found} bookmarks · "
-        f"{inserted} new · {matched} matched · {updated} updated"
+        f"{inserted} new · {matched} matched · "
+        f"{updated} updated · {unchanged} unchanged"
     )
     if errors:
         text += f" · {errors} errors"
