@@ -11,7 +11,6 @@ TEXT = "#f2f5f2"
 MUTED = "#a6b0a6"
 
 HUD_WIDTH = 250
-HUD_HEIGHT = 125
 
 
 def _first(record: dict[str, Any], *keys: str):
@@ -237,9 +236,6 @@ class NavigatorOverlay:
             pass
 
         window.configure(background=BACKGROUND)
-        window.geometry(
-            f"{HUD_WIDTH}x{HUD_HEIGHT}+{self._window_x}+{self._window_y}"
-        )
         window.resizable(False, False)
 
         container = tk.Frame(
@@ -253,18 +249,19 @@ class NavigatorOverlay:
         )
         container.pack(fill=tk.BOTH, expand=True)
 
+        # First line: body on the left, close button on the right.
         top = tk.Frame(container, background=BACKGROUND)
         top.pack(fill=tk.X)
 
-        self.title_label = tk.Label(
+        self.body_label = tk.Label(
             top,
-            text=material,
+            text=f"Body: {display_body}",
             background=BACKGROUND,
-            foreground=ACCENT,
-            font=("Segoe UI", 10, "bold"),
+            foreground=MUTED,
+            font=("Segoe UI", 8),
             anchor="w",
         )
-        self.title_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.body_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         close = tk.Label(
             top,
@@ -278,15 +275,16 @@ class NavigatorOverlay:
         close.pack(side=tk.RIGHT)
         close.bind("<Button-1>", lambda _event: self.stop())
 
-        self.body_label = tk.Label(
+        # Second line: material keeps its accent colour.
+        self.title_label = tk.Label(
             container,
-            text=f"Body: {display_body}",
+            text=material,
             background=BACKGROUND,
-            foreground=MUTED,
-            font=("Segoe UI", 8),
+            foreground=ACCENT,
+            font=("Segoe UI", 10, "bold"),
             anchor="w",
         )
-        self.body_label.pack(fill=tk.X)
+        self.title_label.pack(fill=tk.X, pady=(0, 1))
 
         self.arrow_label = tk.Label(
             container,
@@ -310,6 +308,14 @@ class NavigatorOverlay:
             widget.bind("<ButtonPress-1>", self._drag_start)
             widget.bind("<B1-Motion>", self._drag_move)
 
+        # Let Tk measure the real requested height. A fixed 125px height clipped
+        # the arrow/distance on Windows when DPI/UI scaling was above 100%.
+        window.update_idletasks()
+        width = max(HUD_WIDTH, window.winfo_reqwidth())
+        height = window.winfo_reqheight()
+        window.geometry(
+            f"{width}x{height}+{self._window_x}+{self._window_y}"
+        )
         window.lift()
 
     def _destroy_window(self, *, keep_target: bool) -> None:
