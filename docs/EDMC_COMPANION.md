@@ -118,7 +118,9 @@ It is:
 
 The HUD shows the compact body name together with material and RhinoSpotter Location. It combines the selected target coordinates with live `Status.json` data from `dashboard_entry()` to calculate great-circle surface separation, bearing and a heading-relative direction arrow. When altitude is available, it is combined with the surface separation to give a useful target distance during aerial approach.
 
-## Development location
+## Release packaging
+
+The Companion is versioned independently from the desktop Finder. The first release line is **v1.0.0**.
 
 The plugin source lives in:
 
@@ -126,4 +128,19 @@ The plugin source lives in:
 edmc_plugin/EDHF_Community_Navigator/
 ```
 
-Development currently continues on the `edmc-companion-dev` branch until final packaging and release integration are complete.
+From the repository root, the Windows release package can be generated with:
+
+```powershell
+.\build_companion_release.ps1
+```
+
+The script reads the version from `load.py` and creates:
+
+```text
+release\companion\v1.0.0\Hotspots-Finder-Deposits-Companion-v1.0.0.zip
+release\companion\v1.0.0\SHA256.txt
+```
+
+The ZIP contains the complete `EDHF_Community_Navigator` folder ready to place under the EDMarketConnector plugins directory.
+
+Development remains on the `edmc-companion-dev` branch until the packaged build passes the final installation smoke test.
