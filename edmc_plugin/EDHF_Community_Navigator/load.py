@@ -43,6 +43,11 @@ _results_window: DepositsWindow | None = None
 _current_system: str | None = None
 _current_body: str | None = None
 _last_dashboard_status: dict[str, Any] | None = None
+
+_cached_system: str | None = None
+_cached_deposits: list[dict[str, Any]] | None = None
+_deposits_cache_stale = False
+
 _worker_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
 _stopping = False
 
@@ -95,7 +100,7 @@ def plugin_app(parent: tk.Frame) -> tk.Frame:
 
     _scan_button = _make_action_button(
         frame,
-        text="Scan Deposits",
+        text="Scan System",
         command=_start_scan,
     )
     _scan_button.grid(row=1, column=1, sticky=tk.EW, padx=3)
@@ -120,6 +125,7 @@ def plugin_app(parent: tk.Frame) -> tk.Frame:
 
     frame.bind_all(WORKER_EVENT, _handle_worker_event, add="+")
     theme.update(frame)
+    _update_scan_button_state()
     return frame
 
 
@@ -154,6 +160,79 @@ def _save_navigator_position(x: int, y: int) -> None:
     config.set(NAV_Y_KEY, int(y))
 
 
+def _same_system(a: str | None, b: str | None) -> bool:
+    if not a or not b:
+        return False
+    return a.strip().casefold() == b.strip().casefold()
+
+
+def _update_scan_button_state() -> None:
+    if _scan_button is None:
+        return
+
+    system = (_current_system or "").strip()
+    if not system:
+        _scan_button.config(text="Scan System", state=tk.DISABLED)
+        return
+
+    cache_matches = (
+        _cached_deposits is not None
+        and _same_system(_cached_system, system)
+    )
+
+    if not cache_matches:
+        _scan_button.config(text="Scan System", state=tk.NORMAL)
+    elif _deposits_cache_stale:
+        _scan_button.config(text="Refresh Deposits", state=tk.NORMAL)
+    elif _cached_deposits:
+        _scan_button.config(text="Open Deposits", state=tk.NORMAL)
+    else:
+        _scan_button.config(text="No Deposits", state=tk.DISABLED)
+
+
+def _close_results_window() -> None:
+    global _results_window
+
+    if _results_window is None:
+        return
+
+    try:
+        if _results_window.window.winfo_exists():
+            _results_window.window.destroy()
+    except tk.TclError:
+        pass
+
+    _results_window = None
+
+
+def _clear_system_cache(*, close_window: bool = True) -> None:
+    global _cached_system, _cached_deposits, _deposits_cache_stale
+
+    _cached_system = None
+    _cached_deposits = None
+    _deposits_cache_stale = False
+
+    if close_window:
+        _close_results_window()
+
+    _update_scan_button_state()
+
+
+def _set_current_system(system: str | None) -> None:
+    global _current_system
+
+    new_system = str(system or "").strip()
+    if not new_system:
+        return
+
+    if _same_system(_current_system, new_system):
+        _current_system = new_system
+        return
+
+    _current_system = new_system
+    _clear_system_cache(close_window=True)
+
+
 def plugin_stop() -> None:
     global _stopping
     _stopping = True
@@ -179,17 +258,21 @@ def journal_entry(
     state: dict[str, Any],
 ) -> str | None:
     del cmdr, is_beta, station, state
-    global _current_system, _current_body
-
-    if system:
-        _current_system = system
+    global _current_body
 
     event = entry.get("event")
-    if event in {"FSDJump", "CarrierJump"}:
-        _current_system = entry.get("StarSystem") or system or _current_system
-        _current_body = None
-    elif event == "Location":
-        _current_system = entry.get("StarSystem") or system or _current_system
+
+    candidate_system = system
+    if event in {"FSDJump", "CarrierJump", "Location"}:
+        candidate_system = entry.get("StarSystem") or system
+
+    if candidate_system:
+        previous_system = _current_system
+        _set_current_system(candidate_system)
+        if not _same_system(previous_system, _current_system):
+            _current_body = None
+
+    if event == "Location":
         _current_body = entry.get("Body") or entry.get("BodyName") or _current_body
     elif event in {
         "ApproachBody",
@@ -200,7 +283,6 @@ def journal_entry(
         _current_body = entry.get("Body") or entry.get("BodyName") or _current_body
 
     return None
-
 
 def dashboard_entry(
     cmdr: str,
@@ -228,9 +310,12 @@ def _set_busy(busy: bool, text: str) -> None:
     if _sync_button is not None:
         _sync_button.config(state=state)
     if _scan_button is not None:
-        _scan_button.config(state=state)
+        _scan_button.config(state=tk.DISABLED if busy else tk.NORMAL)
     if _status is not None:
         _status.config(text=text)
+
+    if not busy:
+        _update_scan_button_state()
 
 
 def _open_finder() -> None:
@@ -290,14 +375,31 @@ def _start_scan() -> None:
         _set_busy(False, "Current system not available yet")
         return
 
-    _set_busy(True, f"Scanning {system}…")
+    cache_matches = (
+        _cached_deposits is not None
+        and _same_system(_cached_system, system)
+    )
+
+    if cache_matches and not _deposits_cache_stale:
+        if _cached_deposits:
+            _show_deposits_window(system, _cached_deposits)
+            if _status is not None:
+                _status.config(
+                    text=f"{system}: {len(_cached_deposits)} cached community deposits"
+                )
+        else:
+            if _status is not None:
+                _status.config(text=f"{system}: no community deposits")
+        return
+
+    action = "Refreshing" if cache_matches else "Scanning"
+    _set_busy(True, f"{action} {system}…")
     threading.Thread(
         target=_scan_worker,
         args=(system,),
         name="EDHF-Community-Scan",
         daemon=True,
     ).start()
-
 
 def _sync_worker() -> None:
     try:
@@ -356,11 +458,27 @@ def _handle_worker_event(_event: tk.Event | None = None) -> None:
 
 
 def _handle_sync_ok(summary: dict[str, Any]) -> None:
+    global _deposits_cache_stale
+
     inserted = int(summary.get("inserted", 0) or 0)
     matched = int(summary.get("matched", 0) or 0)
     updated = int(summary.get("updated", 0) or 0)
     errors = int(summary.get("errors", 0) or 0)
     found = int(summary.get("records_found", 0) or 0)
+
+    synced_systems = {
+        str(system).strip().casefold()
+        for system in summary.get("systems", [])
+        if system
+    }
+
+    if (
+        _cached_deposits is not None
+        and _same_system(_cached_system, _current_system)
+        and _current_system
+        and _current_system.strip().casefold() in synced_systems
+    ):
+        _deposits_cache_stale = True
 
     text = (
         f"Sync: {found} bookmarks · "
@@ -371,13 +489,32 @@ def _handle_sync_ok(summary: dict[str, Any]) -> None:
 
     _set_busy(False, text)
 
-
 def _handle_scan_ok(system: str, records: list[dict[str, Any]]) -> None:
-    global _results_window
+    global _cached_system, _cached_deposits, _deposits_cache_stale
+
+    # Ignore a late worker result if the commander changed system meanwhile.
+    if not _same_system(system, _current_system):
+        return
+
+    _cached_system = system
+    _cached_deposits = list(records)
+    _deposits_cache_stale = False
 
     _set_busy(False, f"{system}: {len(records)} community deposits")
 
-    if not records or _frame is None:
+    if records:
+        _show_deposits_window(system, records)
+    else:
+        _close_results_window()
+
+
+def _show_deposits_window(
+    system: str,
+    records: list[dict[str, Any]],
+) -> None:
+    global _results_window
+
+    if _frame is None:
         return
 
     try:
@@ -385,9 +522,12 @@ def _handle_scan_ok(system: str, records: list[dict[str, Any]]) -> None:
             _results_window is not None
             and _results_window.window.winfo_exists()
         ):
-            _results_window.window.destroy()
+            _results_window.window.deiconify()
+            _results_window.window.lift()
+            _results_window.window.focus_force()
+            return
     except tk.TclError:
-        pass
+        _results_window = None
 
     _results_window = DepositsWindow(
         _frame,
@@ -395,7 +535,6 @@ def _handle_scan_ok(system: str, records: list[dict[str, Any]]) -> None:
         records=records,
         on_track=lambda record: _track_record(record, system),
     )
-
 
 def _track_record(record: dict[str, Any], system: str) -> None:
     if _navigator is None:
