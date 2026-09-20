@@ -1,8 +1,12 @@
 # Hotspots Finder EDMC Plugin
 
-**Hotspots Finder EDMC Plugin** is the public GitHub package name for the focused EDMarketConnector extension of the **ED Hotspots Finder - Rings & Planets** ecosystem. Inside EDMC it is displayed as **Hotspots Finder Deposits Companion**.
+**Hotspots Finder EDMC Plugin** is the public GitHub package name for the EDMarketConnector extension of the **ED Hotspots Finder - Rings & Planets** ecosystem.
 
-The desktop Finder remains the general search, planning and analysis client. The Companion is designed for quick in-game Community Deposits access without duplicating the full desktop application.
+Inside EDMC it is displayed as **Hotspots Finder Deposits Companion**.
+
+The desktop Finder remains the main multi-system search, planning and analysis client. The EDMC Plugin is the lightweight in-game client for synchronizing RhinoSpotter bookmarks, checking Community Deposits in the current system and navigating to a selected surface deposit.
+
+Both clients use the same **Community Deposits** service and the same public release version.
 
 ## Product roles
 
@@ -10,21 +14,21 @@ The desktop Finder remains the general search, planning and analysis client. The
 
 - multi-system Hotspots, Planets and Community Deposits searches;
 - system discovery and filtering;
-- analysis, table filtering and export;
-- RhinoSpotter contribution synchronization.
+- Powerplay-oriented research;
+- result sorting, column filtering and CSV/XLSX export;
+- RhinoSpotter contribution synchronization;
+- Community Deposits results including Location, Rigs, Amount, Density and update information.
 
-### Hotspots Finder Deposits Companion
+### Hotspots Finder EDMC Plugin
 
 - compact EDMC interface;
 - RhinoSpotter bookmark synchronization;
 - current-system Community Deposits lookup;
-- cached reopening of already scanned system results;
-- manual refresh when synchronized data for the current system changed;
-- selected-deposit surface navigation through a small always-on-top HUD;
+- cached reopening of already scanned results;
+- refresh only when relevant synchronized data changed;
+- selected-deposit navigation through an always-on-top HUD;
 - direct launch of the desktop Finder;
 - automatic background update check when EDMC starts.
-
-Both clients use the same Community Deposits service.
 
 ## Runtime flow
 
@@ -53,19 +57,33 @@ Navigator HUD
 
 ## Main EDMC controls
 
-The Companion exposes three compact actions inside EDMC:
+The plugin exposes three compact actions inside EDMC:
 
-- **Sync Bookmarks** — reads RhinoSpotter through its documented `rs_api.py` interface and synchronizes compatible bookmarks.
-- **Scan System** — queries Community Deposits for the current EDMC system.
+- **Sync Bookmarks** — reads RhinoSpotter 5.1+ through its documented `rs_api.py` interface and synchronizes compatible bookmarks.
+- **Scan System** — queries Community Deposits for the system currently reported by EDMC.
 - **Open Finder** — launches the configured ED Hotspots Finder executable.
 
 After a successful scan, the middle action becomes:
 
 - **Open Deposits** when the current result snapshot is still valid;
-- **Refresh Deposits** when a sync changed Community Deposits data relevant to the current system;
+- **Refresh Deposits** when a synchronization changed Community Deposits data relevant to the current system;
 - **No Deposits** when the scanned system returned no records.
 
-Closing the results window does not force another API query while the commander remains in the same system.
+Closing the results window does not force another API query while the commander remains in the same system. Changing system clears the old cache and closes stale results.
+
+## Screenshots
+
+### EDMC controls
+
+![Hotspots Finder EDMC Plugin panel](images/edmc-plugin-panel.png)
+
+### Community Deposits results
+
+![Hotspots Finder EDMC Plugin Community Deposits results](images/edmc-plugin-results.png)
+
+### Navigation HUD
+
+![Hotspots Finder EDMC Plugin navigation tracker](images/edmc-plugin-tracker.png)
 
 ## Synchronization semantics
 
@@ -78,9 +96,17 @@ The Community Deposits backend distinguishes:
 - `updated_report` — an existing report whose meaningful mutable state changed;
 - `unchanged` — the same report was synchronized again without a meaningful change.
 
-Repeated syncs therefore do not refresh the displayed update timestamp just because the user pressed **Sync Bookmarks**.
+Repeated syncs therefore do not refresh the visible **Updated** timestamp just because the user pressed **Sync Bookmarks**.
 
-Current deposit update policy keeps **Density** stable after the deposit is created. **Rigs**, **Amount** and depletion state may change and are treated as meaningful deposit updates. Technical fields such as missing body IDs or planet radius may be completed without being treated as a meaningful deposit update.
+Current deposit update policy:
+
+- **Rigs** — mutable;
+- **Amount** — mutable;
+- **depletion state** — mutable;
+- **Density** — kept stable after deposit creation;
+- missing technical metadata such as body ID or planet radius may be completed without counting as a meaningful deposit update.
+
+A change to Rigs, Amount or depletion state is treated as an update. Synchronizing the same values again returns `unchanged`.
 
 ## RhinoSpotter integration
 
@@ -90,9 +116,11 @@ Current RhinoSpotter releases are consumed through the documented external API:
 %LOCALAPPDATA%\EDMarketConnector\plugins\RhinoSpotter\rs_api.py
 ```
 
-The Companion supports RhinoSpotter API `SCHEMA = 1`.
+The plugin supports RhinoSpotter API `SCHEMA = 1`.
 
-The desktop Finder retains direct SQLite/legacy JSON readers only as compatibility fallbacks for older RhinoSpotter installations. The EDMC Companion intentionally uses `rs_api.py` only.
+The EDMC Plugin intentionally uses `rs_api.py` only.
+
+The desktop Finder also prefers `rs_api.py`, but retains read-only SQLite and legacy JSON readers as compatibility fallbacks for older RhinoSpotter installations.
 
 If RhinoSpotter is missing, **Sync Bookmarks** reports that RhinoSpotter 5.1+ must be installed as an EDMC plugin.
 
@@ -101,13 +129,15 @@ If RhinoSpotter is missing, **Sync Bookmarks** reports that RhinoSpotter 5.1+ mu
 The Community Deposits results window:
 
 - inherits the current EDMC colour theme;
-- shows Body, Location, Material, Rigs, Amount, Density, Latitude, Longitude, Reports and Updated;
+- shows **Body, Location, Material, Rigs, Amount, Density, Latitude, Longitude, Reports and Updated**;
 - displays up to 10 rows before adding a vertical scrollbar;
 - provides **Start Tracking** for the selected deposit.
 
+The **Location** value comes from the RhinoSpotter bookmark location index stored by Community Deposits.
+
 ## Navigator HUD
 
-The tracker is intentionally minimal and uses a fixed high-contrast palette independent of the EDMC theme.
+The tracker is intentionally compact and uses a fixed high-contrast palette independent of the EDMC theme.
 
 It is:
 
@@ -117,11 +147,33 @@ It is:
 - independently position-persistent;
 - reopened cleanly when tracking starts again.
 
-The HUD shows the compact body name together with material and RhinoSpotter Location. It combines the selected target coordinates with live `Status.json` data from `dashboard_entry()` to calculate great-circle surface separation, bearing and a heading-relative direction arrow. When altitude is available, it is combined with the surface separation to give a useful target distance during aerial approach.
+The HUD shows the compact body name together with material and RhinoSpotter **Location**.
+
+When the selected deposit is in another system, the tracker shows **Travel to <system>**. When the ship is still too far from the target body for useful surface coordinates, it shows **Approach body <body>**.
+
+Once surface navigation data is available, the plugin combines the target coordinates with live `Status.json` data from `dashboard_entry()` to calculate great-circle surface separation, bearing and a heading-relative direction arrow. When altitude is available, it is combined with the surface separation so the displayed target distance remains useful during aerial approach.
+
+## Installation
+
+Download:
+
+```text
+Hotspots-Finder-EDMC-Plugin-v1.0.2.zip
+```
+
+Extract it so this path exists:
+
+```text
+%LOCALAPPDATA%\EDMarketConnector\plugins\EDHF_Community_Navigator\load.py
+```
+
+Then restart EDMarketConnector completely.
+
+RhinoSpotter 5.1+ is required only for **Sync Bookmarks**. Community Deposits scanning and tracking can still be used independently.
 
 ## Release packaging
 
-Finder and Companion are published together in one GitHub Release and share the same public release version. The first release containing the Companion is **v1.0.2**. Both update checkers therefore use the repository's normal `vX.Y.Z` release tag and open the same release page.
+Finder and EDMC Plugin are published together in one GitHub Release and share the same public release version. The first public release containing the plugin is **v1.0.2**.
 
 The plugin source lives in:
 
@@ -129,7 +181,7 @@ The plugin source lives in:
 edmc_plugin/EDHF_Community_Navigator/
 ```
 
-From the repository root, the Windows release package can be generated with:
+From the repository root, the release package can be generated with:
 
 ```powershell
 .\build_companion_release.ps1
@@ -141,7 +193,5 @@ The script reads the version from `load.py` and creates:
 release\v1.0.2\Hotspots-Finder-EDMC-Plugin-v1.0.2.zip
 release\v1.0.2\SHA256.txt
 ```
-
-On GitHub the downloadable package is published as **Hotspots Finder EDMC Plugin**. The ZIP contains the complete `EDHF_Community_Navigator` folder ready to place under the EDMarketConnector plugins directory.
 
 Finder and plugin assets are built into the same `release\v1.0.2` folder and share one `SHA256.txt`.
