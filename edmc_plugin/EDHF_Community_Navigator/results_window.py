@@ -10,6 +10,7 @@ from theme import theme
 
 COLUMNS = (
     "Body",
+    "Location",
     "Material",
     "Rigs",
     "Amount",
@@ -20,7 +21,7 @@ COLUMNS = (
     "Updated",
 )
 
-CENTERED_COLUMNS = {"Rigs", "Reports"}
+CENTERED_COLUMNS = {"Location", "Rigs", "Reports"}
 
 MIN_COLUMN_WIDTH = 55
 MAX_COLUMN_WIDTH = 420
@@ -102,6 +103,7 @@ class DepositsWindow:
         self._display_rows = [
             (
                 str(_first(record, "body", "body_name", "planet_name")),
+                str(_first(record, "location_index", "location")),
                 str(_first(record, "commodity", "material")),
                 str(_first(record, "rigs")),
                 str(_first(record, "amount")),
