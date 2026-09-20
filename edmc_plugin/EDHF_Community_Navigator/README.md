@@ -4,7 +4,7 @@ EDMarketConnector plugin for the **ED Hotspots Finder - Rings & Planets** ecosys
 
 Inside EDMC the plugin is displayed as **Hotspots Finder Deposits Companion**.
 
-Current version: **v1.0.2**.
+Current version: **v1.0.3**.
 
 The desktop application remains the main multi-system search and analysis client. The EDMC Plugin is the focused in-game client for synchronizing RhinoSpotter bookmarks, checking Community Deposits in the current system and navigating to a selected surface deposit.
 
@@ -25,14 +25,14 @@ The desktop application remains the main multi-system search and analysis client
 
 Synchronization responses distinguish new, matched, updated and unchanged reports so a repeated sync does not falsely refresh every deposit's update time.
 
-Community Deposits currently treats **Rigs**, **Amount** and depletion state as meaningful mutable fields. **Density** remains stable after deposit creation.
+Community Deposits treats **Location**, **Material**, **Rigs**, **Amount**, **Density** and depletion state as meaningful mutable fields for synchronized RhinoSpotter bookmarks.
 
 ## Installation
 
 Download the public package:
 
 ```text
-Hotspots-Finder-EDMC-Plugin-v1.0.2.zip
+Hotspots-Finder-EDMC-Plugin-v1.0.3.zip
 ```
 
 Extract it into:
