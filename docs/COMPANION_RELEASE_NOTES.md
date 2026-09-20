@@ -20,6 +20,7 @@ First public release of **Hotspots Finder Deposits Companion**, the EDMarketConn
 - Use live heading to display a relative direction arrow.
 - Remember the tracker position independently from the main EDMC window.
 - Launch ED Hotspots Finder directly from EDMC through **Open Finder**.
+- Automatically check the dedicated Companion release channel on EDMC startup and offer to open GitHub when a newer version is available.
 - Follow the current EDMC theme in the main Companion controls and results window while keeping the tracker on its fixed high-contrast palette.
 
 ### Community Deposits behavior
