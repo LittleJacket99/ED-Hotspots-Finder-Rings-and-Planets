@@ -84,7 +84,7 @@ The **Hotspots Finder EDMC Plugin**, displayed inside EDMC as **Hotspots Finder 
 
 It is designed for the actions that are most useful while Elite Dangerous is running:
 
-- **Sync Bookmarks** through RhinoSpotter 5.1+ `rs_api.py`;
+- **Sync Bookmarks** upload your bookmarks through RhinoSpotter 5.1+ `rs_api.py`;
 - **Scan System** for Community Deposits in the current EDMC system;
 - reopen cached results with **Open Deposits** without unnecessary repeat requests;
 - use **Refresh Deposits** when relevant synchronized data changed;
