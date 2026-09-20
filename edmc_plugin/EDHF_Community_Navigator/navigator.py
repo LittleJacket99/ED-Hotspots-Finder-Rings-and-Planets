@@ -4,25 +4,14 @@ import math
 import tkinter as tk
 from typing import Any, Callable
 
-from theme import theme
+
+ACCENT = "#5acd57"
+BACKGROUND = "#101410"
+TEXT = "#f2f5f2"
+MUTED = "#a6b0a6"
 
 HUD_WIDTH = 250
 HUD_HEIGHT = 145
-
-
-
-def _theme_colours() -> dict[str, str]:
-    current = getattr(theme, "current", {}) or {}
-    foreground = current.get("foreground") or "#f2f5f2"
-    background = current.get("background") or "#101410"
-
-    return {
-        "background": background,
-        "foreground": foreground,
-        "muted": current.get("disabledforeground") or foreground,
-        "accent": foreground,
-        "border": current.get("highlight") or foreground,
-    }
 
 
 def _first(record: dict[str, Any], *keys: str):
@@ -260,8 +249,6 @@ class NavigatorOverlay:
         # Guard EDMC's own geometry. The overlay must never become the source
         # of the main application's saved window position.
         main_geometry = self.main_window.winfo_geometry()
-        colours = _theme_colours()
-
         window = tk.Toplevel(self.main_window)
         self.window = window
         window.overrideredirect(True)
@@ -276,7 +263,7 @@ class NavigatorOverlay:
         except tk.TclError:
             pass
 
-        window.configure(background=colours["background"])
+        window.configure(background=BACKGROUND)
         window.resizable(False, False)
         window.geometry(
             f"{HUD_WIDTH}x{HUD_HEIGHT}+{self._window_x}+{self._window_y}"
@@ -286,9 +273,9 @@ class NavigatorOverlay:
             window,
             width=HUD_WIDTH,
             height=HUD_HEIGHT,
-            background=colours["background"],
+            background=BACKGROUND,
             highlightthickness=1,
-            highlightbackground=colours["border"],
+            highlightbackground=ACCENT,
             bd=0,
         )
         self.canvas = canvas
@@ -298,7 +285,7 @@ class NavigatorOverlay:
             12,
             14,
             text=f"Body: {display_body}",
-            fill=colours["muted"],
+            fill=MUTED,
             font=("Segoe UI", 8),
             anchor="w",
         )
@@ -306,7 +293,7 @@ class NavigatorOverlay:
             12,
             38,
             text=material,
-            fill=colours["accent"],
+            fill=ACCENT,
             font=("Segoe UI", 10, "bold"),
             anchor="w",
         )
@@ -314,7 +301,7 @@ class NavigatorOverlay:
             HUD_WIDTH / 2,
             85,
             text="•",
-            fill=colours["accent"],
+            fill=ACCENT,
             font=("Segoe UI Symbol", 30, "bold"),
             anchor="center",
         )
@@ -322,7 +309,7 @@ class NavigatorOverlay:
             HUD_WIDTH / 2,
             124,
             text="Waiting for position",
-            fill=colours["foreground"],
+            fill=TEXT,
             font=("Segoe UI", 13, "bold"),
             anchor="center",
         )
@@ -333,7 +320,7 @@ class NavigatorOverlay:
             HUD_WIDTH - 14,
             15,
             text="×",
-            fill=colours["muted"],
+            fill=MUTED,
             font=("Segoe UI", 10, "bold"),
             anchor="center",
             tags=("close",),
