@@ -15,6 +15,7 @@ REQUEST_TIMEOUT = 20
 COMMUNITY_HEADERS = [
     "System",
     "Body",
+    "Location",
     "Commodity",
     "Rigs",
     "Amount",
@@ -73,6 +74,10 @@ def _normalise_rows(raw_rows, requested_system=None):
             "Body": _first_value(
                 item,
                 ("body", "body_name", "planet_name"),
+            ),
+            "Location": _first_value(
+                item,
+                ("location_index", "location"),
             ),
             "Commodity": _first_value(
                 item,
