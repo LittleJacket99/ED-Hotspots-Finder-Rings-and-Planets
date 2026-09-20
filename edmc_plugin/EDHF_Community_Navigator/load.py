@@ -20,6 +20,8 @@ from EDHF_Community_Navigator.rhinospotter_client import sync_bookmarks
 VERSION = "0.1.0"
 PLUGIN_NAME = "EDHF Community Navigator"
 WORKER_EVENT = "<<EDHFCommunityNavigatorWorker>>"
+NAV_X_KEY = "edhf_community_navigator_x"
+NAV_Y_KEY = "edhf_community_navigator_y"
 
 plugin_name = os.path.basename(os.path.dirname(__file__))
 logger = logging.getLogger(f"{appname}.{plugin_name}")
@@ -51,7 +53,20 @@ def plugin_app(parent: tk.Frame) -> tk.Frame:
 
     frame = tk.Frame(parent)
     _frame = frame
-    _navigator = NavigatorOverlay(parent)
+
+    nav_x = config.get_int(NAV_X_KEY)
+    nav_y = config.get_int(NAV_Y_KEY)
+    if nav_x <= 0:
+        nav_x = 80
+    if nav_y <= 0:
+        nav_y = 120
+
+    _navigator = NavigatorOverlay(
+        parent,
+        initial_x=nav_x,
+        initial_y=nav_y,
+        on_position_changed=_save_navigator_position,
+    )
 
     heading = tk.Label(
         frame,
@@ -88,6 +103,13 @@ def plugin_app(parent: tk.Frame) -> tk.Frame:
     frame.bind_all(WORKER_EVENT, _handle_worker_event, add="+")
     theme.update(frame)
     return frame
+
+
+
+def _save_navigator_position(x: int, y: int) -> None:
+    # Store only the overlay position under plugin-specific keys.
+    config.set(NAV_X_KEY, int(x))
+    config.set(NAV_Y_KEY, int(y))
 
 
 def plugin_stop() -> None:
