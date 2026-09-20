@@ -16,6 +16,7 @@ The desktop application remains the general browser/search client. The Companion
 - **Start Tracking** — opens the compact surface-navigation HUD.
 - Live distance and relative-heading arrow from EDMC `dashboard_entry()` / Elite Dangerous `Status.json`.
 - **Open Finder** — launches the desktop ED Hotspots Finder executable.
+- Automatic update check on EDMC startup; when a newer Companion release is available, the plugin offers to open its GitHub release page.
 
 Synchronization responses distinguish new, matched, updated and unchanged reports so a repeated sync does not falsely refresh every deposit's update time.
 
