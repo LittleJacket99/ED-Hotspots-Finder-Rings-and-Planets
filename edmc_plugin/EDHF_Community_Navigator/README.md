@@ -2,6 +2,8 @@
 
 EDMarketConnector plugin for the **ED Hotspots Finder - Rings & Planets** ecosystem.
 
+Current Companion version: **v1.0.0**.
+
 The desktop application remains the general browser/search client. The Companion is the focused in-game client for synchronizing RhinoSpotter bookmarks, checking Community Deposits in the current system and navigating to a selected surface deposit.
 
 ## Current functionality
