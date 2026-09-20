@@ -21,7 +21,8 @@ The desktop Finder remains the general search, planning and analysis client. The
 - cached reopening of already scanned system results;
 - manual refresh when synchronized data for the current system changed;
 - selected-deposit surface navigation through a small always-on-top HUD;
-- direct launch of the desktop Finder.
+- direct launch of the desktop Finder;
+- automatic background update check when EDMC starts.
 
 Both clients use the same Community Deposits service.
 
@@ -120,7 +121,7 @@ The HUD shows the compact body name together with material and RhinoSpotter Loca
 
 ## Release packaging
 
-The Companion is versioned independently from the desktop Finder. The first release line is **v1.0.0**.
+The Companion is versioned independently from the desktop Finder. The first release line is **v1.0.0**. Companion GitHub Release tags use the `companion-vX.Y.Z` form so the plugin can ignore desktop Finder releases when checking for updates.
 
 The plugin source lives in:
 
