@@ -157,7 +157,7 @@ Both downloads are available from the same **GitHub Release**.
 
 **ED Hotspots Finder - Rings & Planets**
 
-1. Download **ED-Hotspots-Finder-Rings-and-Planets-v1.0.2.exe** from **Releases**.
+1. Download **ED-Hotspots-Finder-Rings-and-Planets-v1.0.3.exe** from **Releases**.
 2. Run the executable.
 3. Enter one or more systems in **System Input**, or leave it empty and configure **System Filters**.
 4. Enable **Hotspots**, **Planets** and/or **Community Deposits** as needed.
@@ -168,7 +168,7 @@ Python is not required for the public Windows build.
 
 **Hotspots Finder EDMC Plugin**
 
-1. Download **Hotspots-Finder-EDMC-Plugin-v1.0.2.zip** from the same **Releases** page.
+1. Download **Hotspots-Finder-EDMC-Plugin-v1.0.3.zip** from the same **Releases** page.
 2. Extract the ZIP into:
 
 ```text
@@ -281,15 +281,15 @@ python -m pip install pyinstaller
 build_windows_v8.bat
 ```
 
-The current internal build files still use **v8** in their filenames because that was the final development iteration before the first public release. Public versioning started at **v1.0.0**; the current release line is **v1.0.2**.
+The current internal build files still use **v8** in their filenames because that was the final development iteration before the first public release. Public versioning started at **v1.0.0**; the current release line is **v1.0.3**.
 
 The build uses `HotspotsFinder-v8.spec`, bundles `app.ico` and `ED_Hotspots_Finder.png`, and uses `hotspots_finder_gui_v8_final.py` as the entry point. The GitHub Release publishes the standalone executable with the public version in its filename.
 
 A successful release build creates:
 
 ```text
-release\v1.0.2\ED-Hotspots-Finder-Rings-and-Planets-v1.0.2.exe
-release\v1.0.2\Hotspots-Finder-EDMC-Plugin-v1.0.2.zip
+release\v1.0.2\ED-Hotspots-Finder-Rings-and-Planets-v1.0.3.exe
+release\v1.0.2\Hotspots-Finder-EDMC-Plugin-v1.0.3.zip
 release\v1.0.2\SHA256.txt
 ```
 
