@@ -21,7 +21,7 @@ from EDHF_Community_Navigator.rhinospotter_client import (
 )
 
 
-VERSION = "0.1.0"
+VERSION = "1.0.0"
 PLUGIN_NAME = "Hotspots Finder Deposits Companion"
 WORKER_EVENT = "<<EDHFCommunityNavigatorWorker>>"
 NAV_X_KEY = "edhf_community_navigator_x"
