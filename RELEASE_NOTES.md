@@ -1,30 +1,3 @@
-# v1.0.3 — RhinoSpotter 5.3/5.4 editable bookmark compatibility
-
-This maintenance release updates the shared RhinoSpotter synchronization path used by **ED Hotspots Finder - Rings & Planets** and the **Hotspots Finder EDMC Plugin**.
-
-## Changes
-
-- Preserve RhinoSpotter bookmark identity when reading through the documented `rs_api.py` interface.
-- RhinoSpotter edits to **Location**, **Material**, **Rigs**, **Amount**, **Density** and depletion state now update the existing Community Deposits report instead of creating a new report identity.
-- Existing reports synchronized by v1.0.2 remain compatible with the new identity logic.
-- Re-synchronizing unchanged bookmarks still returns `unchanged` and does not intentionally advance the deposit's visible **Updated** timestamp.
-- No changes are required to Community Deposits scanning, result display or the EDMC navigation tracker.
-- Compatibility was verified against RhinoSpotter 5.4 with `SCHEMA = 1`.
-
-## Distribution
-
-The unified v1.0.3 GitHub Release contains:
-
-```text
-ED-Hotspots-Finder-Rings-and-Planets-v1.0.3.exe
-Hotspots-Finder-EDMC-Plugin-v1.0.3.zip
-SHA256.txt
-```
-
-The public Windows executable remains unsigned, so Windows SmartScreen may display an unknown-publisher warning.
-
----
-
 # v1.0.2 — Community Deposits, RhinoSpotter API and EDMC Plugin
 
 This release expands the existing v1.0.2 maintenance update into the first unified **ED Hotspots Finder + Hotspots Finder EDMC Plugin** release.
@@ -40,9 +13,11 @@ The desktop Finder and the EDMC plugin share the same Community Deposits service
 - Synchronization confirmation and completion dialogs report the actual source used.
 - Missing planet radii can be recovered from another bookmark on the same body when available.
 - Stable report IDs are preserved so existing Community Deposits reports are updated instead of duplicated.
+- RhinoSpotter 5.3/5.4 editable bookmark fields are supported: **Location**, **Material**, **Rigs**, **Amount**, **Density** and depletion state can update an existing synchronized report without creating a duplicate.
+- Existing reports created before the RhinoSpotter 5.3/5.4 compatibility update remain compatible with the current identity logic.
 - Synchronization now distinguishes **new**, **matched**, **updated** and **unchanged** reports.
 - Re-synchronizing an unchanged report no longer intentionally advances the deposit's visible **Updated** time on the Community Deposits service.
-- **Rigs** is now treated as mutable Community Deposits data, alongside **Amount** and depletion state, so RhinoSpotter edits can update an existing deposit.
+- Compatibility was verified with RhinoSpotter 5.4 using API `SCHEMA = 1`.
 - Added the missing **Location** column to Community Deposits results.
 - Enabled **Check for updates on startup** and added a direct GitHub repository link in Settings.
 - Standardized Community Deposits dialogs on the public application title.
@@ -77,11 +52,12 @@ The plugin uses the same Community Deposits backend as the desktop application a
 
 ## Distribution
 
-The unified v1.0.2 GitHub Release contains the standalone Finder executable and the EDMC plugin package:
+The unified v1.0.2 GitHub Release contains the standalone Finder executable, the EDMC plugin package and shared checksums:
 
 ```text
 ED-Hotspots-Finder-Rings-and-Planets-v1.0.2.exe
 Hotspots-Finder-EDMC-Plugin-v1.0.2.zip
+SHA256.txt
 ```
 
 The public Windows executable remains unsigned, so Windows SmartScreen may display an unknown-publisher warning.
