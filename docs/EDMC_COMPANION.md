@@ -80,7 +80,7 @@ The Community Deposits backend distinguishes:
 
 Repeated syncs therefore do not refresh the displayed update timestamp just because the user pressed **Sync Bookmarks**.
 
-Current deposit update policy keeps **Rigs** and **Density** stable after the deposit is created. **Amount** and depletion state may change. Technical fields such as missing body IDs or planet radius may be completed without being treated as a meaningful deposit update.
+Current deposit update policy keeps **Density** stable after the deposit is created. **Rigs**, **Amount** and depletion state may change and are treated as meaningful deposit updates. Technical fields such as missing body IDs or planet radius may be completed without being treated as a meaningful deposit update.
 
 ## RhinoSpotter integration
 
