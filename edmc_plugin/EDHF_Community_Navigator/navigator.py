@@ -10,6 +10,9 @@ BACKGROUND = "#101410"
 TEXT = "#f2f5f2"
 MUTED = "#a6b0a6"
 
+HUD_WIDTH = 280
+HUD_HEIGHT = 150
+
 
 def _first(record: dict[str, Any], *keys: str):
     for key in keys:
@@ -30,6 +33,21 @@ def _same_name(a: Any, b: Any) -> bool:
     if not a or not b:
         return False
     return str(a).strip().casefold() == str(b).strip().casefold()
+
+
+def _compact_body_name(body: Any, system: Any = None, max_length: int = 34) -> str:
+    text = str(body or "Unknown body").strip()
+    system_text = str(system or "").strip()
+
+    if system_text and text.casefold().startswith((system_text + " ").casefold()):
+        suffix = text[len(system_text):].strip()
+        if suffix:
+            return suffix
+
+    if len(text) <= max_length:
+        return text
+
+    return text[: max_length - 1].rstrip() + "…"
 
 
 def surface_distance_and_bearing(
@@ -122,9 +140,10 @@ class NavigatorOverlay:
         self._ensure_window()
         material = _first(record, "commodity", "material") or "Community deposit"
         body = _first(record, "body", "body_name", "planet_name") or "Unknown body"
+        display_body = _compact_body_name(body, self.target_system)
 
         self.title_label.config(text=str(material))
-        self.body_label.config(text=str(body))
+        self.body_label.config(text=display_body)
         self.arrow_label.config(text="•")
         self.distance_label.config(text="Waiting for surface position")
         self.detail_label.config(text="")
@@ -167,7 +186,9 @@ class NavigatorOverlay:
 
         if target_body and status_body and not _same_name(target_body, status_body):
             self.arrow_label.config(text="◎")
-            self.distance_label.config(text=f"Approach {target_body}")
+            self.distance_label.config(
+                text=f"Approach {_compact_body_name(target_body, self.target_system)}"
+            )
             self.detail_label.config(text="")
             return
 
@@ -237,7 +258,8 @@ class NavigatorOverlay:
         except tk.TclError:
             pass
         window.configure(background=BACKGROUND)
-        window.geometry("300x170+80+120")
+        window.geometry(f"{HUD_WIDTH}x{HUD_HEIGHT}+80+120")
+        window.resizable(False, False)
 
         container = tk.Frame(
             window,
@@ -245,8 +267,8 @@ class NavigatorOverlay:
             highlightbackground=ACCENT,
             highlightcolor=ACCENT,
             highlightthickness=1,
-            padx=12,
-            pady=8,
+            padx=10,
+            pady=6,
         )
         container.pack(fill=tk.BOTH, expand=True)
 
@@ -258,7 +280,7 @@ class NavigatorOverlay:
             text="Community deposit",
             background=BACKGROUND,
             foreground=ACCENT,
-            font=("Segoe UI", 11, "bold"),
+            font=("Segoe UI", 10, "bold"),
             anchor="w",
         )
         self.title_label.pack(side=tk.LEFT, fill=tk.X, expand=True)
@@ -268,9 +290,9 @@ class NavigatorOverlay:
             text="×",
             background=BACKGROUND,
             foreground=MUTED,
-            font=("Segoe UI", 11, "bold"),
+            font=("Segoe UI", 10, "bold"),
             cursor="hand2",
-            padx=4,
+            padx=3,
         )
         close.pack(side=tk.RIGHT)
         close.bind("<Button-1>", lambda _event: self.stop())
@@ -279,26 +301,27 @@ class NavigatorOverlay:
             container,
             text="",
             background=BACKGROUND,
-            foreground=TEXT,
-            font=("Segoe UI", 9),
+            foreground=MUTED,
+            font=("Segoe UI", 8),
+            anchor="w",
         )
-        self.body_label.pack()
+        self.body_label.pack(fill=tk.X, pady=(0, 1))
 
         self.arrow_label = tk.Label(
             container,
             text="•",
             background=BACKGROUND,
             foreground=ACCENT,
-            font=("Segoe UI Symbol", 34, "bold"),
+            font=("Segoe UI Symbol", 30, "bold"),
         )
-        self.arrow_label.pack(pady=(1, 0))
+        self.arrow_label.pack(pady=(-1, -2))
 
         self.distance_label = tk.Label(
             container,
             text="",
             background=BACKGROUND,
             foreground=TEXT,
-            font=("Segoe UI", 13, "bold"),
+            font=("Segoe UI", 14, "bold"),
         )
         self.distance_label.pack()
 
@@ -307,9 +330,9 @@ class NavigatorOverlay:
             text="",
             background=BACKGROUND,
             foreground=MUTED,
-            font=("Consolas", 9),
+            font=("Consolas", 8),
         )
-        self.detail_label.pack(pady=(2, 0))
+        self.detail_label.pack(pady=(1, 0))
 
         for widget in (window, container, top, self.title_label, self.body_label):
             widget.bind("<ButtonPress-1>", self._drag_start)
