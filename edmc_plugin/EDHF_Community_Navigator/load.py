@@ -34,6 +34,7 @@ _results_window: DepositsWindow | None = None
 
 _current_system: str | None = None
 _current_body: str | None = None
+_last_dashboard_status: dict[str, Any] | None = None
 _worker_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
 _stopping = False
 
@@ -143,7 +144,9 @@ def dashboard_entry(
     entry: dict[str, Any],
 ) -> None:
     del cmdr, is_beta
-    global _current_body
+    global _current_body, _last_dashboard_status
+
+    _last_dashboard_status = dict(entry)
 
     if entry.get("BodyName"):
         _current_body = entry.get("BodyName")
@@ -294,6 +297,15 @@ def _track_record(record: dict[str, Any], system: str) -> None:
     enriched = dict(record)
     enriched.setdefault("system", system)
     _navigator.start(enriched, current_system=_current_system)
+
+    # Apply the most recent Status.json snapshot immediately. Without this,
+    # a newly recreated HUD had to wait for the next dashboard_entry event.
+    if _last_dashboard_status is not None:
+        _navigator.update_status(
+            _last_dashboard_status,
+            current_system=_current_system,
+            current_body=_current_body,
+        )
 
     material = (
         record.get("commodity")
