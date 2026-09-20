@@ -2,7 +2,7 @@
 
 EDMarketConnector plugin for the **ED Hotspots Finder - Rings & Planets** ecosystem.
 
-Current Companion version: **v1.0.0**.
+Current Companion version: **v1.0.3**.
 
 The desktop application remains the general browser/search client. The Companion is the focused in-game client for synchronizing RhinoSpotter bookmarks, checking Community Deposits in the current system and navigating to a selected surface deposit.
 
@@ -16,7 +16,7 @@ The desktop application remains the general browser/search client. The Companion
 - **Start Tracking** — opens the compact surface-navigation HUD.
 - Live distance and relative-heading arrow from EDMC `dashboard_entry()` / Elite Dangerous `Status.json`.
 - **Open Finder** — launches the desktop ED Hotspots Finder executable.
-- Automatic update check on EDMC startup; when a newer Companion release is available, the plugin offers to open its GitHub release page.
+- Automatic update check on EDMC startup; Finder and Companion share the same GitHub release version, and the plugin offers to open the latest release page when a newer bundle is available.
 
 Synchronization responses distinguish new, matched, updated and unchanged reports so a repeated sync does not falsely refresh every deposit's update time.
 
