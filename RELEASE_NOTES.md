@@ -1,3 +1,30 @@
+# v1.0.3 — RhinoSpotter 5.3/5.4 editable bookmark compatibility
+
+This maintenance release updates the shared RhinoSpotter synchronization path used by **ED Hotspots Finder - Rings & Planets** and the **Hotspots Finder EDMC Plugin**.
+
+## Changes
+
+- Preserve RhinoSpotter bookmark identity when reading through the documented `rs_api.py` interface.
+- RhinoSpotter edits to **Location**, **Material**, **Rigs**, **Amount**, **Density** and depletion state now update the existing Community Deposits report instead of creating a new report identity.
+- Existing reports synchronized by v1.0.2 remain compatible with the new identity logic.
+- Re-synchronizing unchanged bookmarks still returns `unchanged` and does not intentionally advance the deposit's visible **Updated** timestamp.
+- No changes are required to Community Deposits scanning, result display or the EDMC navigation tracker.
+- Compatibility was verified against RhinoSpotter 5.4 with `SCHEMA = 1`.
+
+## Distribution
+
+The unified v1.0.3 GitHub Release contains:
+
+```text
+ED-Hotspots-Finder-Rings-and-Planets-v1.0.3.exe
+Hotspots-Finder-EDMC-Plugin-v1.0.3.zip
+SHA256.txt
+```
+
+The public Windows executable remains unsigned, so Windows SmartScreen may display an unknown-publisher warning.
+
+---
+
 # v1.0.2 — Community Deposits, RhinoSpotter API and EDMC Plugin
 
 This release expands the existing v1.0.2 maintenance update into the first unified **ED Hotspots Finder + Hotspots Finder EDMC Plugin** release.
