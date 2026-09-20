@@ -2,6 +2,38 @@
 
 Inside EDMarketConnector the plugin is displayed as **Hotspots Finder Deposits Companion**.
 
+## v1.0.3 — RhinoSpotter 5.3/5.4 editable bookmark compatibility
+
+This maintenance release updates bookmark synchronization for the editable bookmark fields introduced in current RhinoSpotter releases.
+
+### Changes
+
+- Preserve RhinoSpotter bookmark identity while synchronizing through `rs_api.py`.
+- Allow an existing synchronized bookmark to update **Location**, **Material**, **Rigs**, **Amount**, **Density** and depletion state without creating a duplicate report.
+- Keep compatibility with reports created by v1.0.2 clients.
+- Re-synchronizing an unchanged bookmark continues to return `unchanged` without advancing the visible **Updated** timestamp.
+- Finder and EDMC Plugin continue to use the same Community Deposits backend and the same synchronization semantics.
+
+### Installation
+
+Download:
+
+```text
+Hotspots-Finder-EDMC-Plugin-v1.0.3.zip
+```
+
+Extract it so this folder exists:
+
+```text
+%LOCALAPPDATA%\EDMarketConnector\plugins\EDHF_Community_Navigator\
+```
+
+Then restart EDMarketConnector.
+
+RhinoSpotter 5.1+ is required only for **Sync Bookmarks**. Community Deposits scanning and tracking can still be used independently.
+
+---
+
 ## v1.0.2 — First public EDMC Plugin release
 
 First public release of **Hotspots Finder EDMC Plugin**, included in the unified **ED Hotspots Finder v1.0.2** GitHub release.
@@ -31,7 +63,7 @@ The plugin uses the same Community Deposits backend as ED Hotspots Finder. It do
 
 Repeated synchronization of an unchanged RhinoSpotter report does not intentionally advance the deposit's visible **Updated** timestamp.
 
-Meaningful mutable fields currently include **Rigs**, **Amount** and depletion state. **Density** remains stable after deposit creation.
+In v1.0.2, meaningful mutable fields included **Rigs**, **Amount** and depletion state. Current releases also support RhinoSpotter edits to **Location**, **Material** and **Density**.
 
 ### Installation
 
