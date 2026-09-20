@@ -1,6 +1,6 @@
-# Hotspots Finder Deposits Companion
+# Hotspots Finder EDMC Plugin
 
-**Hotspots Finder Deposits Companion** is the focused EDMarketConnector extension of the **ED Hotspots Finder - Rings & Planets** ecosystem.
+**Hotspots Finder EDMC Plugin** is the public GitHub package name for the focused EDMarketConnector extension of the **ED Hotspots Finder - Rings & Planets** ecosystem. Inside EDMC it is displayed as **Hotspots Finder Deposits Companion**.
 
 The desktop Finder remains the general search, planning and analysis client. The Companion is designed for quick in-game Community Deposits access without duplicating the full desktop application.
 
@@ -138,10 +138,10 @@ From the repository root, the Windows release package can be generated with:
 The script reads the version from `load.py` and creates:
 
 ```text
-release\companion\v1.0.2\Hotspots-Finder-EDMC-Plugin-v1.0.2.zip
-release\companion\v1.0.2\SHA256.txt
+release\v1.0.2\Hotspots-Finder-EDMC-Plugin-v1.0.2.zip
+release\v1.0.2\SHA256.txt
 ```
 
 On GitHub the downloadable package is published as **Hotspots Finder EDMC Plugin**. The ZIP contains the complete `EDHF_Community_Navigator` folder ready to place under the EDMarketConnector plugins directory.
 
-Development remains on the `edmc-companion-dev` branch until the packaged build passes the final installation smoke test.
+Finder and plugin assets are built into the same `release\v1.0.2` folder and share one `SHA256.txt`.
