@@ -5,10 +5,17 @@ from tkinter import font as tkfont
 from tkinter import ttk
 from typing import Any, Callable
 
-from theme import theme
 
+BACKGROUND = "#101410"
+ROW_BACKGROUND = "#101410"
+HEADER_BACKGROUND = "#171d17"
+ACCENT = "#5acd57"
+TEXT = "#f2f5f2"
+MUTED = "#a6b0a6"
+SELECT_BACKGROUND = "#244024"
+BORDER = "#355035"
 
-COLUMN_NAMES = (
+COLUMNS = (
     "Body",
     "Material",
     "Rigs",
@@ -22,10 +29,11 @@ COLUMN_NAMES = (
 
 CENTERED_COLUMNS = {"Rigs", "Reports"}
 
-MIN_COLUMN_WIDTH = 52
+MIN_COLUMN_WIDTH = 55
 MAX_COLUMN_WIDTH = 420
-CELL_PADDING = 24
-WINDOW_HORIZONTAL_CHROME = 58
+CELL_PADDING = 20
+ROW_HEIGHT = 25
+HEADER_HEIGHT = 27
 
 
 def _first(record: dict[str, Any], *keys: str):
@@ -34,18 +42,6 @@ def _first(record: dict[str, Any], *keys: str):
         if value not in (None, ""):
             return value
     return ""
-
-
-def _theme_colours() -> dict[str, str]:
-    current = getattr(theme, "current", {}) or {}
-    return {
-        "background": current.get("background") or "#101410",
-        "foreground": current.get("foreground") or "#f2f5f2",
-        "selection_bg": current.get("activebackground") or "#5acd57",
-        "selection_fg": current.get("activeforeground") or "#101410",
-        "disabled": current.get("disabledforeground") or "#707770",
-        "highlight": current.get("highlight") or "#5acd57",
-    }
 
 
 class DepositsWindow:
@@ -59,146 +55,102 @@ class DepositsWindow:
     ):
         self.records = records
         self.on_track = on_track
-
-        colours = _theme_colours()
+        self.selected_index: int | None = 0 if records else None
+        self.row_widgets: dict[int, list[tk.Label]] = {}
 
         self.window = tk.Toplevel(master)
         self.window.title(f"Community Deposits — {system}")
         self.window.attributes("-topmost", True)
-        self.window.configure(background=colours["background"])
+        self.window.configure(background=BACKGROUND)
 
-        style = ttk.Style(self.window)
-
-        # Plugin-specific ttk styles: do not alter EDMC or other plugins.
-        style.configure(
-            "EDHFCommunity.Treeview",
-            background=colours["background"],
-            fieldbackground=colours["background"],
-            foreground=colours["foreground"],
-            borderwidth=0,
-            relief="flat",
-            rowheight=24,
-        )
-        style.map(
-            "EDHFCommunity.Treeview",
-            background=[("selected", colours["selection_bg"])],
-            foreground=[("selected", colours["selection_fg"])],
-        )
-
-        style.configure(
-            "EDHFCommunity.Treeview.Heading",
-            background=colours["background"],
-            foreground=colours["foreground"],
-            relief="flat",
-            borderwidth=1,
-        )
-        style.map(
-            "EDHFCommunity.Treeview.Heading",
-            background=[
-                ("active", colours["selection_bg"]),
-                ("pressed", colours["selection_bg"]),
-            ],
-            foreground=[
-                ("active", colours["selection_fg"]),
-                ("pressed", colours["selection_fg"]),
-            ],
-        )
-
-        style.configure(
-            "EDHFCommunity.TFrame",
-            background=colours["background"],
-        )
-        style.configure(
-            "EDHFCommunity.TLabel",
-            background=colours["background"],
-            foreground=colours["foreground"],
-        )
-
-        outer = ttk.Frame(
+        outer = tk.Frame(
             self.window,
-            padding=10,
-            style="EDHFCommunity.TFrame",
+            background=BACKGROUND,
+            padx=10,
+            pady=10,
         )
         outer.pack(fill=tk.BOTH, expand=True)
 
-        title = ttk.Label(
+        title = tk.Label(
             outer,
             text=f"Community Deposits — {system} ({len(records)})",
-            style="EDHFCommunity.TLabel",
+            background=BACKGROUND,
+            foreground=ACCENT,
+            font=("Segoe UI", 9, "bold"),
+            anchor="w",
         )
-        title.pack(anchor=tk.W, pady=(0, 8))
+        title.pack(fill=tk.X, pady=(0, 8))
 
-        table_frame = ttk.Frame(
+        self._display_rows = [
+            (
+                str(_first(record, "body", "body_name", "planet_name")),
+                str(_first(record, "commodity", "material")),
+                str(_first(record, "rigs")),
+                str(_first(record, "amount")),
+                str(_first(record, "density")),
+                str(_first(record, "latitude", "lat")),
+                str(_first(record, "longitude", "lon", "lng")),
+                str(_first(record, "report_count", "reports_count", "reports")),
+                str(_first(record, "updated_at", "last_reported_at", "last_seen_at")),
+            )
+            for record in records
+        ]
+
+        self.column_widths = self._measure_columns()
+
+        table_shell = tk.Frame(
             outer,
-            style="EDHFCommunity.TFrame",
+            background=BORDER,
+            bd=0,
         )
-        table_frame.pack(fill=tk.BOTH, expand=True)
+        table_shell.pack(fill=tk.BOTH, expand=True)
 
-        self.tree = ttk.Treeview(
-            table_frame,
-            columns=COLUMN_NAMES,
-            show="headings",
-            selectmode="browse",
-            style="EDHFCommunity.Treeview",
+        self.canvas = tk.Canvas(
+            table_shell,
+            background=BACKGROUND,
+            highlightthickness=0,
+            bd=0,
         )
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         scroll_y = ttk.Scrollbar(
-            table_frame,
+            table_shell,
             orient=tk.VERTICAL,
-            command=self.tree.yview,
+            command=self.canvas.yview,
         )
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
 
         scroll_x = ttk.Scrollbar(
             outer,
             orient=tk.HORIZONTAL,
-            command=self.tree.xview,
+            command=self.canvas.xview,
         )
-        scroll_x.pack(fill=tk.X, pady=(3, 0))
+        scroll_x.pack(fill=tk.X, pady=(4, 0))
 
-        self.tree.configure(
+        self.canvas.configure(
             yscrollcommand=scroll_y.set,
             xscrollcommand=scroll_x.set,
         )
 
-        values_by_column: dict[str, list[str]] = {
-            name: [] for name in COLUMN_NAMES
-        }
+        self.table = tk.Frame(
+            self.canvas,
+            background=BACKGROUND,
+        )
+        self.table_window = self.canvas.create_window(
+            (0, 0),
+            window=self.table,
+            anchor="nw",
+        )
 
-        for index, record in enumerate(records):
-            values = (
-                _first(record, "body", "body_name", "planet_name"),
-                _first(record, "commodity", "material"),
-                _first(record, "rigs"),
-                _first(record, "amount"),
-                _first(record, "density"),
-                _first(record, "latitude", "lat"),
-                _first(record, "longitude", "lon", "lng"),
-                _first(record, "report_count", "reports_count", "reports"),
-                _first(record, "updated_at", "last_reported_at", "last_seen_at"),
-            )
+        self._build_header()
+        self._build_rows()
 
-            display_values = tuple(
-                "" if value is None else str(value)
-                for value in values
-            )
+        self.table.bind("<Configure>", self._sync_scrollregion)
+        self.canvas.bind("<Configure>", self._sync_canvas_height)
 
-            self.tree.insert(
-                "",
-                tk.END,
-                iid=str(index),
-                values=display_values,
-            )
-
-            for name, value in zip(COLUMN_NAMES, display_values):
-                values_by_column[name].append(value)
-
-        self._autosize_columns(values_by_column)
-
-        buttons = ttk.Frame(
+        buttons = tk.Frame(
             outer,
-            style="EDHFCommunity.TFrame",
+            background=BACKGROUND,
         )
         buttons.pack(fill=tk.X, pady=(10, 0))
 
@@ -214,66 +166,152 @@ class DepositsWindow:
             command=self.window.destroy,
         ).pack(side=tk.RIGHT)
 
-        self.tree.bind("<Double-1>", lambda _event: self._track_selected())
+        self._apply_selection()
+        self._size_window()
 
-        if records:
-            self.tree.selection_set("0")
-            self.tree.focus("0")
+    def _measure_columns(self) -> dict[str, int]:
+        font = tkfont.Font(family="Segoe UI", size=9)
+        widths: dict[str, int] = {}
 
-        self._size_window_to_columns()
-
-    def _autosize_columns(
-        self,
-        values_by_column: dict[str, list[str]],
-    ) -> None:
-        font = tkfont.nametofont("TkDefaultFont")
-
-        for name in COLUMN_NAMES:
-            self.tree.heading(name, text=name)
-
+        for column_index, name in enumerate(COLUMNS):
             width = font.measure(name) + CELL_PADDING
-            for value in values_by_column[name]:
+
+            for row in self._display_rows:
                 width = max(
                     width,
-                    font.measure(value) + CELL_PADDING,
+                    font.measure(row[column_index]) + CELL_PADDING,
                 )
 
-            width = max(MIN_COLUMN_WIDTH, min(width, MAX_COLUMN_WIDTH))
-            anchor = tk.CENTER if name in CENTERED_COLUMNS else tk.W
-
-            self.tree.column(
-                name,
-                width=width,
-                minwidth=MIN_COLUMN_WIDTH,
-                anchor=anchor,
-                stretch=False,
+            widths[name] = max(
+                MIN_COLUMN_WIDTH,
+                min(width, MAX_COLUMN_WIDTH),
             )
 
-    def _size_window_to_columns(self) -> None:
-        self.window.update_idletasks()
+        return widths
 
-        table_width = sum(
-            int(self.tree.column(name, "width"))
-            for name in COLUMN_NAMES
-        )
+    def _build_header(self) -> None:
+        for column_index, name in enumerate(COLUMNS):
+            width = self.column_widths[name]
+            anchor = "center" if name in CENTERED_COLUMNS else "w"
 
-        desired_width = table_width + WINDOW_HORIZONTAL_CHROME
-        screen_width = self.window.winfo_screenwidth()
-        max_width = max(760, int(screen_width * 0.92))
-        window_width = min(desired_width, max_width)
+            label = tk.Label(
+                self.table,
+                text=name,
+                background=HEADER_BACKGROUND,
+                foreground=ACCENT,
+                font=("Segoe UI", 9, "bold"),
+                anchor=anchor,
+                padx=7,
+                pady=4,
+                bd=0,
+            )
+            label.grid(
+                row=0,
+                column=column_index,
+                sticky="nsew",
+                padx=(0, 1),
+                pady=(0, 1),
+            )
+            self.table.grid_columnconfigure(
+                column_index,
+                minsize=width,
+            )
 
-        # Enough room for a useful table without making the popup huge.
-        row_count = min(max(len(self.records), 4), 14)
-        window_height = 180 + row_count * 24
+    def _build_rows(self) -> None:
+        for row_index, row in enumerate(self._display_rows):
+            widgets: list[tk.Label] = []
 
-        self.window.geometry(f"{window_width}x{window_height}")
-        self.window.minsize(min(window_width, 700), 300)
+            for column_index, value in enumerate(row):
+                column = COLUMNS[column_index]
+                anchor = "center" if column in CENTERED_COLUMNS else "w"
+
+                label = tk.Label(
+                    self.table,
+                    text=value,
+                    background=ROW_BACKGROUND,
+                    foreground=TEXT,
+                    font=("Segoe UI", 9),
+                    anchor=anchor,
+                    padx=7,
+                    pady=3,
+                    bd=0,
+                )
+                label.grid(
+                    row=row_index + 1,
+                    column=column_index,
+                    sticky="nsew",
+                    padx=(0, 1),
+                    pady=(0, 1),
+                )
+
+                label.bind(
+                    "<Button-1>",
+                    lambda _event, index=row_index: self._select(index),
+                )
+                label.bind(
+                    "<Double-1>",
+                    lambda _event, index=row_index: self._track_index(index),
+                )
+                widgets.append(label)
+
+            self.row_widgets[row_index] = widgets
+
+    def _select(self, index: int) -> None:
+        self.selected_index = index
+        self._apply_selection()
+
+    def _apply_selection(self) -> None:
+        for row_index, widgets in self.row_widgets.items():
+            selected = row_index == self.selected_index
+            background = SELECT_BACKGROUND if selected else ROW_BACKGROUND
+            foreground = TEXT
+
+            for widget in widgets:
+                widget.configure(
+                    background=background,
+                    foreground=foreground,
+                )
+
+    def _track_index(self, index: int) -> None:
+        self._select(index)
+        self._track_selected()
 
     def _track_selected(self) -> None:
-        selected = self.tree.selection()
-        if not selected:
+        if self.selected_index is None:
             return
 
-        index = int(selected[0])
-        if 0 <= index < len(self.records):
-            self.on_track(self.records[index])
+        if 0 <= self.selected_index < len(self.records):
+            self.on_track(self.records[self.selected_index])
+
+    def _sync_scrollregion(self, _event=None) -> None:
+        self.canvas.configure(
+            scrollregion=self.canvas.bbox("all"),
+        )
+
+    def _sync_canvas_height(self, _event=None) -> None:
+        # Keep the table at its natural width. The horizontal scrollbar handles
+        # systems with exceptionally long values instead of stretching columns.
+        self.canvas.itemconfigure(
+            self.table_window,
+            height=max(
+                self.canvas.winfo_height(),
+                self.table.winfo_reqheight(),
+            ),
+        )
+
+    def _size_window(self) -> None:
+        self.window.update_idletasks()
+
+        table_width = sum(self.column_widths.values()) + len(COLUMNS)
+        screen_width = self.window.winfo_screenwidth()
+        max_width = int(screen_width * 0.92)
+        window_width = min(table_width + 55, max_width)
+
+        visible_rows = min(max(len(self.records), 1), 12)
+        table_height = HEADER_HEIGHT + visible_rows * ROW_HEIGHT
+        window_height = table_height + 125
+
+        self.window.geometry(
+            f"{max(window_width, 650)}x{max(window_height, 220)}"
+        )
+        self.window.minsize(650, 220)
