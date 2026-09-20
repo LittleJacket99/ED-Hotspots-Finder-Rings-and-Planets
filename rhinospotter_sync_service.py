@@ -84,6 +84,7 @@ def sync_bookmarks(data_path=None):
         "inserted": 0,
         "matched": 0,
         "updated": 0,
+        "unchanged": 0,
         "errors": loaded["read_errors"],
     }
 
@@ -116,6 +117,8 @@ def sync_bookmarks(data_path=None):
                 summary["matched"] += 1
             elif action == "updated_report":
                 summary["updated"] += 1
+            elif action == "unchanged":
+                summary["unchanged"] += 1
 
     return summary
 
