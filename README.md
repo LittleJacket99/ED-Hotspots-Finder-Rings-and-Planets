@@ -4,13 +4,6 @@
 
 <h1 align="center">ED Hotspots Finder - Rings & Planets</h1>
 
-<p align="center">
-  <strong>Multi-system search and filtering for Elite Dangerous, designed especially for Powerplay-oriented system research.</strong>
-</p>
-
-<p align="center">
-  Find systems that match strategic requirements and the ring, hotspot and planetary characteristics you need.
-</p>
 
 <p align="center">
   <a href="https://github.com/LittleJacket99/ED-Hotspots-Finder-Rings-and-Planets-with-EDMC-plugin/releases/latest">Download latest Windows release</a>
