@@ -17,11 +17,11 @@ This project includes two connected tools for **Elite Dangerous**:
 
 - **[ED Hotspots Finder - Rings & Planets](#finder)** — the desktop application for multi-system search, filtering and analysis across rings, hotspots, planets and Community Deposits database.
 - **[Hotspots Finder EDMC Plugin](#edmc-plugin)** — the lightweight in-game companion for synchronizing RhinoSpotter bookmarks, checking Community Deposits shared in your current system and tracking selected surface deposits.
-- **[Community Deposits](#community-deposits)** — the shared database of player-reported planetary surface deposits used by both the Finder and the EDMC Plugin.
+Both tools use the same **Community Deposits** database service: the Finder is the main search and analysis client, while the EDMC Plugin provides quick access to the same shared data during gameplay.
+- **[Community Deposits](#community-deposits)** — the shared database of player-reported planetary surface deposits.
 - **[RhinoSpotter integration](#rhinospotter-integration)**
 - **[Quick start](#quick-start)**
 
-Both tools use the same **Community Deposits** database service: the Finder is the main search and analysis client, while the EDMC Plugin provides quick access to the same shared data during gameplay.
 
 <a id="finder"></a>
 
