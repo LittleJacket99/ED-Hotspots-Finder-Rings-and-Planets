@@ -458,6 +458,7 @@ class FinderV8CommunityApp(FinderV8App):
                 "Reports matched to existing deposits: "
                 f"{summary.get('matched', 0)}\n"
                 f"Updated reports: {summary.get('updated', 0)}\n"
+                f"Unchanged reports: {summary.get('unchanged', 0)}\n"
                 f"Errors: {summary.get('errors', 0)}"
             ),
             parent=self,
