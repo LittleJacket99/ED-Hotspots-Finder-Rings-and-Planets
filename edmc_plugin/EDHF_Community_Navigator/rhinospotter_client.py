@@ -80,13 +80,13 @@ def _load_rs_api(path: Path) -> ModuleType:
 
 def _report_id(record: dict[str, Any]) -> str:
     identity = {
+        "source": "rhinospotter",
+        "source_record_id": record.get("source_record_id"),
         "commander": _clean_text(record.get("commander")),
         "system": _clean_text(record.get("system")),
         "planet_name": _clean_text(record.get("planet_name")),
-        "location_index": record.get("location_index"),
         "latitude": record.get("latitude"),
         "longitude": record.get("longitude"),
-        "commodity": _clean_text(record.get("commodity")),
         "marked_at": _clean_text(record.get("marked_at")),
     }
 
@@ -102,6 +102,7 @@ def _report_id(record: dict[str, Any]) -> str:
 
 def _api_record(mark: dict[str, Any]) -> dict[str, Any]:
     return {
+        "source_record_id": mark.get("id"),
         "commander": mark.get("commander"),
         "system": mark.get("system"),
         "planet_name": mark.get("body"),
@@ -165,6 +166,8 @@ def _normalise_record(record: dict[str, Any]) -> dict[str, Any]:
 
     payload = {
         "report_id": _report_id(record),
+        "source": "rhinospotter",
+        "source_record_id": record.get("source_record_id"),
         "commander": _clean_text(record.get("commander")),
         "system": _clean_text(record.get("system")),
         "planet_name": _clean_text(record.get("planet_name")),
