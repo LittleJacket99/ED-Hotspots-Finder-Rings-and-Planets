@@ -16,7 +16,7 @@ API_URL = (
     "littlejacket99.workers.dev/v1/deposits/batch"
 )
 
-USER_AGENT = "ED-Hotspots-Finder-Rings-and-Planets/1.0.2"
+USER_AGENT = "ED-Hotspots-Finder-Rings-and-Planets/1.0.3"
 
 MAX_BATCH_SIZE = 200
 
