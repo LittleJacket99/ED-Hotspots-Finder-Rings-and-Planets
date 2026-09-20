@@ -214,7 +214,7 @@ class NavigatorOverlay:
         if target_body and status_body and not _same_name(target_body, status_body):
             self._set_navigation_text(
                 "◎",
-                f"Approach {_compact_body_name(target_body, self.target_system)}",
+                f"Approach body {_compact_body_name(target_body, self.target_system)}",
                 compact=True,
             )
             return
@@ -233,7 +233,7 @@ class NavigatorOverlay:
             if target_body:
                 self._set_navigation_text(
                     "◎",
-                    f"Approach {_compact_body_name(target_body, self.target_system)}",
+                    f"Approach body {_compact_body_name(target_body, self.target_system)}",
                     compact=True,
                 )
             else:
