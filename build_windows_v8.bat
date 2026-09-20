@@ -51,15 +51,40 @@ if not exist "%DIST_EXE%" (
     goto :fail
 )
 
-if exist "%RELEASE_DIR%" rmdir /s /q "%RELEASE_DIR%"
-mkdir "%RELEASE_DIR%"
+if not exist "%RELEASE_DIR%" mkdir "%RELEASE_DIR%"
 if errorlevel 1 goto :fail
 
 copy /y "%DIST_EXE%" "%RELEASE_EXE%" >nul
 if errorlevel 1 goto :fail
 
 echo Calculating SHA256 checksums...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$hash = Get-FileHash -Algorithm SHA256 -LiteralPath $env:RELEASE_EXE; ('{0}  {1}' -f $hash.Hash.ToLowerInvariant(), [IO.Path]::GetFileName($env:RELEASE_EXE)) | Set-Content -LiteralPath $env:SHA_FILE -Encoding ASCII"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$name=[IO.Path]::GetFileName($env:RELEASE_EXE); $lines=@(); if(Test-Path -LiteralPath $env:SHA_FILE){$lines=@(Get-Content -LiteralPath $env:SHA_FILE | Where-Object {$_ -notmatch ('  '+[regex]::Escape($name)+'
+if errorlevel 1 goto :fail
+
+if not exist "%SHA_FILE%" (
+    echo ERROR: SHA256.txt was not created.
+    goto :fail
+)
+
+echo.
+echo =======================================================
+echo RELEASE BUILD OK
+echo =======================================================
+echo EXE: "%RELEASE_EXE%"
+echo SHA: "%SHA_FILE%"
+echo.
+echo Finder asset updated in the unified GitHub Release folder %VERSION%.
+echo.
+pause
+exit /b 0
+
+:fail
+echo.
+echo BUILD FAILED. Read the error above.
+echo.
+pause
+exit /b 1
+)})}; $hash=Get-FileHash -Algorithm SHA256 -LiteralPath $env:RELEASE_EXE; $lines += ('{0}  {1}' -f $hash.Hash.ToLowerInvariant(), $name); Set-Content -LiteralPath $env:SHA_FILE -Value $lines -Encoding ASCII"
 if errorlevel 1 goto :fail
 
 if not exist "%SHA_FILE%" (
