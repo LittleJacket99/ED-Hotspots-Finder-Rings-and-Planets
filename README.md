@@ -18,11 +18,18 @@
   <a href="RELEASE_NOTES.md">Release notes</a>
 </p>
 
-<p align="center">
-  <img src="docs/images/main-interface.png" width="1200" alt="ED Hotspots Finder main interface">
-</p>
+## Finder + EDMC Plugin
 
-## What is ED Hotspots Finder?
+This project includes two connected tools for **Elite Dangerous**:
+
+- **[ED Hotspots Finder - Rings & Planets](#finder)** — the desktop application for multi-system search, filtering and analysis across rings, hotspots, planets and Community Deposits.
+- **[Hotspots Finder EDMC Plugin](#edmc-plugin)** — the lightweight in-game companion for synchronizing RhinoSpotter bookmarks, checking Community Deposits in the current system and tracking selected surface deposits.
+
+Both tools use the same **Community Deposits** service: the Finder is the main search and analysis client, while the EDMC Plugin provides quick access to the same shared data during gameplay.
+
+<a id="finder"></a>
+
+## ED Hotspots Finder - Rings & Planets
 
 **ED Hotspots Finder - Rings & Planets** is a Windows companion for **Elite Dangerous** designed to search and analyze multiple star systems at once.
 
@@ -31,6 +38,10 @@ Its main goal is to help commanders identify systems that satisfy specific requi
 You can provide a list of systems manually or discover systems through filters such as **Power**, **Power State**, **Faction**, **Reference System** and **Distance**. The selected systems can then be searched for the characteristics you actually need: specific **ring types**, **mining hotspots**, **pristine reserves**, **planet types**, **landable bodies**, **volcanism** and other planetary information.
 
 Instead of checking systems one by one across different tools, ED Hotspots Finder is designed to reduce a large candidate area to the systems that actually match the requirements of a Powerplay task or other targeted search.
+
+<p align="center">
+  <img src="docs/images/main-interface.png" width="1200" alt="ED Hotspots Finder main interface">
+</p>
 
 ## Main features
 
@@ -64,6 +75,45 @@ This combines **where to search** with **what the system must contain** in a sin
 </p>
 
 <p align="center"><em>Example search results after applying system and body filters.</em></p>
+
+<a id="edmc-plugin"></a>
+
+## Hotspots Finder EDMC Plugin
+
+The **Hotspots Finder EDMC Plugin**, displayed inside EDMC as **Hotspots Finder Deposits Companion**, is the in-game Community Deposits companion to the desktop Finder.
+
+It is designed for the actions that are most useful while Elite Dangerous is running:
+
+- **Sync Bookmarks** through RhinoSpotter 5.1+ `rs_api.py`;
+- **Scan System** for Community Deposits in the current EDMC system;
+- reopen cached results with **Open Deposits** without unnecessary repeat requests;
+- use **Refresh Deposits** when relevant synchronized data changed;
+- view **Body, Location, Material, Rigs, Amount, Density, Latitude, Longitude, Reports and Updated**;
+- select a deposit and use **Start Tracking** to open the compact navigation HUD;
+- see the target body, material, RhinoSpotter **Location**, relative direction and altitude-aware distance while approaching the deposit;
+- launch the desktop Finder directly with **Open Finder**.
+
+The plugin uses the same Community Deposits backend as the desktop application and does not maintain a separate deposit database.
+
+<p align="center">
+  <img src="docs/images/edmc-plugin-panel.png" width="650" alt="Hotspots Finder EDMC Plugin panel">
+</p>
+
+<p align="center"><em>Compact controls inside EDMarketConnector.</em></p>
+
+<p align="center">
+  <img src="docs/images/edmc-plugin-results.png" width="1050" alt="Hotspots Finder EDMC Plugin Community Deposits results">
+</p>
+
+<p align="center"><em>Community Deposits results for the current system, including RhinoSpotter Location.</em></p>
+
+<p align="center">
+  <img src="docs/images/edmc-plugin-tracker.png" width="320" alt="Hotspots Finder EDMC Plugin navigation tracker">
+</p>
+
+<p align="center"><em>Always-on-top navigation HUD for a selected surface deposit.</em></p>
+
+Documentation: **[Hotspots Finder EDMC Plugin](docs/EDMC_COMPANION.md)** · **[Plugin release notes](docs/COMPANION_RELEASE_NOTES.md)**
 
 ## Community Deposits
 
@@ -100,23 +150,6 @@ This creates a complementary workflow:
 RhinoSpotter is a separate project and is not bundled with ED Hotspots Finder.
 
 Read more: **[RhinoSpotter integration](docs/RHINOSPOTTER.md)**
-
-## Hotspots Finder EDMC Plugin
-
-The repository also contains the **Hotspots Finder EDMC Plugin**, displayed inside EDMC as **Hotspots Finder Deposits Companion**, a focused extension for the Community Deposits workflow.
-
-It complements the desktop Finder with quick in-game actions:
-
-- synchronize RhinoSpotter bookmarks;
-- scan Community Deposits for the current system;
-- reopen cached deposit results without unnecessary network requests;
-- refresh when relevant synchronized data changed;
-- track a selected surface deposit with a compact live navigation HUD;
-- launch the desktop Finder directly from EDMC.
-
-The Companion uses the same Community Deposits backend as the desktop application and does not introduce a separate database.
-
-Documentation: **[Hotspots Finder EDMC Plugin](docs/EDMC_COMPANION.md)** · **[Plugin release notes](docs/COMPANION_RELEASE_NOTES.md)**
 
 ## Quick start
 
