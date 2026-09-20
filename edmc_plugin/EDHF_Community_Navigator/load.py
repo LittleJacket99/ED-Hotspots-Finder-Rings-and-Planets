@@ -6,7 +6,8 @@ import queue
 import subprocess
 import threading
 import tkinter as tk
-from tkinter import filedialog
+import webbrowser
+from tkinter import filedialog, messagebox
 from typing import Any
 
 from config import appname, config
@@ -15,6 +16,7 @@ from theme import theme
 from EDHF_Community_Navigator.community_api import fetch_system_deposits
 from EDHF_Community_Navigator.navigator import NavigatorOverlay
 from EDHF_Community_Navigator.results_window import DepositsWindow
+from EDHF_Community_Navigator.update_checker import check_for_update
 from EDHF_Community_Navigator.rhinospotter_client import (
     RhinoSpotterNotInstalled,
     sync_bookmarks,
@@ -50,6 +52,7 @@ _deposits_cache_stale = False
 
 _worker_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
 _stopping = False
+_update_check_started = False
 
 
 def plugin_start3(plugin_dir: str) -> str:
@@ -126,6 +129,7 @@ def plugin_app(parent: tk.Frame) -> tk.Frame:
     frame.bind_all(WORKER_EVENT, _handle_worker_event, add="+")
     theme.update(frame)
     _update_scan_button_state()
+    frame.after(1200, _start_update_check)
     return frame
 
 
@@ -356,6 +360,63 @@ def _open_finder() -> None:
         _status.config(text="ED Hotspots Finder opened")
 
 
+def _start_update_check() -> None:
+    global _update_check_started
+
+    if _update_check_started or _stopping:
+        return
+
+    _update_check_started = True
+
+    threading.Thread(
+        target=_update_check_worker,
+        name="EDHF-Companion-Update-Check",
+        daemon=True,
+    ).start()
+
+
+def _update_check_worker() -> None:
+    result = check_for_update(VERSION)
+    _post_worker_result("update_check", result)
+
+
+def _handle_update_check(result: dict[str, Any]) -> None:
+    if not result.get("ok"):
+        logger.debug(
+            "Companion update check failed: %s",
+            result.get("error") or "unknown error",
+        )
+        return
+
+    if not result.get("update_available"):
+        return
+
+    latest = str(result.get("latest_version") or "").strip()
+    release_url = str(result.get("release_url") or "").strip()
+    if not latest or not release_url:
+        return
+
+    parent = _frame.winfo_toplevel() if _frame is not None else None
+
+    try:
+        open_release = messagebox.askyesno(
+            PLUGIN_NAME,
+            (
+                "A new version of Hotspots Finder Deposits Companion "
+                "is available.\n\n"
+                f"Installed: v{VERSION}\n"
+                f"Latest: v{latest}\n\n"
+                "Open the GitHub release page?"
+            ),
+            parent=parent,
+        )
+    except tk.TclError:
+        return
+
+    if open_release:
+        webbrowser.open_new_tab(release_url)
+
+
 def _start_sync() -> None:
     if not _plugin_dir:
         _set_busy(False, "Plugin path unavailable")
@@ -455,6 +516,8 @@ def _handle_worker_event(_event: tk.Event | None = None) -> None:
         elif kind == "scan_error":
             system, message = payload
             _set_busy(False, f"{system}: scan failed — {message}")
+        elif kind == "update_check":
+            _handle_update_check(payload)
 
 
 def _handle_sync_ok(summary: dict[str, Any]) -> None:
