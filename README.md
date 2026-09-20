@@ -6,7 +6,7 @@
 
 <p align="center">
    # Helps build the database CMDR 
-<p>
+</p>
 
 <p align="center">
   <a href="https://github.com/LittleJacket99/ED-Hotspots-Finder-Rings-and-Planets-with-EDMC-plugin/releases/latest">Download latest Windows release</a>
