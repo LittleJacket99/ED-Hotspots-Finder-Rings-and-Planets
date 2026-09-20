@@ -22,7 +22,7 @@ from EDHF_Community_Navigator.rhinospotter_client import (
 
 
 VERSION = "0.1.0"
-PLUGIN_NAME = "EDHF Community Navigator"
+PLUGIN_NAME = "Hotspots Finder Deposits Companion"
 WORKER_EVENT = "<<EDHFCommunityNavigatorWorker>>"
 NAV_X_KEY = "edhf_community_navigator_x"
 NAV_Y_KEY = "edhf_community_navigator_y"
@@ -85,7 +85,7 @@ def plugin_app(parent: tk.Frame) -> tk.Frame:
 
     heading = tk.Label(
         frame,
-        text="Hotspots Finder Community Deposits",
+        text="Hotspots Finder Deposits Companion",
         font=("TkDefaultFont", 9, "bold"),
         anchor="w",
     )
