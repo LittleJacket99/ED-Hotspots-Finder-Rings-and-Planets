@@ -40,6 +40,19 @@ def _first(record: dict[str, Any], *keys: str):
     return ""
 
 
+def _format_depleted_at(value: Any) -> str:
+    if value in (None, ""):
+        return "Active"
+
+    text = str(value).strip().replace("T", " ")
+    if text.endswith("Z"):
+        text = text[:-1]
+
+    if len(text) >= 19:
+        return text[:19]
+    return text
+
+
 def _theme_colours() -> dict[str, str]:
     current = getattr(theme, "current", {}) or {}
 
@@ -109,7 +122,7 @@ class DepositsWindow:
                 str(_first(record, "rigs")),
                 str(_first(record, "amount")),
                 str(_first(record, "density")),
-                str(_first(record, "depleted_at") or "Active"),
+                _format_depleted_at(record.get("depleted_at")),
                 str(_first(record, "latitude", "lat")),
                 str(_first(record, "longitude", "lon", "lng")),
                 str(_first(record, "report_count", "reports_count", "reports")),
