@@ -185,7 +185,7 @@ Python is not required for the public Windows build.
 4. Restart EDMarketConnector completely.
 5. Use **Scan System** to check Community Deposits in your current system, **Open Deposits** to reopen cached results and **Start Tracking** to navigate to a selected deposit.
 6. Install RhinoSpotter 5.1+ if you also want to use **Sync Bookmarks** and contribute your discoveries to the shared Community Deposits database.
-7. Use **Open Finder** from EDMC to launch the desktop application directly.
+7. Use **Open Finder** from EDMC to launch the desktop application directly once you set the folder.
 
 **System Input and normalization**
 
