@@ -15,7 +15,7 @@ The desktop application remains the main multi-system search and analysis client
 - **Open Deposits** — reopens the cached result snapshot without another API request.
 - **Refresh Deposits** — appears when a synchronization changed relevant data for the currently cached system.
 - **No Deposits** — shown after a successful scan that returned no records.
-- Results table with **Body, Location, Material, Rigs, Amount, Density, Latitude, Longitude, Reports and Updated**.
+- Results table with **Body, Location, Material, Rigs, Amount, Density, Depleted at, Latitude, Longitude, Reports and Updated**.
 - **Start Tracking** — opens the compact surface-navigation HUD.
 - Tracker display of compact body name, material, RhinoSpotter Location, relative direction and target distance.
 - Altitude-aware distance while approaching a body.
@@ -30,6 +30,8 @@ RhinoSpotter `revision()` is retained as metadata, but stable-ID fingerprints ar
 Server responses still distinguish new, matched, updated and unchanged reports, and an unchanged report does not falsely refresh the deposit's update time.
 
 Community Deposits treats **Location**, **Material**, **Rigs**, **Amount**, **Density** and depletion state as meaningful mutable fields for synchronized RhinoSpotter bookmarks.
+
+**Depleted at** displays **Active** for active deposits, or the depletion timestamp (`YYYY-MM-DD HH:MM:SS`) when RhinoSpotter has marked the bookmark depleted.
 
 ## Installation
 
