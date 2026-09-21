@@ -49,6 +49,14 @@ CARDS_DIR = (
     / "cards"
 )
 
+APP_DATA_DIR = (
+    Path(os.environ.get("APPDATA") or Path.home())
+    / "HotspotsFinder"
+)
+
+SYNC_STATE_PATH = APP_DATA_DIR / "rhinospotter_sync_state.json"
+SYNC_STATE_VERSION = 1
+
 
 def clean_text(value):
     if value is None:
@@ -161,6 +169,77 @@ def _path_key(value):
     return os.path.normcase(os.path.abspath(str(Path(value).expanduser())))
 
 
+def sync_state_source_key(source_type, source_path):
+    return f"{source_type}:{_path_key(source_path)}"
+
+
+def load_sync_state():
+    """Load the local sync cache. Corrupt/missing cache files are ignored."""
+
+    try:
+        state = json.loads(SYNC_STATE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {
+            "version": SYNC_STATE_VERSION,
+            "sources": {},
+        }
+
+    if (
+        not isinstance(state, dict)
+        or state.get("version") != SYNC_STATE_VERSION
+        or not isinstance(state.get("sources"), dict)
+    ):
+        return {
+            "version": SYNC_STATE_VERSION,
+            "sources": {},
+        }
+
+    return state
+
+
+def get_sync_state_entry(source_type, source_path):
+    state = load_sync_state()
+    entry = state["sources"].get(
+        sync_state_source_key(source_type, source_path),
+        {},
+    )
+    return dict(entry) if isinstance(entry, dict) else {}
+
+
+def save_sync_state_entry(source_type, source_path, entry):
+    """Atomically persist one source entry without exposing bookmark data."""
+
+    state = load_sync_state()
+    state["sources"][
+        sync_state_source_key(source_type, source_path)
+    ] = dict(entry)
+
+    SYNC_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = SYNC_STATE_PATH.with_suffix(".json.tmp")
+    temp_path.write_text(
+        json.dumps(state, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    temp_path.replace(SYNC_STATE_PATH)
+
+
+def record_state_key(record):
+    source_record_id = record.get("source_record_id")
+    if source_record_id not in (None, ""):
+        return f"id:{source_record_id}"
+    return f"report:{record.get('report_id', '')}"
+
+
+def record_fingerprint(record):
+    canonical = json.dumps(
+        record,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def _is_default_data_path(path):
     return _path_key(path) == _path_key(RHINOSPOTTER_ROOT)
 
@@ -232,6 +311,28 @@ def _load_rs_api_module(api_path):
             f"{schema!r}. This version of ED Hotspots Finder supports SCHEMA 1."
         )
     return module
+
+
+def inspect_rs_api_metadata(api_path):
+    """Read cheap RhinoSpotter API metadata without loading all bookmarks."""
+
+    module = _load_rs_api_module(api_path)
+
+    try:
+        revision = module.revision()
+    except Exception:
+        revision = None
+
+    try:
+        api_version = str(module.version())
+    except Exception:
+        api_version = ""
+
+    return {
+        "revision": revision,
+        "api_version": api_version,
+        "api_schema": getattr(module, "SCHEMA", None),
+    }
 
 
 def _api_record(mark):
@@ -321,6 +422,11 @@ def _load_rs_api(api_path):
     module = _load_rs_api_module(api_path)
 
     try:
+        revision_before = module.revision()
+    except Exception:
+        revision_before = None
+
+    try:
         bookmarks = module.bookmarks()
     except Exception as exc:
         raise RuntimeError(f"RhinoSpotter API could not read bookmarks: {exc}") from exc
@@ -337,6 +443,11 @@ def _load_rs_api(api_path):
     deposits, errors, inferred, missing = _prepare_records(items)
 
     try:
+        revision_after = module.revision()
+    except Exception:
+        revision_after = revision_before
+
+    try:
         api_version = str(module.version())
     except Exception:
         api_version = ""
@@ -349,6 +460,13 @@ def _load_rs_api(api_path):
         "radius_missing": missing,
         "api_version": api_version,
         "api_schema": getattr(module, "SCHEMA", None),
+        "revision_before": revision_before,
+        "revision": revision_after,
+        "revision_stable": (
+            revision_before is not None
+            and revision_after is not None
+            and revision_before == revision_after
+        ),
     }
 
 
@@ -514,6 +632,9 @@ def load_rhinospotter_records(source=None):
     source_type, source_path = resolve_source(source)
     api_version = ""
     api_schema = None
+    revision_before = None
+    revision = None
+    revision_stable = False
 
     if source_type == "rs_api":
         loaded = _load_rs_api(source_path)
@@ -524,6 +645,9 @@ def load_rhinospotter_records(source=None):
         missing = loaded["radius_missing"]
         api_version = loaded["api_version"]
         api_schema = loaded["api_schema"]
+        revision_before = loaded.get("revision_before")
+        revision = loaded.get("revision")
+        revision_stable = bool(loaded.get("revision_stable"))
     elif source_type == "sqlite":
         rows, deposits, errors, inferred, missing = _load_database(source_path)
         records_found = len(rows)
@@ -541,6 +665,9 @@ def load_rhinospotter_records(source=None):
         "radius_missing": missing,
         "api_version": api_version,
         "api_schema": api_schema,
+        "revision_before": revision_before,
+        "revision": revision,
+        "revision_stable": revision_stable,
         "deposits": deposits,
     }
 
