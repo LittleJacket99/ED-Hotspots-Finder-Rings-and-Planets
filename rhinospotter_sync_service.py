@@ -30,28 +30,6 @@ def inspect_source(data_path=None):
     source_type, source_path = resolve_source(data_path)
 
     if source_type == "rs_api":
-        metadata = inspect_rs_api_metadata(source_path)
-        revision = metadata.get("revision")
-        state = get_sync_state_entry(source_type, source_path)
-
-        if (
-            revision is not None
-            and state.get("complete")
-            and state.get("revision") == revision
-        ):
-            return {
-                "source_type": source_type,
-                "source_path": str(source_path),
-                "records_found": int(state.get("records_found", 0) or 0),
-                "records_valid": int(state.get("records_valid", 0) or 0),
-                "radius_inferred": int(state.get("radius_inferred", 0) or 0),
-                "radius_missing": int(state.get("radius_missing", 0) or 0),
-                "api_version": metadata.get("api_version", ""),
-                "api_schema": metadata.get("api_schema"),
-                "revision": revision,
-                "revision_unchanged": True,
-            }
-
         loaded = load_rhinospotter_records(data_path)
         return {
             "source_type": source_type,
@@ -63,7 +41,6 @@ def inspect_source(data_path=None):
             "api_version": loaded.get("api_version", ""),
             "api_schema": loaded.get("api_schema"),
             "revision": loaded.get("revision"),
-            "revision_unchanged": False,
         }
 
     if source_type == "sqlite":
@@ -103,38 +80,11 @@ def sync_bookmarks(data_path=None):
     source_type, source_path = resolve_source(data_path)
     state = get_sync_state_entry(source_type, source_path)
 
-    if source_type == "rs_api":
-        metadata = inspect_rs_api_metadata(source_path)
-        current_revision = metadata.get("revision")
-
-        if (
-            current_revision is not None
-            and state.get("complete")
-            and state.get("revision") == current_revision
-        ):
-            return {
-                "source_type": source_type,
-                "source_path": str(source_path),
-                "records_found": int(state.get("records_found", 0) or 0),
-                "records_valid": int(state.get("records_valid", 0) or 0),
-                "read_errors": 0,
-                "radius_inferred": int(state.get("radius_inferred", 0) or 0),
-                "radius_missing": int(state.get("radius_missing", 0) or 0),
-                "api_version": metadata.get("api_version", ""),
-                "api_schema": metadata.get("api_schema"),
-                "revision": current_revision,
-                "revision_unchanged": True,
-                "records_sent": 0,
-                "local_unchanged": int(state.get("records_valid", 0) or 0),
-                "removed_local": 0,
-                "inserted": 0,
-                "matched": 0,
-                "updated": 0,
-                "unchanged": 0,
-                "errors": 0,
-                "state_saved": True,
-            }
-
+    # RhinoSpotter 5.5.1 revision() can miss edits to arbitrary rows because
+    # its current aggregate revision is not a complete content hash. Always
+    # read the local bookmarks and let stable-id fingerprints decide what
+    # needs uploading. This still avoids all Community Deposits/D1 work when
+    # nothing changed.
     loaded = load_rhinospotter_records(data_path)
     deposits = loaded["deposits"]
 
@@ -167,7 +117,10 @@ def sync_bookmarks(data_path=None):
         "api_version": loaded.get("api_version", ""),
         "api_schema": loaded.get("api_schema"),
         "revision": loaded.get("revision"),
-        "revision_unchanged": False,
+        "revision_unchanged": bool(
+            state.get("complete")
+            and state.get("revision") == loaded.get("revision")
+        ),
         "records_sent": len(records_to_send),
         "local_unchanged": max(0, len(deposits) - len(records_to_send)),
         "removed_local": removed_local,
