@@ -530,8 +530,6 @@ def _handle_sync_ok(summary: dict[str, Any]) -> None:
     errors = int(summary.get("errors", 0) or 0)
     found = int(summary.get("records_found", 0) or 0)
     sent = int(summary.get("records_sent", 0) or 0)
-    revision_unchanged = bool(summary.get("revision_unchanged"))
-
     changed_systems = {
         str(system).strip().casefold()
         for system in summary.get("changed_systems", [])
@@ -546,11 +544,7 @@ def _handle_sync_ok(summary: dict[str, Any]) -> None:
     ):
         _deposits_cache_stale = True
 
-    if revision_unchanged:
-        text = (
-            f"Sync: {found} bookmarks · no RhinoSpotter changes"
-        )
-    elif sent == 0:
+    if sent == 0:
         text = (
             f"Sync: {found} bookmarks · "
             "no new or modified bookmarks"
