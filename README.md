@@ -53,6 +53,7 @@ Instead of checking systems one by one across different tools, ED Hotspots Finde
 - Search the shared **Community Deposits** database.
 - Synchronize compatible RhinoSpotter discoveries with the community database, uploading only new or modified bookmarks after the local sync state has been initialized.
 - Sort and filter result tables directly inside the application.
+- Open selected star system in different tools such as INARA, Spansh, EDSM.
 - Export results to **CSV** and **XLSX**.
 - Expand or restore the results area and open the detailed activity log.
 - Choose between **Deep Black** and **Green Warm** themes.
