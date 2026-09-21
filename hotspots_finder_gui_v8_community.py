@@ -413,7 +413,11 @@ class FinderV8CommunityApp(FinderV8App):
 
             community_headers = []
             community_rows = []
-            if refresh_after_upload:
+            remote_changed = any(
+                int(summary.get(key, 0) or 0) > 0
+                for key in ("inserted", "matched", "updated")
+            )
+            if refresh_after_upload and remote_changed:
                 community_headers, community_rows = (
                     community_deposits.fetch_deposits_for_systems(systems)
                 )
@@ -435,7 +439,14 @@ class FinderV8CommunityApp(FinderV8App):
                 community_rows,
             )
 
-        self._finish_rhino_upload("RhinoSpotter upload completed")
+        records_sent = int(summary.get("records_sent", 0) or 0)
+
+        if records_sent == 0:
+            self._finish_rhino_upload(
+                "No new or modified RhinoSpotter bookmarks"
+            )
+        else:
+            self._finish_rhino_upload("RhinoSpotter upload completed")
 
         source_type = summary.get("source_type")
         if source_type == "rs_api":
@@ -447,6 +458,21 @@ class FinderV8CommunityApp(FinderV8App):
             source_label = "SQLite database"
         else:
             source_label = "Legacy JSON cards"
+        if records_sent == 0:
+            detail = (
+                "No new or modified bookmarks required an upload.\n"
+                "Nothing was sent to Community Deposits."
+            )
+        else:
+            detail = (
+                f"Bookmarks sent: {records_sent}\n"
+                f"New deposits: {summary.get('inserted', 0)}\n"
+                "Reports matched to existing deposits: "
+                f"{summary.get('matched', 0)}\n"
+                f"Updated reports: {summary.get('updated', 0)}\n"
+                f"Server-unchanged reports: {summary.get('unchanged', 0)}"
+            )
+
         messagebox.showinfo(
             APP_TITLE,
             (
@@ -454,11 +480,9 @@ class FinderV8CommunityApp(FinderV8App):
                 f"Source: {source_label}\n"
                 f"Bookmarks found: {summary.get('records_found', 0)}\n"
                 f"Valid records: {summary.get('records_valid', 0)}\n"
-                f"New deposits: {summary.get('inserted', 0)}\n"
-                "Reports matched to existing deposits: "
-                f"{summary.get('matched', 0)}\n"
-                f"Updated reports: {summary.get('updated', 0)}\n"
-                f"Unchanged reports: {summary.get('unchanged', 0)}\n"
+                f"Locally unchanged/skipped: "
+                f"{summary.get('local_unchanged', 0)}\n\n"
+                f"{detail}\n"
                 f"Errors: {summary.get('errors', 0)}"
             ),
             parent=self,

@@ -529,7 +529,7 @@ def _handle_sync_ok(summary: dict[str, Any]) -> None:
     unchanged = int(summary.get("unchanged", 0) or 0)
     errors = int(summary.get("errors", 0) or 0)
     found = int(summary.get("records_found", 0) or 0)
-
+    sent = int(summary.get("records_sent", 0) or 0)
     changed_systems = {
         str(system).strip().casefold()
         for system in summary.get("changed_systems", [])
@@ -544,15 +544,23 @@ def _handle_sync_ok(summary: dict[str, Any]) -> None:
     ):
         _deposits_cache_stale = True
 
-    text = (
-        f"Sync: {found} bookmarks · "
-        f"{inserted} new · {matched} matched · "
-        f"{updated} updated · {unchanged} unchanged"
-    )
+    if sent == 0:
+        text = (
+            f"Sync: {found} bookmarks · "
+            "no new or modified bookmarks"
+        )
+    else:
+        text = (
+            f"Sync: {found} bookmarks · {sent} sent · "
+            f"{inserted} new · {matched} matched · "
+            f"{updated} updated · {unchanged} server-unchanged"
+        )
+
     if errors:
         text += f" · {errors} errors"
 
     _set_busy(False, text)
+
 
 def _handle_scan_ok(system: str, records: list[dict[str, Any]]) -> None:
     global _cached_system, _cached_deposits, _deposits_cache_stale

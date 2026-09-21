@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import os
 import json
 import sys
 from pathlib import Path
@@ -12,6 +13,14 @@ from EDHF_Community_Navigator.community_api import chunks, send_deposit_batch
 
 
 SUPPORTED_SCHEMA = 1
+
+APP_DATA_DIR = (
+    Path(os.environ.get("APPDATA") or Path.home())
+    / "HotspotsFinder"
+)
+
+SYNC_STATE_PATH = APP_DATA_DIR / "rhinospotter_sync_state.json"
+SYNC_STATE_VERSION = 1
 
 
 class RhinoSpotterError(RuntimeError):
@@ -27,6 +36,85 @@ def _clean_text(value: Any) -> str | None:
         return None
     value = str(value).strip()
     return value or None
+
+
+def _state_source_key(path: Path) -> str:
+    normalised = os.path.normcase(
+        os.path.abspath(str(path.expanduser()))
+    )
+    return f"rs_api:{normalised}"
+
+
+def _load_sync_state() -> dict[str, Any]:
+    try:
+        state = json.loads(SYNC_STATE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {
+            "version": SYNC_STATE_VERSION,
+            "sources": {},
+        }
+
+    if (
+        not isinstance(state, dict)
+        or state.get("version") != SYNC_STATE_VERSION
+        or not isinstance(state.get("sources"), dict)
+    ):
+        return {
+            "version": SYNC_STATE_VERSION,
+            "sources": {},
+        }
+
+    return state
+
+
+def _get_sync_state_entry(path: Path) -> dict[str, Any]:
+    state = _load_sync_state()
+    entry = state["sources"].get(_state_source_key(path), {})
+    return dict(entry) if isinstance(entry, dict) else {}
+
+
+def _save_sync_state_entry(path: Path, entry: dict[str, Any]) -> None:
+    state = _load_sync_state()
+    state["sources"][_state_source_key(path)] = dict(entry)
+
+    SYNC_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = SYNC_STATE_PATH.with_suffix(".json.tmp")
+    temp_path.write_text(
+        json.dumps(state, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    temp_path.replace(SYNC_STATE_PATH)
+
+
+def _record_state_key(record: dict[str, Any]) -> str:
+    source_record_id = record.get("source_record_id")
+    if source_record_id not in (None, ""):
+        return f"id:{source_record_id}"
+    return f"report:{record.get('report_id', '')}"
+
+
+def _record_fingerprint(record: dict[str, Any]) -> str:
+    canonical = json.dumps(
+        record,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _api_revision(module: ModuleType) -> Any:
+    try:
+        return module.revision()
+    except Exception:
+        return None
+
+
+def _api_version(module: ModuleType) -> str:
+    try:
+        return str(module.version())
+    except Exception:
+        return ""
 
 
 def resolve_rs_api(plugin_dir: str | Path) -> Path:
@@ -187,9 +275,18 @@ def _normalise_record(record: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in payload.items() if value is not None}
 
 
-def load_bookmarks(plugin_dir: str | Path) -> dict[str, Any]:
-    path = resolve_rs_api(plugin_dir)
-    module = _load_rs_api(path)
+def load_bookmarks(
+    plugin_dir: str | Path,
+    *,
+    path: Path | None = None,
+    module: ModuleType | None = None,
+    revision_before: Any = None,
+) -> dict[str, Any]:
+    path = path or resolve_rs_api(plugin_dir)
+    module = module or _load_rs_api(path)
+
+    if revision_before is None:
+        revision_before = _api_revision(module)
 
     try:
         bookmarks = module.bookmarks()
@@ -218,10 +315,7 @@ def load_bookmarks(plugin_dir: str | Path) -> dict[str, Any]:
         except RhinoSpotterError:
             errors += 1
 
-    try:
-        api_version = str(module.version())
-    except Exception:
-        api_version = ""
+    revision_after = _api_revision(module)
 
     return {
         "records_found": len(bookmarks),
@@ -229,15 +323,56 @@ def load_bookmarks(plugin_dir: str | Path) -> dict[str, Any]:
         "read_errors": errors,
         "radius_inferred": inferred,
         "radius_missing": missing_radius,
-        "api_version": api_version,
+        "api_version": _api_version(module),
         "api_schema": getattr(module, "SCHEMA", None),
+        "revision_before": revision_before,
+        "revision": revision_after,
+        "revision_stable": (
+            revision_before is not None
+            and revision_after is not None
+            and revision_before == revision_after
+        ),
         "records": records,
     }
 
 
 def sync_bookmarks(plugin_dir: str | Path) -> dict[str, Any]:
-    loaded = load_bookmarks(plugin_dir)
+    path = resolve_rs_api(plugin_dir)
+    module = _load_rs_api(path)
+    revision_before = _api_revision(module)
+    state = _get_sync_state_entry(path)
+
+    # RhinoSpotter 5.5.1 revision() can miss edits to arbitrary rows because
+    # its current aggregate revision is not a complete content hash. Always
+    # read the local bookmarks and let stable-id fingerprints decide what
+    # needs uploading. This still avoids all Community Deposits/D1 work when
+    # nothing changed.
+    loaded = load_bookmarks(
+        plugin_dir,
+        path=path,
+        module=module,
+        revision_before=revision_before,
+    )
     records = loaded["records"]
+
+    previous_fingerprints = state.get("fingerprints", {})
+    if not isinstance(previous_fingerprints, dict):
+        previous_fingerprints = {}
+
+    current_fingerprints: dict[str, str] = {}
+    records_to_send: list[dict[str, Any]] = []
+    for record in records:
+        key = _record_state_key(record)
+        fingerprint = _record_fingerprint(record)
+        current_fingerprints[key] = fingerprint
+        if previous_fingerprints.get(key) != fingerprint:
+            records_to_send.append(record)
+
+    systems = sorted({
+        str(record.get("system")).strip()
+        for record in records
+        if record.get("system")
+    }, key=str.casefold)
 
     summary = {
         "records_found": loaded["records_found"],
@@ -247,26 +382,38 @@ def sync_bookmarks(plugin_dir: str | Path) -> dict[str, Any]:
         "radius_missing": loaded["radius_missing"],
         "api_version": loaded["api_version"],
         "api_schema": loaded["api_schema"],
-        "systems": sorted({
-            str(record.get("system")).strip()
-            for record in records
-            if record.get("system")
-        }, key=str.casefold),
+        "revision": loaded.get("revision"),
+        "revision_unchanged": bool(
+            state.get("complete")
+            and state.get("revision") == loaded.get("revision")
+        ),
+        "records_sent": len(records_to_send),
+        "local_unchanged": max(0, len(records) - len(records_to_send)),
+        "removed_local": len(
+            set(previous_fingerprints)
+            - set(current_fingerprints)
+        ),
+        "systems": systems,
         "inserted": 0,
         "matched": 0,
         "updated": 0,
         "unchanged": 0,
         "changed_systems": [],
         "errors": loaded["read_errors"],
+        "state_saved": False,
     }
 
     changed_systems: set[str] = set()
+    successful_keys: set[str] = set()
 
-    for batch in chunks(records):
-        systems_by_report = {
-            str(record.get("report_id")): str(record.get("system")).strip()
+    for batch in chunks(records_to_send):
+        metadata_by_report = {
+            str(record.get("report_id")): (
+                str(record.get("system")).strip(),
+                _record_state_key(record),
+            )
             for record in batch
-            if record.get("report_id") and record.get("system")
+            if record.get("report_id")
         }
 
         result = send_deposit_batch(batch)
@@ -291,11 +438,50 @@ def sync_bookmarks(plugin_dir: str | Path) -> dict[str, Any]:
             elif action == "unchanged":
                 summary["unchanged"] += 1
 
-            if action in {"inserted", "matched_existing_deposit", "updated_report"}:
-                report_id = item.get("report_id")
-                system = systems_by_report.get(str(report_id))
-                if system:
+            report_id = str(item.get("report_id") or "")
+            metadata_item = metadata_by_report.get(report_id)
+            if metadata_item is not None:
+                system, state_key = metadata_item
+                successful_keys.add(state_key)
+
+                if action in {
+                    "inserted",
+                    "matched_existing_deposit",
+                    "updated_report",
+                } and system:
                     changed_systems.add(system)
 
     summary["changed_systems"] = sorted(changed_systems, key=str.casefold)
+
+    complete = summary["errors"] == 0 and bool(
+        loaded.get("revision_stable")
+    )
+
+    if summary["errors"] == 0:
+        saved_fingerprints = current_fingerprints
+    else:
+        saved_fingerprints = dict(previous_fingerprints)
+        for key in successful_keys:
+            if key in current_fingerprints:
+                saved_fingerprints[key] = current_fingerprints[key]
+
+    state_entry = {
+        "complete": complete,
+        "revision": loaded.get("revision") if complete else None,
+        "records_found": loaded["records_found"],
+        "records_valid": loaded["records_valid"],
+        "radius_inferred": loaded["radius_inferred"],
+        "radius_missing": loaded["radius_missing"],
+        "systems": systems,
+        "fingerprints": saved_fingerprints,
+    }
+
+    try:
+        _save_sync_state_entry(path, state_entry)
+    except OSError as exc:
+        summary["state_error"] = str(exc)
+    else:
+        summary["state_saved"] = True
+
     return summary
+
