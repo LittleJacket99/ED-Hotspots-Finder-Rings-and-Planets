@@ -20,6 +20,7 @@ COMMUNITY_HEADERS = [
     "Rigs",
     "Amount",
     "Density",
+    "Depleted at",
     "Latitude",
     "Longitude",
     "Reports",
@@ -86,6 +87,11 @@ def _normalise_rows(raw_rows, requested_system=None):
             "Rigs": _first_value(item, ("rigs",)),
             "Amount": _first_value(item, ("amount",)),
             "Density": _first_value(item, ("density",)),
+            "Depleted at": _first_value(
+                item,
+                ("depleted_at",),
+                "Active",
+            ),
             "Latitude": _first_value(item, ("latitude", "lat")),
             "Longitude": _first_value(item, ("longitude", "lon", "lng")),
             "Reports": _first_value(
