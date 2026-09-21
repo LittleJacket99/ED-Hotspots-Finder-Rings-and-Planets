@@ -17,7 +17,7 @@ Both clients use the same **Community Deposits** service and the same public rel
 - Powerplay-oriented research;
 - result sorting, column filtering and CSV/XLSX export;
 - RhinoSpotter contribution synchronization;
-- Community Deposits results including Location, Rigs, Amount, Density and update information.
+- Community Deposits results including Location, Rigs, Amount, Density, depletion status and update information.
 
 ### Hotspots Finder EDMC Plugin
 
@@ -141,11 +141,13 @@ If RhinoSpotter is missing, **Sync Bookmarks** reports that RhinoSpotter 5.1+ mu
 The Community Deposits results window:
 
 - inherits the current EDMC colour theme;
-- shows **Body, Location, Material, Rigs, Amount, Density, Latitude, Longitude, Reports and Updated**;
+- shows **Body, Location, Material, Rigs, Amount, Density, Depleted at, Latitude, Longitude, Reports and Updated**;
 - displays up to 10 rows before adding a vertical scrollbar;
 - provides **Start Tracking** for the selected deposit.
 
 The **Location** value comes from the RhinoSpotter bookmark location index stored by Community Deposits.
+
+**Depleted at** shows **Active** while the shared deposit is active. When a commander marks the RhinoSpotter bookmark depleted and synchronizes it, the column shows the depletion timestamp as `YYYY-MM-DD HH:MM:SS`. If the bookmark is later set active again and synchronized, the value returns to **Active**.
 
 ## Navigator HUD
 
