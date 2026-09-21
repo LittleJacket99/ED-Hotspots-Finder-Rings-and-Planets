@@ -41,6 +41,7 @@ Returned information can include:
 - Rigs;
 - Amount;
 - Density;
+- depletion state / **Depleted at**;
 - latitude and longitude;
 - report count;
 - Updated timestamp.
@@ -107,6 +108,17 @@ Current meaningful mutable fields for synchronized RhinoSpotter bookmarks are:
 - depletion state.
 
 Technical metadata such as a previously missing body ID or planet radius may be completed without being treated as a meaningful deposit update.
+
+## Depletion state
+
+RhinoSpotter records depletion as a timestamp rather than only a yes/no flag. Community Deposits stores this as `depleted_at`.
+
+In Finder and EDMC result tables:
+
+- an active deposit is displayed as **Active**;
+- a depleted deposit is displayed with its depletion time as `YYYY-MM-DD HH:MM:SS`.
+
+A commander can mark a RhinoSpotter bookmark **depleted**, synchronize it, and publish that state to Community Deposits. If the deposit is later found active again, setting the RhinoSpotter bookmark active and synchronizing it clears `depleted_at` in the shared record.
 
 ## Location
 
