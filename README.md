@@ -88,7 +88,7 @@ It is designed for the actions that are most useful while Elite Dangerous is run
 - **Scan System** for Community Deposits in the current EDMC system;
 - reopen cached results with **Open Deposits** without unnecessary repeat requests;
 - use **Refresh Deposits** when relevant synchronized data changed;
-- view **Body, Location, Material, Rigs, Amount, Density, Latitude, Longitude, Reports and Updated**;
+- view **Body, Location, Material, Rigs, Amount, Density, Depleted at, Latitude, Longitude, Reports and Updated**;
 - select a deposit and use **Start Tracking** to open the compact navigation HUD;
 - see the target body, material, RhinoSpotter **Location**, relative direction and altitude-aware distance while approaching the deposit;
 - launch the desktop Finder directly with **Open Finder**.
