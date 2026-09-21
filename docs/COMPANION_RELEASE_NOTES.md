@@ -9,6 +9,9 @@ First public release of **Hotspots Finder EDMC Plugin**, included in the unified
 ### Features
 
 - Synchronize RhinoSpotter 5.1+ bookmarks through the documented `rs_api.py` interface.
+- Add local fingerprint-based delta synchronization so unchanged bookmarks are skipped before any Community Deposits request.
+- Share the same `%APPDATA%\HotspotsFinder\rhinospotter_sync_state.json` state with the desktop Finder.
+- Use stable RhinoSpotter bookmark IDs plus local fingerprints to detect edits, while keeping `revision()` as metadata rather than the sole sync gate.
 - Preserve stable RhinoSpotter bookmark identity when editable bookmark values change.
 - Allow **Location**, **Material**, **Rigs**, **Amount**, **Density** and depletion state to update an existing synchronized report without creating a duplicate.
 - Keep compatibility with previously synchronized reports.
@@ -36,7 +39,7 @@ Repeated synchronization of an unchanged RhinoSpotter report does not intentiona
 
 Meaningful mutable fields include **Location**, **Material**, **Rigs**, **Amount**, **Density** and depletion state.
 
-Compatibility was verified with RhinoSpotter 5.4 using API `SCHEMA = 1`.
+Compatibility was verified with RhinoSpotter 5.5.1 using API `SCHEMA = 1`.
 
 ### Installation
 

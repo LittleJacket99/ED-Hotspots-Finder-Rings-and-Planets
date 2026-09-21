@@ -51,7 +51,7 @@ Instead of checking systems one by one across different tools, ED Hotspots Finde
 - Search planets by body type, landability and volcanism.
 - View arrival-distance and other body information where available.
 - Search the shared **Community Deposits** database.
-- Synchronize compatible RhinoSpotter discoveries with the community database.
+- Synchronize compatible RhinoSpotter discoveries with the community database, uploading only new or modified bookmarks after the local sync state has been initialized.
 - Sort and filter result tables directly inside the application.
 - Export results to **CSV** and **XLSX**.
 - Expand or restore the results area and open the detailed activity log.
@@ -83,7 +83,7 @@ The **Hotspots Finder EDMC Plugin**, displayed inside EDMC as **Hotspots Finder 
 
 It is designed for the actions that are most useful while Elite Dangerous is running:
 
-- **Sync Bookmarks** upload your bookmarks through RhinoSpotter 5.1+ `rs_api.py`;
+- **Sync Bookmarks** reads RhinoSpotter 5.1+ through `rs_api.py`, compares bookmarks locally by stable ID and fingerprint, and uploads only new or modified records;
 - **Scan System** for Community Deposits in the current EDMC system;
 - reopen cached results with **Open Deposits** without unnecessary repeat requests;
 - use **Refresh Deposits** when relevant synchronized data changed;
@@ -245,6 +245,14 @@ Application settings are stored locally in:
 
 Current settings include startup filter defaults, RhinoSpotter options, theme and UI scale.
 
+RhinoSpotter synchronization also keeps a compact local state file at:
+
+```text
+%APPDATA%\HotspotsFinder\rhinospotter_sync_state.json
+```
+
+It stores synchronization metadata and bookmark fingerprints so unchanged bookmarks can be skipped before any Community Deposits request is made.
+
 **Troubleshooting**
 
 
@@ -321,7 +329,7 @@ The application may make network requests to:
 - **Spansh** for Elite Dangerous system/body data and system-name resolution.
 - **ED Alliance Community Deposits** for community deposit retrieval and RhinoSpotter report synchronization.
 
-Application settings remain local in `%APPDATA%\HotspotsFinder\config.json`.
+Application settings remain local in `%APPDATA%\HotspotsFinder\config.json`. RhinoSpotter delta-sync state is also stored locally in `%APPDATA%\HotspotsFinder\rhinospotter_sync_state.json`; the cache stores synchronization metadata and hashes rather than a second copy of bookmark coordinates.
 
 **Related projects and data sources**
 

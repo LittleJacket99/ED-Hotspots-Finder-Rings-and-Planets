@@ -10,7 +10,6 @@ from rhinospotter_sync import (
     MAX_BATCH_SIZE,
     chunks,
     get_sync_state_entry,
-    inspect_rs_api_metadata,
     load_rhinospotter_records,
     record_fingerprint,
     record_state_key,
@@ -68,13 +67,11 @@ def inspect_source(data_path=None):
 def sync_bookmarks(data_path=None):
     """Synchronize only new or changed RhinoSpotter bookmarks.
 
-    RhinoSpotter 5.1+ exposes a cheap revision() value. When the revision is
-    unchanged since the last complete sync, no bookmarks are read and no
-    request is sent to Community Deposits.
-
-    When the revision changed (or is unavailable), fingerprints are compared
-    locally by stable RhinoSpotter bookmark id and only new/modified records
-    are uploaded. SQLite/JSON fallbacks use fingerprints without revision().
+    Bookmarks are read locally, compared by stable identity and fingerprint,
+    and only new/modified records are uploaded. RhinoSpotter revision() is
+    retained as metadata but is not used as the sole skip condition because
+    its aggregate value may remain unchanged after an edit to an arbitrary
+    bookmark row. SQLite/JSON fallbacks use the same fingerprint filtering.
     """
 
     source_type, source_path = resolve_source(data_path)

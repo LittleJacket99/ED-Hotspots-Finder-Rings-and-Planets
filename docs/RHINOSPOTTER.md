@@ -41,9 +41,9 @@ Current RhinoSpotter releases expose a documented external API through:
 %LOCALAPPDATA%\EDMarketConnector\plugins\RhinoSpotter\rs_api.py
 ```
 
-The integration uses `rs_api.bookmarks()` and currently supports RhinoSpotter API `SCHEMA = 1`.
+The integration uses `rs_api.bookmarks()` and reads `rs_api.revision()` as synchronization metadata. It currently supports RhinoSpotter API `SCHEMA = 1`.
 
-Using the documented API avoids depending on RhinoSpotter's private storage implementation.
+Using the documented API avoids depending on RhinoSpotter's private storage implementation. Compatibility has been verified with RhinoSpotter 5.5.1.
 
 ## ED Hotspots Finder behavior
 
@@ -62,10 +62,12 @@ The completion summary reports values such as:
 
 - bookmarks found;
 - valid records;
+- locally unchanged/skipped bookmarks;
+- bookmarks sent;
 - new deposits;
 - reports matched to existing deposits;
 - updated reports;
-- unchanged reports;
+- server-unchanged reports;
 - errors.
 
 ## EDMC Plugin behavior
@@ -75,6 +77,24 @@ The **Hotspots Finder EDMC Plugin** intentionally uses RhinoSpotter 5.1+ `rs_api
 Use **Sync Bookmarks** inside EDMC to send compatible bookmarks to Community Deposits.
 
 RhinoSpotter is not required for the plugin's Community Deposits lookup or navigation features. If RhinoSpotter is missing or too old, only bookmark synchronization is unavailable.
+
+## Delta synchronization
+
+Finder and EDMC keep a shared local synchronization state at:
+
+```text
+%APPDATA%\HotspotsFinder\rhinospotter_sync_state.json
+```
+
+On the first successful synchronization, compatible bookmarks are sent normally and a fingerprint is saved for each stable RhinoSpotter bookmark ID.
+
+On later synchronizations, the clients still read the local RhinoSpotter bookmarks but compare them locally first. Only bookmarks whose fingerprint is new or different are sent to Community Deposits. Unchanged bookmarks therefore cause no Community Deposits POST and no per-report D1 matching work.
+
+`rs_api.revision()` is recorded as useful metadata, but it is not trusted as the sole condition for skipping bookmark reads. The current RhinoSpotter 5.5.1 implementation derives that value from aggregate database values rather than a complete per-row content hash, so a bookmark edit can leave the revision unchanged. Stable-ID fingerprints are therefore the authoritative change detector.
+
+If writing the local sync-state file fails, the server synchronization result is not discarded; a later sync may simply resend records that could not be cached locally. Server-side stable report identity keeps that retry safe.
+
+Deleting a RhinoSpotter bookmark removes it from the local comparison state on the next successful sync, but does not by itself delete an already shared Community Deposits report.
 
 ## Stable report identity
 

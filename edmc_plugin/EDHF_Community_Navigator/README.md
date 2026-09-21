@@ -10,7 +10,7 @@ The desktop application remains the main multi-system search and analysis client
 
 ## Current functionality
 
-- **Sync Bookmarks** — reads RhinoSpotter 5.1+ through its documented `rs_api.py` interface and synchronizes compatible bookmarks with Community Deposits.
+- **Sync Bookmarks** — reads RhinoSpotter 5.1+ through its documented `rs_api.py` interface, compares local stable-ID fingerprints and sends only new or modified bookmarks to Community Deposits.
 - **Scan System** — queries Community Deposits for the system currently reported by EDMC.
 - **Open Deposits** — reopens the cached result snapshot without another API request.
 - **Refresh Deposits** — appears when a synchronization changed relevant data for the currently cached system.
@@ -23,7 +23,11 @@ The desktop application remains the main multi-system search and analysis client
 - **Open Finder** — launches the configured desktop Finder executable.
 - Automatic update check on EDMC startup using the same GitHub release channel as the Finder.
 
-Synchronization responses distinguish new, matched, updated and unchanged reports so a repeated sync does not falsely refresh every deposit's update time.
+Synchronization uses a shared local state file at `%APPDATA%\HotspotsFinder\rhinospotter_sync_state.json`. After the first successful sync, unchanged bookmarks are skipped locally; only new or fingerprint-changed bookmarks are sent to Community Deposits.
+
+RhinoSpotter `revision()` is retained as metadata, but stable-ID fingerprints are the authoritative change detector so edits are not missed when the revision value itself does not change.
+
+Server responses still distinguish new, matched, updated and unchanged reports, and an unchanged report does not falsely refresh the deposit's update time.
 
 Community Deposits treats **Location**, **Material**, **Rigs**, **Amount**, **Density** and depletion state as meaningful mutable fields for synchronized RhinoSpotter bookmarks.
 

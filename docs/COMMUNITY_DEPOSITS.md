@@ -20,8 +20,8 @@ The intended workflow is:
 
 1. A commander discovers a planetary surface deposit.
 2. The location is recorded with RhinoSpotter.
-3. ED Hotspots Finder or the Hotspots Finder EDMC Plugin synchronizes compatible bookmarks.
-4. Community Deposits inserts a new deposit, matches the report to an existing nearby deposit, updates an existing report, or marks it unchanged.
+3. ED Hotspots Finder or the Hotspots Finder EDMC Plugin compares compatible bookmarks with the local sync state and sends only new or modified records.
+4. Community Deposits inserts a new deposit, matches the report to an existing nearby deposit, updates an existing report, or marks a sent report unchanged.
 5. Other commanders can retrieve the shared deposit through the desktop Finder or the EDMC Plugin.
 
 ## Searching from ED Hotspots Finder
@@ -86,6 +86,8 @@ See [RhinoSpotter integration](RHINOSPOTTER.md) for the detailed workflow.
 
 Each synchronized RhinoSpotter bookmark receives a stable `report_id`.
 
+Finder and EDMC also keep local fingerprints keyed by stable RhinoSpotter bookmark identity. After the first successful synchronization, unchanged bookmarks are normally filtered locally and do not generate a Community Deposits POST or per-report D1 work.
+
 The backend distinguishes:
 
 - `inserted`;
@@ -115,6 +117,8 @@ Both the Finder and the EDMC Plugin expose this value as **Location** in results
 ## Nearby-report matching
 
 When a new report does not already have a known stable report identity, the backend can match it to an existing deposit at the same body/material when the coordinates are within the configured nearby-distance threshold.
+
+Candidate lookup combines technical Journal identifiers (`system_address` / `body_id`) when available with the canonical system/body/material lookup. This keeps older RhinoSpotter deposits that do not yet carry the technical IDs eligible for the same nearby-distance match.
 
 This allows multiple reports to contribute to the same physical deposit rather than creating unnecessary duplicates.
 

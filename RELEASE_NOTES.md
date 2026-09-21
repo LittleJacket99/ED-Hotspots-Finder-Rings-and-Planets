@@ -16,8 +16,13 @@ The desktop Finder and the EDMC plugin share the same Community Deposits service
 - RhinoSpotter 5.3/5.4 editable bookmark fields are supported: **Location**, **Material**, **Rigs**, **Amount**, **Density** and depletion state can update an existing synchronized report without creating a duplicate.
 - Existing reports created before the RhinoSpotter 5.3/5.4 compatibility update remain compatible with the current identity logic.
 - Synchronization now distinguishes **new**, **matched**, **updated** and **unchanged** reports.
+- Added local delta synchronization: after the first successful sync, bookmark fingerprints are stored locally and only new or modified bookmarks are sent to Community Deposits.
+- Unchanged bookmarks are filtered before the HTTP request, reducing Community Deposits Worker/D1 work on repeated syncs.
+- RhinoSpotter bookmark `id` is used as the stable local comparison key when available.
+- RhinoSpotter `revision()` is retained as diagnostic metadata but is not used as the sole skip condition; fingerprints remain authoritative so edits are not missed.
+- The shared Finder/EDMC sync state is stored in `%APPDATA%\HotspotsFinder\rhinospotter_sync_state.json`.
 - Re-synchronizing an unchanged report no longer intentionally advances the deposit's visible **Updated** time on the Community Deposits service.
-- Compatibility was verified with RhinoSpotter 5.4 using API `SCHEMA = 1`.
+- Compatibility was verified with RhinoSpotter 5.5.1 using API `SCHEMA = 1`.
 - Added the missing **Location** column to Community Deposits results.
 - Enabled **Check for updates on startup** and added a direct GitHub repository link in Settings.
 - Standardized Community Deposits dialogs on the public application title.
@@ -34,6 +39,8 @@ Hotspots-Finder-EDMC-Plugin-v1.0.2.zip
 Main features:
 
 - **Sync Bookmarks** through RhinoSpotter 5.1+ `rs_api.py`.
+- Local fingerprint-based delta sync uploads only new or modified RhinoSpotter bookmarks after initialization.
+- Finder and EDMC share the same local sync-state file, so either client can continue from the latest successful synchronization state.
 - **Scan System** for Community Deposits in the current Elite Dangerous system.
 - Cached **Open Deposits** without unnecessary repeat API requests.
 - **Refresh Deposits** only when relevant synchronized data changed.

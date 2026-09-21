@@ -59,7 +59,7 @@ Navigator HUD
 
 The plugin exposes three compact actions inside EDMC:
 
-- **Sync Bookmarks** — reads RhinoSpotter 5.1+ through its documented `rs_api.py` interface and synchronizes compatible bookmarks.
+- **Sync Bookmarks** — reads RhinoSpotter 5.1+ through its documented `rs_api.py` interface, compares stable bookmark fingerprints locally and sends only new or modified bookmarks.
 - **Scan System** — queries Community Deposits for the system currently reported by EDMC.
 - **Open Finder** — launches the configured ED Hotspots Finder executable.
 
@@ -89,6 +89,16 @@ Closing the results window does not force another API query while the commander 
 
 A stable `report_id` is generated for each RhinoSpotter bookmark so repeated synchronization does not intentionally create duplicate report identities.
 
+Before contacting Community Deposits, the plugin compares each bookmark against a shared local fingerprint cache:
+
+```text
+%APPDATA%\HotspotsFinder\rhinospotter_sync_state.json
+```
+
+After the initial synchronization, unchanged bookmarks are skipped locally. If one bookmark is edited, only that changed bookmark is uploaded. The desktop Finder uses the same state file.
+
+RhinoSpotter `revision()` is retained as metadata, but it is not used as the sole skip condition because an unchanged revision value is not sufficient to prove that every bookmark row is unchanged. Stable-ID fingerprints are the authoritative comparison.
+
 The Community Deposits backend distinguishes:
 
 - `inserted` — a new deposit/report;
@@ -96,7 +106,7 @@ The Community Deposits backend distinguishes:
 - `updated_report` — an existing report whose meaningful mutable state changed;
 - `unchanged` — the same report was synchronized again without a meaningful change.
 
-Repeated syncs therefore do not refresh the visible **Updated** timestamp just because the user pressed **Sync Bookmarks**.
+A bookmark that is unchanged locally normally never reaches the backend at all. If a record is sent and the backend still determines that it is unchanged, repeated synchronization does not refresh the visible **Updated** timestamp just because the user pressed **Sync Bookmarks**.
 
 Current deposit update policy for synchronized RhinoSpotter bookmarks:
 
