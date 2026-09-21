@@ -439,14 +439,9 @@ class FinderV8CommunityApp(FinderV8App):
                 community_rows,
             )
 
-        revision_unchanged = bool(summary.get("revision_unchanged"))
         records_sent = int(summary.get("records_sent", 0) or 0)
 
-        if revision_unchanged:
-            self._finish_rhino_upload(
-                "No RhinoSpotter changes since last sync"
-            )
-        elif records_sent == 0:
+        if records_sent == 0:
             self._finish_rhino_upload(
                 "No new or modified RhinoSpotter bookmarks"
             )
@@ -463,12 +458,7 @@ class FinderV8CommunityApp(FinderV8App):
             source_label = "SQLite database"
         else:
             source_label = "Legacy JSON cards"
-        if revision_unchanged:
-            detail = (
-                "RhinoSpotter has not changed since the last successful sync.\n"
-                "Nothing was uploaded to Community Deposits."
-            )
-        elif records_sent == 0:
+        if records_sent == 0:
             detail = (
                 "No new or modified bookmarks required an upload.\n"
                 "Nothing was sent to Community Deposits."
