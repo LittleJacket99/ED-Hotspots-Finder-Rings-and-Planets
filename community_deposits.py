@@ -57,6 +57,21 @@ def _first_value(item, keys, default=""):
     return default
 
 
+def _format_depleted_at(value):
+    if value in (None, ""):
+        return "Active"
+
+    text = str(value).strip().replace("T", " ")
+    if text.endswith("Z"):
+        text = text[:-1]
+
+    # Display Community Deposits timestamps consistently with Updated:
+    # YYYY-MM-DD HH:MM:SS. Keep the full value in the API/database.
+    if len(text) >= 19:
+        return text[:19]
+    return text
+
+
 def _normalise_rows(raw_rows, requested_system=None):
     """Return only user-facing Community Deposits columns."""
 
@@ -87,10 +102,8 @@ def _normalise_rows(raw_rows, requested_system=None):
             "Rigs": _first_value(item, ("rigs",)),
             "Amount": _first_value(item, ("amount",)),
             "Density": _first_value(item, ("density",)),
-            "Depleted at": _first_value(
-                item,
-                ("depleted_at",),
-                "Active",
+            "Depleted at": _format_depleted_at(
+                item.get("depleted_at"),
             ),
             "Latitude": _first_value(item, ("latitude", "lat")),
             "Longitude": _first_value(item, ("longitude", "lon", "lng")),
